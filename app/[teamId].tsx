@@ -1,27 +1,33 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  Dimensions,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StadiumAnimation } from '@/components/StadiumAnimation';
+import { TournamentStages } from '@/components/TournamentStages';
+import { PlayerList } from '@/components/PlayerList';
 import { useRoar } from '@/hooks/useRoar';
 import { TEAMS } from '@/data/teams';
 import { fetchTeamSchedule, formatInTimeZone, type TeamMatch } from '@/data/schedule';
-
-const { width } = Dimensions.get('window');
+import { fetchTeamPlayers, type Player } from '@/data/players';
 
 export default function TeamScreen() {
   const { teamId } = useLocalSearchParams<{ teamId: string }>();
   const router = useRouter();
   const { play, isPlaying } = useRoar();
+  const { width } = useWindowDimensions();
+
+  const flagSize = Math.min(width * 0.26, 112);
+  const teamTitleOffset = Math.min(width * 0.34, 132);
 
   const team = TEAMS.find((t) => t.id === teamId);
   const deviceTimeZone =
@@ -30,39 +36,113 @@ export default function TeamScreen() {
   const [schedule, setSchedule] = useState<TeamMatch[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const scoreByFixtureRef = useRef<Record<string, number>>({});
+  const [tipsByMatch, setTipsByMatch] = useState<
+    Record<string, { home: string; away: string }>
+  >({});
 
-  const loadSchedule = useCallback(async () => {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [playersLoading, setPlayersLoading] = useState(false);
+  const [playersError, setPlayersError] = useState<string | null>(null);
+
+  const setTipValue = useCallback(
+    (matchId: string, side: 'home' | 'away', value: string) => {
+      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
+      setTipsByMatch((prev) => ({
+        ...prev,
+        [matchId]: {
+          home: prev[matchId]?.home ?? '',
+          away: prev[matchId]?.away ?? '',
+          [side]: cleaned,
+        },
+      }));
+    },
+    []
+  );
+
+  const loadSchedule = useCallback(async (options?: {
+    showLoader?: boolean;
+    detectGoals?: boolean;
+  }) => {
+    const showLoader = options?.showLoader ?? true;
+    const detectGoals = options?.detectGoals ?? false;
+
     if (!team) {
       setSchedule([]);
       return;
     }
 
-    setScheduleLoading(true);
+    if (showLoader) {
+      setScheduleLoading(true);
+    }
     setScheduleError(null);
     try {
       const fixtures = await fetchTeamSchedule(team.id);
+      if (detectGoals) {
+        const goalDetected = fixtures.some((fixture) => {
+          const prevTotal = scoreByFixtureRef.current[fixture.id];
+          const nextTotal = fixture.homeScore + fixture.awayScore;
+          return prevTotal !== undefined && nextTotal > prevTotal;
+        });
+        if (goalDetected) {
+          play();
+        }
+      }
+
+      scoreByFixtureRef.current = fixtures.reduce<Record<string, number>>(
+        (acc, fixture) => {
+          acc[fixture.id] = fixture.homeScore + fixture.awayScore;
+          return acc;
+        },
+        {}
+      );
       setSchedule(fixtures);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load schedule';
       setScheduleError(message);
     } finally {
-      setScheduleLoading(false);
+      if (showLoader) {
+        setScheduleLoading(false);
+      }
+    }
+  }, [team, play]);
+
+  const loadPlayers = useCallback(async () => {
+    if (!team) {
+      setPlayers([]);
+      return;
+    }
+
+    setPlayersLoading(true);
+    setPlayersError(null);
+    try {
+      const playerList = await fetchTeamPlayers(team.id);
+      setPlayers(playerList);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load players';
+      setPlayersError(message);
+      setPlayers([]);
+    } finally {
+      setPlayersLoading(false);
     }
   }, [team]);
-
-  const handleRoarPress = useCallback(() => {
-    play();
-    void loadSchedule();
-  }, [play, loadSchedule]);
 
   useEffect(() => {
     if (!team) {
       return;
     }
 
+    scoreByFixtureRef.current = {};
     play();
-    void loadSchedule();
-  }, [team, play, loadSchedule]);
+    void loadSchedule({ showLoader: true, detectGoals: false });
+    void loadPlayers();
+
+    const interval = setInterval(() => {
+      void loadSchedule({ showLoader: false, detectGoals: true });
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [team, play, loadSchedule, loadPlayers]);
 
   if (!team) {
     return (
@@ -107,6 +187,7 @@ export default function TeamScreen() {
           )}
 
           {schedule.map((match) => {
+            const tip = tipsByMatch[match.id] ?? { home: '', away: '' };
             return (
               <View key={match.id} style={styles.matchCard}>
                 <View style={styles.matchTopRow}>
@@ -114,13 +195,43 @@ export default function TeamScreen() {
                     {match.stage}{match.round ? ` · ${match.round}` : ''}
                   </Text>
                   <Text style={styles.versus}>
-                    {match.homeTeam.name} vs {match.awayTeam.name}
+                    {match.homeTeam.name} {match.homeScore} - {match.awayScore} {match.awayTeam.name}
                   </Text>
                 </View>
 
                 <Text style={styles.venueLine}>
                   {match.venue.name}, {match.venue.city}, {match.venue.country}
                 </Text>
+
+                <View style={styles.resultBlock}>
+                  <Text style={styles.resultLabel}>Ergebnis</Text>
+                  <Text style={styles.resultValue}>
+                    {match.homeTeam.name} {match.homeScore} - {match.awayScore} {match.awayTeam.name}
+                  </Text>
+                </View>
+
+                <View style={styles.tipBlock}>
+                  <Text style={styles.tipLabel}>Dein Tipp</Text>
+                  <View style={styles.tipRow}>
+                    <TextInput
+                      value={tip.home}
+                      onChangeText={(v) => setTipValue(match.id, 'home', v)}
+                      keyboardType="number-pad"
+                      placeholder="0"
+                      placeholderTextColor="#809b82"
+                      style={styles.tipInput}
+                    />
+                    <Text style={styles.tipDash}>-</Text>
+                    <TextInput
+                      value={tip.away}
+                      onChangeText={(v) => setTipValue(match.id, 'away', v)}
+                      keyboardType="number-pad"
+                      placeholder="0"
+                      placeholderTextColor="#809b82"
+                      style={styles.tipInput}
+                    />
+                  </View>
+                </View>
 
                 <View style={styles.timeBlock}>
                   <Text style={styles.timeLabel}>Venue time ({match.venue.timeZone})</Text>
@@ -139,26 +250,27 @@ export default function TeamScreen() {
             );
           })}
 
+          <TournamentStages />
+
+          <PlayerList
+            players={players}
+            isLoading={playersLoading}
+            error={playersError}
+          />
+
           <View style={styles.hero}>
             <StadiumAnimation isPlaying={isPlaying} />
 
             <View style={styles.flagContainer}>
-              <Text style={styles.flag}>{team.flag}</Text>
+              <Text style={[styles.flag, { fontSize: flagSize }]}>{team.flag}</Text>
             </View>
 
-            <Text style={styles.teamName}>{team.name}</Text>
+            <Text style={[styles.teamName, { marginTop: teamTitleOffset }]}>{team.name}</Text>
             <Text style={styles.region}>{team.region}</Text>
 
-            <TouchableOpacity
-              style={[styles.roarButton, isPlaying && styles.roarButtonActive]}
-              onPress={handleRoarPress}
-              disabled={isPlaying}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.roarButtonText}>
-                {isPlaying ? '📣 ROARING...' : '📣 ROAR AGAIN'}
-              </Text>
-            </TouchableOpacity>
+            <Text style={styles.goalHint}>
+              WAV plays once on selection and automatically on goals.
+            </Text>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -174,6 +286,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingHorizontal: 16,
     paddingBottom: 32,
   },
   notFound: {
@@ -198,9 +311,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   hero: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     paddingTop: 4,
   },
   flagContainer: {
@@ -209,14 +323,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flag: {
-    fontSize: Math.min(width * 0.28, 120),
+    textAlign: 'center',
   },
   teamName: {
     color: '#ffffff',
     fontSize: 28,
     fontWeight: '800',
     textAlign: 'center',
-    marginTop: width * 0.38,
+    width: '100%',
     letterSpacing: 0.5,
   },
   region: {
@@ -228,27 +342,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 20,
   },
-  roarButton: {
-    backgroundColor: '#1e5c1e',
-    paddingHorizontal: 36,
-    paddingVertical: 16,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: '#4caf50',
-  },
-  roarButtonActive: {
-    backgroundColor: '#0a2e0a',
-    borderColor: '#2e7d32',
-  },
-  roarButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 1,
+  goalHint: {
+    marginTop: 12,
+    color: '#9cd6a0',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   scheduleHeaderCard: {
     marginTop: 22,
-    marginHorizontal: 18,
+    width: '100%',
     padding: 14,
     borderRadius: 12,
     backgroundColor: 'rgba(12, 18, 16, 0.82)',
@@ -267,7 +370,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   scheduleError: {
-    marginHorizontal: 18,
+    width: '100%',
     marginTop: 12,
     padding: 12,
     backgroundColor: '#2e0a0a',
@@ -287,7 +390,7 @@ const styles = StyleSheet.create({
   },
   matchCard: {
     marginTop: 12,
-    marginHorizontal: 18,
+    width: '100%',
     padding: 14,
     borderRadius: 12,
     backgroundColor: 'rgba(10, 10, 10, 0.86)',
@@ -309,11 +412,70 @@ const styles = StyleSheet.create({
     color: '#f5f5f5',
     fontSize: 16,
     fontWeight: '700',
+    flexShrink: 1,
   },
   venueLine: {
     color: '#afafaf',
     fontSize: 13,
     marginBottom: 10,
+  },
+  resultBlock: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    marginBottom: 8,
+  },
+  resultLabel: {
+    color: '#9cd6a0',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  resultValue: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  tipBlock: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#2b3a2c',
+    marginBottom: 8,
+  },
+  tipLabel: {
+    color: '#a7c9a9',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  tipInput: {
+    width: 56,
+    height: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a5040',
+    backgroundColor: '#111713',
+    color: '#ffffff',
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  tipDash: {
+    color: '#d7e3d8',
+    fontSize: 20,
+    fontWeight: '700',
+    marginHorizontal: 10,
   },
   timeBlock: {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
