@@ -12,6 +12,7 @@ interface PlayerListProps {
   players: Player[];
   isLoading?: boolean;
   error?: string | null;
+  trainerName?: string | null;
 }
 
 const POSITION_COLORS: Record<string, string> = {
@@ -37,7 +38,7 @@ function getPositionShort(position: string): string {
   return map[position] || position.slice(0, 3).toUpperCase();
 }
 
-export function PlayerList({ players, isLoading = false, error }: PlayerListProps) {
+export function PlayerList({ players, isLoading = false, error, trainerName }: PlayerListProps) {
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -72,6 +73,7 @@ export function PlayerList({ players, isLoading = false, error }: PlayerListProp
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Squad ({players.length} players)</Text>
+        {trainerName ? <Text style={styles.trainerText}>Trainer: {trainerName}</Text> : null}
 
       <ScrollView
         style={styles.scrollView}
@@ -121,6 +123,13 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
     marginBottom: 12,
+  },
+  trainerText: {
+    color: '#9cd6a0',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: -4,
+    marginBottom: 10,
   },
   scrollView: {
     flex: 1,

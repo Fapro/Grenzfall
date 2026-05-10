@@ -4,6 +4,8 @@ export interface AppFixture {
   stage: string;
   round: string;
   kickoffUtc: string;            // ISO-8601 UTC e.g. "2026-06-14T18:00:00Z"
+  homeScore: number;
+  awayScore: number;
   homeTeam: { id: string; name: string; flag: string };
   awayTeam: { id: string; name: string; flag: string };
   venue: {
@@ -11,6 +13,7 @@ export interface AppFixture {
     city: string;
     country: string;
     timeZone: string;
+    image: string;
   };
 }
 
@@ -28,6 +31,7 @@ interface SportMonksVenue {
   city_name: string;
   country: { name: string };
   timezone: string;
+  image_path?: string;
 }
 
 interface SportMonksRound {
@@ -38,15 +42,32 @@ interface SportMonksStage {
   name: string;
 }
 
+interface SportMonksScore {
+  participant_id: number;
+  description?: string;
+  score?: { goals?: number };
+}
+
 export interface SportMonksFixture {
   id: number;
   name: string;
   season_id: number;
   starting_at: string;          // UTC datetime string
   participants?: SportMonksParticipant[];
+  scores?: SportMonksScore[];
   venue?: SportMonksVenue;
   round?: SportMonksRound;
   stage?: SportMonksStage;
+}
+
+function getCurrentGoals(raw: SportMonksFixture, participantId?: number): number {
+  if (!participantId) {
+    return 0;
+  }
+  const current = raw.scores?.find(
+    (s) => s.participant_id === participantId && s.description === 'CURRENT'
+  );
+  return Number(current?.score?.goals ?? 0);
 }
 
 /** Converts a SportMonks fixture into the app's simplified shape. */
@@ -67,6 +88,8 @@ export function normaliseFixture(
     stage: raw.stage?.name ?? 'Group Stage',
     round: raw.round?.name ?? '',
     kickoffUtc: kickoffUtc.endsWith('Z') ? kickoffUtc : kickoffUtc + 'Z',
+    homeScore: getCurrentGoals(raw, home?.id),
+    awayScore: getCurrentGoals(raw, away?.id),
     homeTeam: {
       id: String(home?.id ?? appTeamId),
       name: home?.name ?? 'TBD',
@@ -82,6 +105,7 @@ export function normaliseFixture(
       city: raw.venue?.city_name ?? 'TBD',
       country: raw.venue?.country?.name ?? 'TBD',
       timeZone: raw.venue?.timezone ?? 'America/New_York',
+      image: raw.venue?.image_path ?? '',
     },
   };
 }

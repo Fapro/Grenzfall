@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
+    "restart:clean": "bash ./scripts/restart-backend.sh",
     "build": "tsc",
     "start": "node dist/index.js"
   },

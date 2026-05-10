@@ -7,7 +7,7 @@ import * as cache from '../cache';
 const router = Router();
 const BASE = 'https://api.sportmonks.com/v3/football';
 const INCLUDES =
-  'fixtures;fixtures.participants;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
+  'fixtures;fixtures.participants;fixtures.scores;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
 const RUNTIME_TEAM_ID_BY_APP_ID: Record<string, number> = {};
 
 async function fetchFromSportMonks(url: string): Promise<unknown> {
@@ -18,6 +18,17 @@ async function fetchFromSportMonks(url: string): Promise<unknown> {
     throw new Error(`SportMonks ${res.status}: ${await res.text()}`);
   }
   return res.json();
+}
+
+function isDnsResolutionError(err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false;
+  }
+
+  const cause = (err as Error & { cause?: unknown }).cause as
+    | { code?: string }
+    | undefined;
+  return cause?.code === 'ENOTFOUND';
 }
 
 function normalizeName(name: string): string {
@@ -74,6 +85,157 @@ async function fetchTeamFixtures(teamId: number, apiKey: string): Promise<SportM
 
   return body.data?.fixtures ?? [];
 }
+
+function normalizeVenueToken(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+async function fetchWikipediaImageForQuery(query: string): Promise<string | null> {
+  const searchUrl =
+    'https://en.wikipedia.org/w/api.php' +
+    `?action=query&list=search&srsearch=${encodeURIComponent(query)}` +
+    '&srlimit=1&format=json&utf8=1';
+
+  const searchBody = (await fetchFromSportMonks(searchUrl)) as {
+    query?: { search?: Array<{ title: string }> };
+  };
+  const title = searchBody.query?.search?.[0]?.title;
+  if (!title) {
+    return null;
+  }
+
+  const summaryUrl =
+    'https://en.wikipedia.org/api/rest_v1/page/summary/' +
+    encodeURIComponent(title.replace(/\s+/g, '_'));
+
+  const summary = (await fetchFromSportMonks(summaryUrl)) as {
+    originalimage?: { source?: string };
+    thumbnail?: { source?: string };
+  };
+
+  return summary.originalimage?.source ?? summary.thumbnail?.source ?? null;
+}
+
+async function resolveVenueImage(
+  venueName: string,
+  city: string,
+  country: string
+): Promise<string> {
+  const imageCacheKey = `venue-image:${normalizeVenueToken(venueName)}:${normalizeVenueToken(city)}`;
+  const cached = cache.get<string>(imageCacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const queries = [
+    `${venueName} ${city} stadium`,
+    `${venueName} stadium`,
+    `${venueName} ${country}`,
+  ];
+
+  for (const query of queries) {
+    try {
+      const image = await fetchWikipediaImageForQuery(query);
+      if (image) {
+        cache.set(imageCacheKey, image);
+        return image;
+      }
+    } catch {
+      // Try next query candidate.
+    }
+  }
+
+  cache.set(imageCacheKey, '');
+  return '';
+}
+
+async function attachVenueImages(fixtures: AppFixture[]): Promise<AppFixture[]> {
+  return Promise.all(
+    fixtures.map(async (fixture) => {
+      if (fixture.venue.image) {
+        return fixture;
+      }
+
+      const image = await resolveVenueImage(
+        fixture.venue.name,
+        fixture.venue.city,
+        fixture.venue.country
+      );
+
+      if (!image) {
+        return fixture;
+      }
+
+      return {
+        ...fixture,
+        venue: {
+          ...fixture.venue,
+          image,
+        },
+      };
+    })
+  );
+}
+
+/**
+ * GET /api/fixtures/by-sportmonks/:sportTeamId
+ * Returns fixtures for a raw SportMonks team ID.
+ */
+router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) => {
+  const sportTeamId = Number(req.params.sportTeamId);
+  const seasonId = process.env.SPORTMONKS_SEASON_ID;
+  const cacheKey = `fixtures:sport:${sportTeamId}:${seasonId ?? 'all'}`;
+
+  if (!Number.isFinite(sportTeamId) || sportTeamId <= 0) {
+    return res.status(400).json({ error: 'Invalid SportMonks team id' });
+  }
+
+  const cached = cache.get<AppFixture[]>(cacheKey);
+  if (cached) {
+    return res.json({ data: cached, source: 'cache' });
+  }
+
+  const apiKey = process.env.SPORTMONKS_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  try {
+    const rawFixtures = await fetchTeamFixtures(sportTeamId, apiKey);
+    const seasonIdNum = seasonId ? Number(seasonId) : null;
+    const filteredBySeason =
+      seasonIdNum && !Number.isNaN(seasonIdNum)
+        ? rawFixtures.filter((raw) => raw.season_id === seasonIdNum)
+        : rawFixtures;
+
+    const selected = filteredBySeason.length
+      ? filteredBySeason
+      : rawFixtures.slice(0, 8);
+
+    const fixtures = await attachVenueImages(
+      selected.map((raw) => normaliseFixture(raw, String(sportTeamId)))
+    );
+    if (fixtures.length) {
+      cache.set(cacheKey, fixtures);
+    }
+    return res.json({ data: fixtures, source: 'api' });
+  } catch (err) {
+    console.error('[fixtures by-sportmonks]', err);
+
+    if (isDnsResolutionError(err)) {
+      return res.status(503).json({
+        error:
+          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
+      });
+    }
+
+    return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
+  }
+});
 
 /**
  * GET /api/fixtures/:appTeamId
@@ -133,13 +295,86 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
       ? filteredBySeason
       : rawFixtures.slice(0, 8);
 
-    const fixtures = selected.map((raw) => normaliseFixture(raw, appTeamId));
+    const fixtures = await attachVenueImages(
+      selected.map((raw) => normaliseFixture(raw, appTeamId))
+    );
     if (fixtures.length) {
       cache.set(cacheKey, fixtures);
     }
     return res.json({ data: fixtures, source: 'api' });
   } catch (err) {
     console.error('[fixtures]', err);
+
+    if (isDnsResolutionError(err)) {
+      return res.status(503).json({
+        error:
+          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
+      });
+    }
+
+    return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
+  }
+});
+
+/**
+ * GET /api/fixtures/group-stage/all
+ * Returns all group stage fixtures for the 2026 World Cup season.
+ * This is used to calculate proper group standings across all teams.
+ */
+router.get('/group-stage/all', async (req: Request, res: Response) => {
+  const seasonId = process.env.SPORTMONKS_SEASON_ID;
+  const cacheKey = `fixtures:group-stage:${seasonId ?? 'all'}`;
+
+  const cached = cache.get<AppFixture[]>(cacheKey);
+  if (cached) {
+    return res.json({ data: cached, source: 'cache' });
+  }
+
+  const apiKey = process.env.SPORTMONKS_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  try {
+    const seasonIdNum = seasonId ? Number(seasonId) : 26618;
+    // Fetch season fixtures via season endpoint; includes are valid here.
+    const fixtureIncludes =
+      'fixtures;fixtures.participants;fixtures.scores;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
+    const url =
+      `${BASE}/seasons/${seasonIdNum}` +
+      `?api_token=${apiKey}` +
+      `&include=${encodeURIComponent(fixtureIncludes)}`;
+
+    const body = (await fetchFromSportMonks(url)) as {
+      data?: { fixtures?: SportMonksFixture[] };
+    };
+
+    const allFixtures = body.data?.fixtures ?? [];
+    
+    // Filter to only group stage matches
+    const groupStageMatches = allFixtures.filter((raw) => {
+      const stage = raw.stage?.name ?? '';
+      return stage.toLowerCase().includes('group');
+    });
+
+    const fixtures = await attachVenueImages(
+      groupStageMatches.map((raw) => normaliseFixture(raw, 'all-group-stage'))
+    );
+
+    if (fixtures.length) {
+      cache.set(cacheKey, fixtures);
+    }
+    return res.json({ data: fixtures, source: 'api' });
+  } catch (err) {
+    console.error('[fixtures group-stage]', err);
+
+    if (isDnsResolutionError(err)) {
+      return res.status(503).json({
+        error:
+          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
+      });
+    }
+
     return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
   }
 });
