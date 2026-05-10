@@ -9,10 +9,19 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '')
   .map((o: string) => o.trim())
   .filter(Boolean);
 
+function isLocalDevOrigin(origin: string): boolean {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+}
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   const origin = req.headers.origin ?? '';
-  if (!ALLOWED_ORIGINS.length || ALLOWED_ORIGINS.includes(origin)) {
+  const allowed =
+    !ALLOWED_ORIGINS.length ||
+    ALLOWED_ORIGINS.includes(origin) ||
+    isLocalDevOrigin(origin);
+
+  if (allowed) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

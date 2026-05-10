@@ -85,28 +85,6 @@ export default function TeamScreen() {
         </TouchableOpacity>
 
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.hero}>
-            <StadiumAnimation isPlaying={isPlaying} />
-
-            <View style={styles.flagContainer}>
-              <Text style={styles.flag}>{team.flag}</Text>
-            </View>
-
-            <Text style={styles.teamName}>{team.name}</Text>
-            <Text style={styles.region}>{team.region}</Text>
-
-            <TouchableOpacity
-              style={[styles.roarButton, isPlaying && styles.roarButtonActive]}
-              onPress={handleRoarPress}
-              disabled={isPlaying}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.roarButtonText}>
-                {isPlaying ? '📣 ROARING...' : '📣 ROAR AGAIN'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           <View style={styles.scheduleHeaderCard}>
             <Text style={styles.scheduleTitle}>{team.name} Match Schedule</Text>
             <Text style={styles.scheduleSubTitle}>
@@ -160,6 +138,28 @@ export default function TeamScreen() {
               </View>
             );
           })}
+
+          <View style={styles.hero}>
+            <StadiumAnimation isPlaying={isPlaying} />
+
+            <View style={styles.flagContainer}>
+              <Text style={styles.flag}>{team.flag}</Text>
+            </View>
+
+            <Text style={styles.teamName}>{team.name}</Text>
+            <Text style={styles.region}>{team.region}</Text>
+
+            <TouchableOpacity
+              style={[styles.roarButton, isPlaying && styles.roarButtonActive]}
+              onPress={handleRoarPress}
+              disabled={isPlaying}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.roarButtonText}>
+                {isPlaying ? '📣 ROARING...' : '📣 ROAR AGAIN'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
