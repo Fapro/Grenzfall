@@ -20,7 +20,7 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   hun: 734,   // Hungary
   sco: 1161,  // Scotland
   cze: 731,   // Czech Republic
-  tur: 740,   // Turkey
+  tur: 18716, // Türkiye
   srb: 741,   // Serbia
   alb: 1025,  // Albania
   // CONMEBOL
@@ -44,12 +44,12 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   nga: 493,   // Nigeria
   cmr: 109,   // Cameroon
   civ: 1033,  // Côte d'Ivoire
-  drc: 1030,  // DR Congo
+  drc: 18552, // DR Congo
   gnb: 1038,  // Guinea-Bissau
   tun: 500,   // Tunisia
   // AFC
   jpn: 487,   // Japan
-  kor: 488,   // South Korea
+  kor: 18567, // Korea Republic (South Korea)
   aus: 18730, // Australia
   irn: 736,   // Iran
   sau: 497,   // Saudi Arabia
