@@ -530,6 +530,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 860,
+    maxHeight: '92%',
     borderRadius: 18,
     padding: 18,
     backgroundColor: '#0f1711',
@@ -574,6 +575,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   diagramFrame: {
+    width: '100%',
     borderRadius: 14,
     backgroundColor: '#0a0f0b',
     borderWidth: 1,
@@ -581,6 +583,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   hierarchyLevelBlock: {
+    width: '100%',
     alignItems: 'center',
   },
   hierarchyLevelTitle: {
@@ -597,13 +600,14 @@ const styles = StyleSheet.create({
   hierarchyRow: {
     flexDirection: 'row',
     justifyContent: 'center',
+    alignItems: 'stretch',
     gap: 8,
-    flexWrap: 'nowrap',
+    flexWrap: 'wrap',
   },
   hierarchyNode: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
     minHeight: 54,
     borderRadius: 10,
     borderWidth: 1,

@@ -1,34 +1,117 @@
 import React, { useState, useMemo } from 'react';
 import {
-  FlatList,
   TextInput,
+  ScrollView,
   View,
   Text,
   StyleSheet,
-  ListRenderItemInfo,
 } from 'react-native';
 import { FlagCard } from './FlagCard';
 import { TEAMS } from '@/data/teams';
 import type { Team } from '@/data/teams';
 
+const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+
+const TEAM_GROUP_BY_ID: Record<string, string> = {
+  cze: 'A',
+  kor: 'A',
+  mex: 'A',
+  zaf: 'A',
+  can: 'B',
+  qat: 'B',
+  sui: 'B',
+  bih: 'B',
+  bra: 'C',
+  mar: 'C',
+  sco: 'C',
+  hai: 'C',
+  aus: 'D',
+  tur: 'D',
+  usa: 'D',
+  par: 'D',
+  civ: 'E',
+  ecu: 'E',
+  ger: 'E',
+  cuw: 'E',
+  jpn: 'F',
+  ned: 'F',
+  tun: 'F',
+  swe: 'F',
+  bel: 'G',
+  egy: 'G',
+  irn: 'G',
+  nzl: 'G',
+  cpv: 'H',
+  sau: 'H',
+  esp: 'H',
+  uru: 'H',
+  fra: 'I',
+  irq: 'I',
+  nor: 'I',
+  sen: 'I',
+  arg: 'J',
+  aut: 'J',
+  jor: 'J',
+  alg: 'J',
+  col: 'K',
+  drc: 'K',
+  por: 'K',
+  uzb: 'K',
+  eng: 'L',
+  pan: 'L',
+  cro: 'L',
+  gha: 'L',
+};
+
+
 interface FlagGridProps {
-  onSelect: (team: Team) => void;
+  onSelect: (team: Team, groupLetter?: string) => void;
+  onGroupSelect?: (groupLetter: string) => void;
 }
 
-export function FlagGrid({ onSelect }: FlagGridProps) {
+export function FlagGrid({ onSelect, onGroupSelect }: FlagGridProps) {
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return TEAMS;
-    return TEAMS.filter(
+    const matching = !q
+      ? TEAMS
+      : TEAMS.filter(
       (t) => t.name.toLowerCase().includes(q) || t.region.toLowerCase().includes(q)
     );
+
+    return [...matching].sort((a, b) => a.name.localeCompare(b.name));
   }, [query]);
 
-  const renderItem = ({ item }: ListRenderItemInfo<Team>) => (
-    <FlagCard team={item} onPress={onSelect} />
-  );
+  const groupedTeams = useMemo(() => {
+    const groups: Array<[string, Team[]]> = GROUP_LETTERS.map((letter) => [letter, []]);
+    const indexByLetter = new Map(GROUP_LETTERS.map((letter, index) => [letter, index]));
+
+    for (const team of filtered) {
+      const letter = TEAM_GROUP_BY_ID[team.id] ?? 'L';
+      const index = indexByLetter.get(letter);
+      if (index === undefined) {
+        continue;
+      }
+      groups[index][1].push(team);
+    }
+
+    groups.forEach(([, teams]) => teams.sort((a, b) => a.name.localeCompare(b.name)));
+
+    if (!query.trim()) {
+      return groups;
+    }
+
+    return groups.filter(([, teams]) => teams.length > 0);
+  }, [filtered, query]);
+
+  const chunkTeams = (teams: Team[]): Team[][] => {
+    const rows: Team[][] = [];
+    for (let i = 0; i < teams.length; i += 4) {
+      rows.push(teams.slice(i, i + 4));
+    }
+    return rows;
+  };
 
   return (
     <View style={styles.container}>
@@ -43,15 +126,38 @@ export function FlagGrid({ onSelect }: FlagGridProps) {
         clearButtonMode="while-editing"
         autoCorrect={false}
       />
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        numColumns={4}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={styles.list}
-        showsVerticalScrollIndicator={false}
-      />
+
+      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {groupedTeams.map(([letter, teams]) => (
+          <View key={letter} style={styles.groupSectionRow}>
+            <View style={styles.groupLetterRail}>
+              <Text
+                style={styles.groupLetter}
+                onPress={onGroupSelect ? () => onGroupSelect(letter) : undefined}
+              >
+                {letter}
+              </Text>
+            </View>
+            <View style={styles.groupTeamsBlock}>
+              {chunkTeams(teams).map((rowTeams, rowIndex) => (
+                <View key={`${letter}-${rowIndex}`} style={styles.row}>
+                  {rowTeams.map((item) => (
+                    <View key={item.id} style={styles.cardSlot}>
+                      <FlagCard
+                        team={item}
+                        onPress={(team) => onSelect(team, TEAM_GROUP_BY_ID[team.id] ?? undefined)}
+                      />
+                    </View>
+                  ))}
+                  {Array.from({ length: 4 - rowTeams.length }).map((_, spacerIndex) => (
+                    <View key={`${letter}-${rowIndex}-spacer-${spacerIndex}`} style={styles.cardSlot} />
+                  ))}
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -88,9 +194,35 @@ const styles = StyleSheet.create({
     borderColor: '#2e2e2e',
   },
   row: {
+    flexDirection: 'row',
     justifyContent: 'flex-start',
   },
   list: {
     paddingBottom: 40,
+  },
+  groupSectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  groupLetterRail: {
+    width: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 0,
+  },
+  groupLetter: {
+    color: '#ffffff',
+    fontSize: 56,
+    lineHeight: 56,
+    fontWeight: '800',
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  groupTeamsBlock: {
+    flex: 1,
+  },
+  cardSlot: {
+    flex: 1,
   },
 });

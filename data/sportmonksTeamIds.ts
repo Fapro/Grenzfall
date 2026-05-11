@@ -1,9 +1,6 @@
 /**
  * Maps app team IDs (our short codes) to SportMonks v3 team IDs.
- * Look up exact IDs via:
- *   GET https://api.sportmonks.com/v3/football/teams?api_token=KEY&filters=teamTypes:national
- * or search by name:
- *   GET https://api.sportmonks.com/v3/football/teams/search/{name}?api_token=KEY
+ * Must match the backend mapping in backend/src/teamIds.ts
  */
 export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   // UEFA
@@ -23,9 +20,10 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   cze: 731,   // Czech Republic
   cro: 18588, // Croatia
   bih: 18625, // Bosnia and Herzegovina
-  tur: 18716, // Türkiye
+  tur: 18716, // Turkey
   srb: 741,   // Serbia
   alb: 1025,  // Albania
+  nor: 18563, // Norway
   // CONMEBOL
   bra: 6,     // Brazil
   arg: 951,   // Argentina
@@ -56,6 +54,7 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   drc: 18552, // DR Congo
   gnb: 1038,  // Guinea-Bissau
   tun: 500,   // Tunisia
+  cpv: 18629, // Cape Verde
   // AFC
   jpn: 487,   // Japan
   kor: 18567, // Korea Republic (South Korea)

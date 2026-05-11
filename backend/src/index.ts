@@ -2,6 +2,8 @@ import 'dotenv/config';
 import express from 'express';
 import fixturesRouter from './routes/fixtures';
 import playersRouter from './routes/players';
+import friendsRouter from './routes/friends';
+import groupsRouter from './routes/groups';
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3001);
@@ -26,16 +28,19 @@ app.use((req, res, next) => {
   if (allowed) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+app.use(express.json());
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/fixtures', fixturesRouter);
 app.use('/api/players', playersRouter);
+app.use('/api/friends', friendsRouter);
+app.use('/api/groups', groupsRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

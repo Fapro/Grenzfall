@@ -85,7 +85,7 @@ export function normaliseFixture(
 
   return {
     id: String(raw.id),
-    stage: raw.stage?.name ?? 'Group Stage',
+    stage: raw.stage?.name ?? '',
     round: raw.round?.name ?? '',
     kickoffUtc: kickoffUtc.endsWith('Z') ? kickoffUtc : kickoffUtc + 'Z',
     homeScore: getCurrentGoals(raw, home?.id),

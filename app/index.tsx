@@ -7,13 +7,21 @@ import type { Team } from '@/data/teams';
 export default function HomeScreen() {
   const router = useRouter();
 
-  const handleSelect = (team: Team) => {
+  const handleSelect = (team: Team, groupLetter?: string) => {
+    if (groupLetter) {
+      router.push({ pathname: `/${team.id}`, params: { group: groupLetter } });
+      return;
+    }
     router.push(`/${team.id}`);
+  };
+
+  const handleGroupSelect = (groupLetter: string) => {
+    router.push(`/group/${groupLetter}`);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <FlagGrid onSelect={handleSelect} />
+      <FlagGrid onSelect={handleSelect} onGroupSelect={handleGroupSelect} />
     </SafeAreaView>
   );
 }

@@ -4,6 +4,7 @@ import {
   Easing,
   View,
   Text,
+  Alert,
   StyleSheet,
   TouchableOpacity,
   Pressable,
@@ -14,6 +15,9 @@ import {
   TextInput,
   Platform,
   Image,
+  Modal,
+  Switch,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +25,9 @@ import { StadiumAnimation } from '@/components/StadiumAnimation';
 import { TournamentStages } from '@/components/TournamentStages';
 import { PlayerList } from '@/components/PlayerList';
 import { useRoar } from '@/hooks/useRoar';
+import { useTeamGroups } from '@/hooks/useTeamGroups';
 import { TEAMS } from '@/data/teams';
+import { APP_TO_SPORTMONKS_TEAM_ID } from '@/data/sportmonksTeamIds';
 import {
   fetchTeamSchedule,
   formatInTimeZone,
@@ -29,6 +35,7 @@ import {
   type TeamMatch,
 } from '@/data/schedule';
 import { fetchTeamPlayers, type Player } from '@/data/players';
+import { BACKEND_URL } from '@/config/api';
 
 type GroupMemberMatches = {
   id: string;
@@ -70,6 +77,119 @@ type LiveFeedEvent = {
   stage: string;
 };
 
+type MatchTip = { home: string; away: string };
+
+type Friend = {
+  id: string;
+  name: string;
+};
+
+type FriendPayload = {
+  id: string;
+  name: string;
+  tips: Record<string, MatchTip>;
+};
+
+const MAX_FRIENDS = 7;
+const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as const;
+const TEAM_GROUP_BY_ID: Record<string, string> = {
+  cze: 'A',
+  kor: 'A',
+  mex: 'A',
+  zaf: 'A',
+  can: 'B',
+  qat: 'B',
+  sui: 'B',
+  bih: 'B',
+  bra: 'C',
+  mar: 'C',
+  sco: 'C',
+  hai: 'C',
+  aus: 'D',
+  tur: 'D',
+  usa: 'D',
+  par: 'D',
+  civ: 'E',
+  ecu: 'E',
+  ger: 'E',
+  cuw: 'E',
+  jpn: 'F',
+  ned: 'F',
+  tun: 'F',
+  swe: 'F',
+  bel: 'G',
+  egy: 'G',
+  irn: 'G',
+  nzl: 'G',
+  cpv: 'H',
+  sau: 'H',
+  esp: 'H',
+  uru: 'H',
+  fra: 'I',
+  irq: 'I',
+  nor: 'I',
+  sen: 'I',
+  arg: 'J',
+  aut: 'J',
+  jor: 'J',
+  alg: 'J',
+  col: 'K',
+  drc: 'K',
+  por: 'K',
+  uzb: 'K',
+  eng: 'L',
+  pan: 'L',
+  cro: 'L',
+  gha: 'L',
+};
+
+function toIcsDateTime(iso: string): string {
+  return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+function escapeIcs(value: string): string {
+  return value
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+
+function buildTeamCalendarIcs(teamName: string, matches: TeamMatch[]): string {
+  const dtStamp = toIcsDateTime(new Date().toISOString());
+  const events = matches
+    .map((match) => {
+      const start = toIcsDateTime(match.kickoffUtc);
+      const summary = escapeIcs(`${match.homeTeam.name} vs ${match.awayTeam.name}`);
+      const location = escapeIcs(`${match.venue.name}, ${match.venue.city}, ${match.venue.country}`);
+      const description = escapeIcs(
+        `${match.stage}${match.round ? ` - ${match.round}` : ''} | ${teamName} schedule`
+      );
+      return [
+        'BEGIN:VEVENT',
+        `UID:${match.id}@roar.local`,
+        `DTSTAMP:${dtStamp}`,
+        `DTSTART:${start}`,
+        `SUMMARY:${summary}`,
+        `LOCATION:${location}`,
+        `DESCRIPTION:${description}`,
+        'END:VEVENT',
+      ].join('\n');
+    })
+    .join('\n');
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//ROAR//TEAM-SCHEDULE//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    events,
+    'END:VCALENDAR',
+    '',
+  ].join('\n');
+}
+
 function toFormationLabel(player: Player): string {
   const shortName = player.name.trim().split(' ').slice(-1)[0] ?? player.name;
   if (Number.isFinite(player.number) && player.number > 0) {
@@ -102,18 +222,26 @@ function pickUniquePlayers(pool: Player[], usedIds: Set<string>, count: number):
 }
 
 function extractGroupLetterFromText(value: string): string | null {
-  const letterMatch = value.match(/group\s*([a-l])/i);
+  const letterMatch = value.match(/(?:group|grp)\s*([a-l])/i);
   if (letterMatch?.[1]) {
     return letterMatch[1].toUpperCase();
   }
 
-  const numberMatch = value.match(/group\s*(\d{1,2})/i);
+  const numberMatch = value.match(/(?:group|grp)\s*(\d{1,2})/i);
   const groupNum = Number(numberMatch?.[1] ?? NaN);
   if (Number.isFinite(groupNum) && groupNum >= 1 && groupNum <= 12) {
     return String.fromCharCode(64 + groupNum);
   }
 
   return null;
+}
+
+function isGroupStageMatch(stage: string, round: string): boolean {
+  const combined = `${stage} ${round}`.toLowerCase().trim();
+  if (!combined) {
+    return false;
+  }
+  return /\bgroup\b/.test(combined) || /\bgrp\b/.test(combined);
 }
 
 function normalizeTeamName(value: string): string {
@@ -139,12 +267,13 @@ function fallbackGroupLetterFromNames(teamNames: string[]): string {
 }
 
 export default function TeamScreen() {
-  const { teamId } = useLocalSearchParams<{ teamId: string }>();
+  const { teamId, group } = useLocalSearchParams<{ teamId: string; group?: string }>();
   const router = useRouter();
   const { play, isPlaying } = useRoar();
   const { width } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === 'web' && width >= 1100;
   const isUltraWideWeb = Platform.OS === 'web' && width >= 1600;
+  const isSmallMobile = Platform.OS !== 'web' && width < 420;
   const contentHorizontalPadding = width >= 1700 ? 36 : width >= 1300 ? 24 : 16;
 
   const flagSize = Math.min(width * 0.26, 112);
@@ -161,9 +290,15 @@ export default function TeamScreen() {
   const [groupStageLoading, setGroupStageLoading] = useState(false);
   const scoreByFixtureRef = useRef<Record<string, { home: number; away: number }>>({});
   const [liveFeedEvents, setLiveFeedEvents] = useState<LiveFeedEvent[]>([]);
+  const [roarConsentGranted, setRoarConsentGranted] = useState(false);
+  const roarConsentRef = useRef(false);
   const [tipsByMatch, setTipsByMatch] = useState<
     Record<string, { home: string; away: string }>
   >({});
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendTips, setFriendTips] = useState<Record<string, Record<string, MatchTip>>>({});
+  const [friendNameInput, setFriendNameInput] = useState('');
+  const [friendsModalVisible, setFriendsModalVisible] = useState(false);
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [trainerName, setTrainerName] = useState<string | null>(null);
@@ -176,6 +311,15 @@ export default function TeamScreen() {
   const tickerAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
   const [tickerViewportWidth, setTickerViewportWidth] = useState(0);
   const [tickerContentWidth, setTickerContentWidth] = useState(0);
+
+  const { groupsByTeamId } = useTeamGroups();
+
+  const calendarIcs = useMemo(() => {
+    if (!team || schedule.length === 0) {
+      return '';
+    }
+    return buildTeamCalendarIcs(team.name, schedule);
+  }, [schedule, team]);
 
   const formationData = useMemo(() => {
     const fallback = {
@@ -251,7 +395,7 @@ export default function TeamScreen() {
     }
 
     const teamScheduleGroupMatches = schedule.filter((m) => {
-      const isGroupStage = m.stage.toLowerCase().includes('group');
+      const isGroupStage = isGroupStageMatch(m.stage, m.round);
       const isYear2026 = new Date(m.kickoffUtc).getFullYear() === 2026;
       return isGroupStage && isYear2026;
     });
@@ -334,24 +478,99 @@ export default function TeamScreen() {
     return '';
   }, [groupMembers, selectedGroupMatches, team]);
 
+  const preferredGroupLetter = useMemo(() => {
+    const candidate = (group ?? '').toUpperCase();
+    return /^[A-L]$/.test(candidate) ? candidate : '';
+  }, [group]);
+
+  const resolvedGroupLetter = groupLetter || preferredGroupLetter;
+
+  const currentGroupLetter = useMemo(() => {
+    // First, try Sportmonks data (most reliable)
+    if (team?.id && groupsByTeamId) {
+      const sportmonksTeamId = APP_TO_SPORTMONKS_TEAM_ID[team.id];
+      if (sportmonksTeamId && groupsByTeamId[String(sportmonksTeamId)]) {
+        return groupsByTeamId[String(sportmonksTeamId)];
+      }
+    }
+
+    // Then try hardcoded mapping (known correct)
+    const hardcodedGroup = TEAM_GROUP_BY_ID[team?.id ?? ''];
+    if (hardcodedGroup) {
+      return hardcodedGroup;
+    }
+
+    // Finally, fall back to fixture analysis
+    if (resolvedGroupLetter) {
+      return resolvedGroupLetter;
+    }
+
+    return '';
+  }, [team?.id, groupsByTeamId, resolvedGroupLetter]);
+
+  const goToNextGroup = useCallback(() => {
+    const currentIndex = GROUP_LETTERS.indexOf(currentGroupLetter as (typeof GROUP_LETTERS)[number]);
+    if (currentIndex < 0) {
+      Alert.alert('Group not found', 'Unable to determine current group.');
+      return;
+    }
+
+    // Helper to check if a team belongs to a group
+    const isTeamInGroup = (teamId: string, groupLetter: string): boolean => {
+      const sportmonksTeamId = APP_TO_SPORTMONKS_TEAM_ID[teamId];
+      if (sportmonksTeamId && groupsByTeamId[String(sportmonksTeamId)]) {
+        return groupsByTeamId[String(sportmonksTeamId)] === groupLetter;
+      }
+      return TEAM_GROUP_BY_ID[teamId] === groupLetter;
+    };
+
+    for (let step = 1; step <= GROUP_LETTERS.length; step += 1) {
+      const nextLetter = GROUP_LETTERS[(currentIndex + step) % GROUP_LETTERS.length];
+      const nextGroupTeams = TEAMS
+        .filter((entry) => isTeamInGroup(entry.id, nextLetter))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      if (nextGroupTeams.length > 0) {
+        router.push({ pathname: `/${nextGroupTeams[0].id}`, params: { group: nextLetter } });
+        return;
+      }
+    }
+
+    Alert.alert('No group available', 'Could not find a team in the next group.');
+  }, [currentGroupLetter, router, groupsByTeamId]);
+
   const withGroupLetter = useCallback(
     (teamName: string) =>
-      groupLetter ? `${teamName} (Group ${groupLetter})` : teamName,
-    [groupLetter]
+      resolvedGroupLetter ? `${teamName} (Group ${resolvedGroupLetter})` : teamName,
+    [resolvedGroupLetter]
   );
 
   const groupStageLinePrefix = useCallback(
     (match: TeamMatch) =>
-      match.stage.toLowerCase().includes('group') && groupLetter
-        ? `Group ${groupLetter} · `
+      isGroupStageMatch(match.stage, match.round) && resolvedGroupLetter
+        ? `Group ${resolvedGroupLetter} · `
         : '',
-    [groupLetter]
+    [resolvedGroupLetter]
+  );
+
+  const getGroupLabelForMatch = useCallback(
+    (match: TeamMatch) => {
+      const fromStage = extractGroupLetterFromText(match.stage);
+      const fromRound = extractGroupLetterFromText(match.round);
+      const letter = fromStage || fromRound || resolvedGroupLetter || currentGroupLetter;
+      return letter ? `Group ${letter}` : 'Group Stage';
+    },
+    [currentGroupLetter, resolvedGroupLetter]
   );
 
   const formatTeamForMatch = useCallback(
-    (match: TeamMatch, teamName: string) =>
-      teamName,
+    (_match: TeamMatch, teamName: string, _isHome: boolean = false) => teamName,
     []
+  );
+
+  const topBarGroupLabel = useMemo(
+    () => `Group (${currentGroupLetter || '-'})`,
+    [currentGroupLetter]
   );
 
   const groupTable = useMemo<GroupTableRow[]>(() => {
@@ -460,8 +679,8 @@ export default function TeamScreen() {
       );
     }
 
-    if (groupLetter) {
-      newsItems.push(`[GROUP] Competing in Group ${groupLetter}`);
+    if (resolvedGroupLetter) {
+      newsItems.push(`[GROUP] Competing in Group ${resolvedGroupLetter}`);
     }
 
     const now = Date.now();
@@ -496,7 +715,7 @@ export default function TeamScreen() {
     }
 
     return [...liveItems, ...newsItems].slice(0, 16);
-  }, [groupLetter, liveFeedEvents, players.length, playersError, schedule, selectedTeamStanding, team, trainerName]);
+  }, [liveFeedEvents, players.length, playersError, resolvedGroupLetter, schedule, selectedTeamStanding, team, trainerName]);
 
   const tickerText = useMemo(() => {
     if (tickerItems.length === 0) {
@@ -518,30 +737,60 @@ export default function TeamScreen() {
     const letters = Array.from({ length: 12 }, (_, index) =>
       String.fromCharCode(65 + index)
     );
+
+    const teamsByGroup = new Map<string, Set<string>>();
+    const resultsByGroup = new Map<string, Map<string, string>>();
+    for (const match of groupStageMatches) {
+      const detectedLetter =
+        extractGroupLetterFromText(match.stage) ??
+        extractGroupLetterFromText(match.round);
+      if (!detectedLetter) {
+        continue;
+      }
+
+      const letter = detectedLetter.toUpperCase();
+      if (!teamsByGroup.has(letter)) {
+        teamsByGroup.set(letter, new Set<string>());
+      }
+      if (!resultsByGroup.has(letter)) {
+        resultsByGroup.set(letter, new Map<string, string>());
+      }
+
+      teamsByGroup.get(letter)?.add(match.homeTeam.name);
+      teamsByGroup.get(letter)?.add(match.awayTeam.name);
+      resultsByGroup.get(letter)?.set(
+        match.id,
+        `${match.homeTeam.name} ${match.homeScore} - ${match.awayScore} ${match.awayTeam.name}`
+      );
+    }
+
     const baseGroups: Record<string, GroupStageGroupData> = {};
-    letters.forEach((letter, index) => {
-      const start = index * 4;
-      const teams = TEAMS.slice(start, start + 4).map((entry) => entry.name);
+    letters.forEach((letter) => {
+      const teams = Array.from(teamsByGroup.get(letter) ?? []).sort((a, b) =>
+        a.localeCompare(b)
+      );
+      const results = Array.from(resultsByGroup.get(letter)?.values() ?? []);
+
       baseGroups[letter] = {
         teams,
-        results: ['Results pending'],
+        results: results.length > 0 ? results : ['Results pending'],
       };
     });
 
-    if (groupLetter && baseGroups[groupLetter]) {
-      baseGroups[groupLetter] = {
+    if (currentGroupLetter && baseGroups[currentGroupLetter]) {
+      baseGroups[currentGroupLetter] = {
         teams: groupTable.map((row) => row.name),
         results: Array.from(uniqueResults.values()),
       };
     }
 
     return {
-      groupLetter,
+      groupLetter: currentGroupLetter,
       teams: groupTable.map((row) => row.name),
       results: Array.from(uniqueResults.values()),
       groups: baseGroups,
     };
-  }, [groupLetter, groupTable, selectedGroupMatches]);
+  }, [currentGroupLetter, groupStageMatches, groupTable, selectedGroupMatches]);
 
   const openTeamFromName = useCallback(
     (teamName: string) => {
@@ -568,6 +817,175 @@ export default function TeamScreen() {
     },
     []
   );
+
+  const saveFriendsToBackend = useCallback(
+    async (nextFriends: Friend[], nextTips: Record<string, Record<string, MatchTip>>) => {
+      if (!team) {
+        return;
+      }
+
+      const payloadFriends: FriendPayload[] = nextFriends.map((friend) => ({
+        id: friend.id,
+        name: friend.name,
+        tips: nextTips[friend.id] ?? {},
+      }));
+
+      try {
+        await fetch(`${BACKEND_URL}/api/friends/${encodeURIComponent(team.id)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ friends: payloadFriends }),
+        });
+      } catch (error) {
+        console.warn('Failed to persist friends:', error);
+      }
+    },
+    [team]
+  );
+
+  const setFriendTip = useCallback(
+    (friendId: string, matchId: string, side: 'home' | 'away', value: string) => {
+      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
+
+      setFriendTips((prev) => {
+        const next = {
+          ...prev,
+          [friendId]: {
+            ...(prev[friendId] ?? {}),
+            [matchId]: {
+              home: prev[friendId]?.[matchId]?.home ?? '',
+              away: prev[friendId]?.[matchId]?.away ?? '',
+              [side]: cleaned,
+            },
+          },
+        };
+
+        void saveFriendsToBackend(friends, next);
+        return next;
+      });
+    },
+    [friends, saveFriendsToBackend]
+  );
+
+  const addFriend = useCallback(() => {
+    const name = friendNameInput.trim().slice(0, 24);
+    if (!name) {
+      return;
+    }
+
+    if (friends.length >= MAX_FRIENDS) {
+      Alert.alert('Friends limit reached', `You can add up to ${MAX_FRIENDS} friends.`);
+      return;
+    }
+
+    const newFriend: Friend = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+    };
+
+    setFriends((prev) => {
+      const next = [...prev, newFriend];
+      void saveFriendsToBackend(next, friendTips);
+      return next;
+    });
+    setFriendNameInput('');
+  }, [friendNameInput, friendTips, friends.length, saveFriendsToBackend]);
+
+  const removeFriend = useCallback(
+    (friendId: string) => {
+      setFriends((prev) => {
+        const next = prev.filter((friend) => friend.id !== friendId);
+
+        setFriendTips((prevTips) => {
+          const nextTips = { ...prevTips };
+          delete nextTips[friendId];
+          void saveFriendsToBackend(next, nextTips);
+          return nextTips;
+        });
+
+        return next;
+      });
+    },
+    [saveFriendsToBackend]
+  );
+
+  const requestRoarToDevice = useCallback(() => {
+    play();
+    Alert.alert(
+      'Roar sent',
+      'Roar test sent to this device. Enable Auto to hear future goal roars automatically.'
+    );
+  }, [play]);
+
+  const toggleRoarAlerts = useCallback((value: boolean) => {
+    setRoarConsentGranted(value);
+    roarConsentRef.current = value;
+    Alert.alert(
+      value ? 'Auto roar enabled' : 'Auto roar disabled',
+      value
+        ? 'You will hear an in-app roar when new goals are detected.'
+        : 'Automatic roar alerts are now turned off.'
+    );
+  }, []);
+
+  const downloadCalendarFile = useCallback(async () => {
+    if (!team || !calendarIcs) {
+      Alert.alert('No matches yet', 'Calendar export will be available once fixtures are loaded.');
+      return;
+    }
+
+    const safeName = team.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    try {
+      if (Platform.OS === 'web') {
+        const blob = new Blob([calendarIcs], { type: 'text/calendar;charset=utf-8' });
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `${safeName}-schedule.ics`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+
+      const dataUrl = `data:text/calendar;charset=utf-8,${encodeURIComponent(calendarIcs)}`;
+      const canOpen = await Linking.canOpenURL(dataUrl);
+      if (canOpen) {
+        await Linking.openURL(dataUrl);
+      } else {
+        Alert.alert('Export ready', 'Use web to download the .ics file directly.');
+      }
+    } catch (error) {
+      Alert.alert('Export failed', 'Could not create calendar file right now.');
+      console.warn('Calendar export failed:', error);
+    }
+  }, [calendarIcs, team]);
+
+  const openGoogleImport = useCallback(async () => {
+    if (!calendarIcs) {
+      Alert.alert('No matches yet', 'Load fixtures first, then import the .ics file.');
+      return;
+    }
+
+    await downloadCalendarFile();
+    const url = 'https://calendar.google.com/calendar/u/0/r/settings/export';
+    await Linking.openURL(url);
+    Alert.alert('Gmail / Google Calendar', 'Upload the downloaded .ics in Google Calendar import settings.');
+  }, [calendarIcs, downloadCalendarFile]);
+
+  const openOutlookImport = useCallback(async () => {
+    if (!calendarIcs) {
+      Alert.alert('No matches yet', 'Load fixtures first, then import the .ics file.');
+      return;
+    }
+
+    await downloadCalendarFile();
+    const url = 'https://outlook.live.com/calendar/0/';
+    await Linking.openURL(url);
+    Alert.alert('Outlook', 'Use Add calendar -> Upload from file and pick the downloaded .ics.');
+  }, [calendarIcs, downloadCalendarFile]);
 
   const loadSchedule = useCallback(async (options?: {
     showLoader?: boolean;
@@ -626,7 +1044,7 @@ export default function TeamScreen() {
           setLiveFeedEvents((prev) => [...nextFeedEvents, ...prev].slice(0, 12));
         }
 
-        if (goalDetected) {
+        if (goalDetected && roarConsentRef.current) {
           play();
         }
       }
@@ -714,6 +1132,39 @@ export default function TeamScreen() {
   }, []);
 
   useEffect(() => {
+    roarConsentRef.current = roarConsentGranted;
+  }, [roarConsentGranted]);
+
+  useEffect(() => {
+    const loadFriends = async () => {
+      if (!team) {
+        setFriends([]);
+        setFriendTips({});
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/friends/${encodeURIComponent(team.id)}`);
+        if (!res.ok) {
+          return;
+        }
+        const payload = (await res.json()) as FriendPayload[];
+        const nextFriends: Friend[] = payload.map((item) => ({ id: item.id, name: item.name }));
+        const nextTips: Record<string, Record<string, MatchTip>> = {};
+        payload.forEach((item) => {
+          nextTips[item.id] = item.tips ?? {};
+        });
+        setFriends(nextFriends);
+        setFriendTips(nextTips);
+      } catch (error) {
+        console.warn('Failed to load friends:', error);
+      }
+    };
+
+    void loadFriends();
+  }, [team]);
+
+  useEffect(() => {
     if (tickerViewportWidth <= 0 || tickerContentWidth <= 0) {
       return;
     }
@@ -758,9 +1209,20 @@ export default function TeamScreen() {
     >
       <SafeAreaView style={styles.safe}>
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.navButton} onPress={() => router.back()}>
-            <Text style={styles.navButtonText}>‹ Back</Text>
-          </TouchableOpacity>
+           <View style={styles.navLeftControls}>
+             <View style={styles.navGroupLetterRail}>
+               <Text style={styles.navGroupLetter}>{currentGroupLetter || '-'}</Text>
+             </View>
+             <TouchableOpacity style={styles.navButton} onPress={() => router.back()}>
+               <Text style={styles.navButtonText}>‹ Back</Text>
+             </TouchableOpacity>
+             <TouchableOpacity style={styles.navButton} onPress={goToNextGroup}>
+               <Text style={styles.navButtonText}>Next ›</Text>
+             </TouchableOpacity>
+            <View style={styles.groupChip}>
+              <Text style={styles.groupChipText}>{topBarGroupLabel}</Text>
+            </View>
+           </View>
           <TouchableOpacity style={styles.navButton} onPress={() => router.push('/')}>
             <Text style={styles.navButtonText}>Home</Text>
           </TouchableOpacity>
@@ -773,7 +1235,74 @@ export default function TeamScreen() {
           ]}
         >
           <View style={styles.scheduleHeaderCard}>
-            <Text style={styles.scheduleTitle}>{team.name} Match Schedule</Text>
+            <View style={[styles.scheduleHeaderTopRow, isSmallMobile ? styles.scheduleHeaderTopRowCompact : null]}>
+              <Text style={[styles.scheduleTitle, isSmallMobile ? styles.scheduleTitleCompact : null]}>
+                {currentGroupLetter
+                  ? `GROUP ${currentGroupLetter} ${team.name} Match Schedule`
+                  : `${team.name} Match Schedule`}
+              </Text>
+              <View style={[styles.roarActionFrame, isSmallMobile ? styles.roarActionFrameCompact : null]}>
+                <View style={[styles.calendarActionsRow, isSmallMobile ? styles.calendarActionsRowCompact : null]}>
+                  <TouchableOpacity
+                    style={[
+                      styles.calendarActionButton,
+                      isSmallMobile ? styles.calendarActionButtonCompact : null,
+                      !calendarIcs ? styles.calendarActionButtonDisabled : null,
+                    ]}
+                    onPress={downloadCalendarFile}
+                    disabled={!calendarIcs}
+                  >
+                    <Text style={[styles.calendarActionText, isSmallMobile ? styles.calendarActionTextCompact : null]}>.ics</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.calendarActionButton,
+                      isSmallMobile ? styles.calendarActionButtonCompact : null,
+                      !calendarIcs ? styles.calendarActionButtonDisabled : null,
+                    ]}
+                    onPress={openOutlookImport}
+                    disabled={!calendarIcs}
+                  >
+                    <Text style={[styles.calendarActionText, isSmallMobile ? styles.calendarActionTextCompact : null]}>Outlook</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.calendarActionButton,
+                      isSmallMobile ? styles.calendarActionButtonCompact : null,
+                      !calendarIcs ? styles.calendarActionButtonDisabled : null,
+                    ]}
+                    onPress={openGoogleImport}
+                    disabled={!calendarIcs}
+                  >
+                    <Text style={[styles.calendarActionText, isSmallMobile ? styles.calendarActionTextCompact : null]}>Gmail</Text>
+                  </TouchableOpacity>
+                </View>
+                {!(isDesktopWeb || isUltraWideWeb) && (
+                  <TouchableOpacity
+                    style={[styles.friendsHeaderButton, isSmallMobile ? styles.friendsHeaderButtonCompact : null]}
+                    onPress={() => setFriendsModalVisible(true)}
+                  >
+                    <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.roarSendButton, isSmallMobile ? styles.roarSendButtonCompact : null]}
+                  onPress={requestRoarToDevice}
+                >
+                  <Text style={[styles.roarSendButtonText, isSmallMobile ? styles.roarSendButtonTextCompact : null]}>Send Roar</Text>
+                </TouchableOpacity>
+                <View style={[styles.roarSwitchWrap, isSmallMobile ? styles.roarSwitchWrapCompact : null]}>
+                  <Text style={[styles.roarSwitchLabel, isSmallMobile ? styles.roarSwitchLabelCompact : null]}>Auto</Text>
+                  <Switch
+                    value={roarConsentGranted}
+                    onValueChange={toggleRoarAlerts}
+                    trackColor={{ false: '#28402a', true: '#2e7d32' }}
+                    thumbColor={roarConsentGranted ? '#e9ffe8' : '#9fb8a0'}
+                    ios_backgroundColor="#28402a"
+                  />
+                </View>
+              </View>
+            </View>
             <Text style={styles.scheduleSubTitle}>
               Device timezone: {deviceTimeZone}
             </Text>
@@ -828,36 +1357,47 @@ export default function TeamScreen() {
 
               {schedule.map((match) => {
                 const tip = tipsByMatch[match.id] ?? { home: '', away: '' };
-                const isGroupStageMatch = match.stage.toLowerCase().includes('group');
+                const isGroupFixture = isGroupStageMatch(match.stage, match.round);
+                // Only show group label if the current team is actually in that group
+                let stageLabel = match.stage || match.round || 'Fixture';
+                if (isGroupFixture) {
+                  const groupLetter = extractGroupLetterFromText(match.stage) || extractGroupLetterFromText(match.round);
+                  // Only show group label if the current team is in that group
+                  if (groupLetter && (TEAM_GROUP_BY_ID[team?.id ?? ''] === groupLetter)) {
+                    stageLabel = `GROUP ${groupLetter}`;
+                  } else {
+                    stageLabel = '';
+                  }
+                }
                 return (
                   <View
                     key={match.id}
                     style={[
                       styles.matchCard,
-                      isGroupStageMatch ? styles.matchCardCompact : null,
+                      isGroupFixture ? styles.matchCardCompact : null,
                     ]}
                   >
                     <View
                       style={[
                         styles.matchTopRow,
-                        isGroupStageMatch ? styles.matchTopRowCompact : null,
+                        isGroupFixture ? styles.matchTopRowCompact : null,
                       ]}
                     >
-                      <Text style={[styles.stage, isGroupStageMatch ? styles.stageCompact : null]}>
-                        {match.stage}
+                      <Text style={[styles.stage, isGroupFixture ? styles.stageCompact : null]}>
+                        {stageLabel}
                       </Text>
-                      <Text style={[styles.versus, isGroupStageMatch ? styles.versusCompact : null]}>
-                        {groupStageLinePrefix(match)}{formatTeamForMatch(match, match.homeTeam.name)} {match.homeScore} - {match.awayScore} {formatTeamForMatch(match, match.awayTeam.name)}
-                      </Text>
+                      {!!match.round && !isGroupFixture && (
+                        <Text style={styles.roundLine}>{match.round}</Text>
+                      )}
                     </View>
 
-                      <View style={[styles.venueSection, isGroupStageMatch ? styles.venueSectionCompact : null]}>
+                      <View style={[styles.venueSection, isGroupFixture ? styles.venueSectionCompact : null]}>
                         {match.venue.image && !venueImageFailedByMatch[match.id] ? (
                           <Image
                             source={{
                               uri: match.venue.image,
                             }}
-                            style={[styles.venueImage, isGroupStageMatch ? styles.venueImageCompact : null]}
+                            style={[styles.venueImage, isGroupFixture ? styles.venueImageCompact : null]}
                             resizeMode="cover"
                             onError={() => {
                               setVenueImageFailedByMatch((prev) => ({
@@ -867,7 +1407,7 @@ export default function TeamScreen() {
                             }}
                           />
                         ) : (
-                          <View style={[styles.venueImageFallbackBox, isGroupStageMatch ? styles.venueImageFallbackCompact : null]}>
+                          <View style={[styles.venueImageFallbackBox, isGroupFixture ? styles.venueImageFallbackCompact : null]}>
                             <Text style={styles.venueImageFallbackText}>
                               Venue image unavailable
                             </Text>
@@ -875,18 +1415,23 @@ export default function TeamScreen() {
                         )}
 
                         <View style={styles.venueDetails}>
+                          <Text style={styles.venueMetaTitle}>Venue & schedule</Text>
                           <Text style={styles.venueLine}>
                             {match.venue.name}, {match.venue.city}, {match.venue.country}
                           </Text>
 
-                          <View style={[styles.timeBlockInline, isGroupStageMatch ? styles.timeBlockCompact : null]}>
+                          <Text style={[styles.venueScoreLine, isGroupFixture ? styles.venueScoreLineCompact : null]}>
+                            {formatTeamForMatch(match, match.homeTeam.name, true)} {match.homeScore}:{match.awayScore} {formatTeamForMatch(match, match.awayTeam.name, false)}
+                          </Text>
+
+                          <View style={[styles.timeBlockInline, isGroupFixture ? styles.timeBlockCompact : null]}>
                             <Text style={styles.timeLabel}>Venue time ({match.venue.timeZone})</Text>
                             <Text style={styles.timeValue}>
                               {formatInTimeZone(match.kickoffUtc, match.venue.timeZone)}
                             </Text>
                           </View>
 
-                          <View style={[styles.timeBlockInline, isGroupStageMatch ? styles.timeBlockCompact : null]}>
+                          <View style={[styles.timeBlockInline, isGroupFixture ? styles.timeBlockCompact : null]}>
                             <Text style={styles.timeLabel}>Your time ({deviceTimeZone})</Text>
                             <Text style={styles.timeValue}>
                               {formatInTimeZone(match.kickoffUtc, deviceTimeZone)}
@@ -895,14 +1440,14 @@ export default function TeamScreen() {
                         </View>
                       </View>
 
-                    <View style={[styles.resultBlock, isGroupStageMatch ? styles.resultBlockCompact : null]}>
+                    <View style={[styles.resultBlock, isGroupFixture ? styles.resultBlockCompact : null]}>
                       <Text style={styles.resultLabel}>Ergebnis</Text>
-                      <Text style={[styles.resultValue, isGroupStageMatch ? styles.resultValueCompact : null]}>
-                        {formatTeamForMatch(match, match.homeTeam.name)} {match.homeScore} - {match.awayScore} {formatTeamForMatch(match, match.awayTeam.name)}
+                      <Text style={[styles.resultValue, isGroupFixture ? styles.resultValueCompact : null]}>
+                        {formatTeamForMatch(match, match.homeTeam.name, true)} {match.homeScore}:{match.awayScore} {formatTeamForMatch(match, match.awayTeam.name, false)}
                       </Text>
                     </View>
 
-                    <View style={[styles.tipBlock, isGroupStageMatch ? styles.tipBlockCompact : null]}>
+                    <View style={[styles.tipBlock, isGroupFixture ? styles.tipBlockCompact : null]}>
                       <Text style={styles.tipLabel}>Dein Tipp</Text>
                       <View style={styles.tipRow}>
                         <TextInput
@@ -911,7 +1456,7 @@ export default function TeamScreen() {
                           keyboardType="number-pad"
                           placeholder="0"
                           placeholderTextColor="#809b82"
-                          style={[styles.tipInput, isGroupStageMatch ? styles.tipInputCompact : null]}
+                          style={[styles.tipInput, isGroupFixture ? styles.tipInputCompact : null]}
                         />
                         <Text style={styles.tipDash}>-</Text>
                         <TextInput
@@ -920,14 +1465,191 @@ export default function TeamScreen() {
                           keyboardType="number-pad"
                           placeholder="0"
                           placeholderTextColor="#809b82"
-                          style={[styles.tipInput, isGroupStageMatch ? styles.tipInputCompact : null]}
+                          style={[styles.tipInput, isGroupFixture ? styles.tipInputCompact : null]}
                         />
                       </View>
+                      {friends.length > 0 && (
+                        <View
+                          style={[
+                            styles.friendsTipsInlineList,
+                            isSmallMobile ? styles.friendsTipsInlineListCompact : null,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.friendsTipsInlineTitle,
+                              isSmallMobile ? styles.friendsTipsInlineTitleCompact : null,
+                            ]}
+                          >
+                            Friends Tipps
+                          </Text>
+                          <View
+                            style={[
+                              styles.friendsTipsInlineGrid,
+                              isSmallMobile ? styles.friendsTipsInlineGridCompact : null,
+                            ]}
+                          >
+                            {friends.map((friend) => {
+                              const friendTip = friendTips[friend.id]?.[match.id] ?? { home: '', away: '' };
+                              const hasTip = friendTip.home !== '' || friendTip.away !== '';
+                              return (
+                                <View
+                                  key={`${friend.id}-${match.id}`}
+                                  style={[
+                                    styles.friendsTipInlineCard,
+                                    isSmallMobile ? styles.friendsTipInlineCardCompact : null,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.friendsTipInlineName,
+                                      isSmallMobile ? styles.friendsTipInlineNameCompact : null,
+                                    ]}
+                                    numberOfLines={1}
+                                  >
+                                    {friend.name}
+                                  </Text>
+                                  <View
+                                    style={[
+                                      styles.friendsTipInlineScoreRow,
+                                      isSmallMobile ? styles.friendsTipInlineScoreRowCompact : null,
+                                    ]}
+                                  >
+                                    <View
+                                      style={[
+                                        styles.friendsTipInlineBox,
+                                        isSmallMobile ? styles.friendsTipInlineBoxCompact : null,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.friendsTipInlineBoxText,
+                                          isSmallMobile ? styles.friendsTipInlineBoxTextCompact : null,
+                                        ]}
+                                      >
+                                        {hasTip ? friendTip.home || '0' : '-'}
+                                      </Text>
+                                    </View>
+                                    <Text
+                                      style={[
+                                        styles.friendsTipInlineDash,
+                                        isSmallMobile ? styles.friendsTipInlineDashCompact : null,
+                                      ]}
+                                    >
+                                      -
+                                    </Text>
+                                    <View
+                                      style={[
+                                        styles.friendsTipInlineBox,
+                                        isSmallMobile ? styles.friendsTipInlineBoxCompact : null,
+                                      ]}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.friendsTipInlineBoxText,
+                                          isSmallMobile ? styles.friendsTipInlineBoxTextCompact : null,
+                                        ]}
+                                      >
+                                        {hasTip ? friendTip.away || '0' : '-'}
+                                      </Text>
+                                    </View>
+                                  </View>
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      )}
                     </View>
 
                   </View>
                 );
               })}
+
+              {!(isDesktopWeb || isUltraWideWeb) && (
+                <>
+                  <TouchableOpacity style={styles.friendsMobileOpenBtn} onPress={() => setFriendsModalVisible(true)}>
+                    <Text style={styles.friendsMobileOpenBtnText}>Friends</Text>
+                  </TouchableOpacity>
+                  <Modal
+                    visible={friendsModalVisible}
+                    animationType="slide"
+                    transparent
+                    onRequestClose={() => setFriendsModalVisible(false)}
+                  >
+                    <View style={styles.friendsModalBackdrop}>
+                      <View style={styles.friendsModalPanel}>
+                        <View style={styles.friendsModalHeader}>
+                          <Text style={styles.friendsPanelTitle}>Friends</Text>
+                          <TouchableOpacity onPress={() => setFriendsModalVisible(false)}>
+                            <Text style={styles.friendRemoveBtnText}>x</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} friends</Text>
+                        <View style={styles.friendsAddRow}>
+                          <TextInput
+                            style={styles.friendsAddInput}
+                            value={friendNameInput}
+                            onChangeText={setFriendNameInput}
+                            placeholder="Add friend..."
+                            maxLength={24}
+                          />
+                          <TouchableOpacity
+                            style={[
+                              styles.friendsAddButton,
+                              friends.length >= MAX_FRIENDS ? styles.friendsAddButtonDisabled : null,
+                            ]}
+                            onPress={addFriend}
+                            disabled={friends.length >= MAX_FRIENDS}
+                          >
+                            <Text style={styles.friendsAddButtonText}>Add</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <ScrollView>
+                          {friends.length === 0 && <Text style={styles.friendsEmpty}>No friends yet.</Text>}
+                          {friends.map((friend) => (
+                            <View key={friend.id} style={styles.friendCard}>
+                              <View style={styles.friendCardHeader}>
+                                <Text style={styles.friendName}>{friend.name}</Text>
+                                <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
+                                  <Text style={styles.friendRemoveBtnText}>x</Text>
+                                </TouchableOpacity>
+                              </View>
+                              {schedule.map((match) => {
+                                const tip = friendTips[friend.id]?.[match.id] ?? { home: '', away: '' };
+                                return (
+                                  <View key={match.id} style={styles.friendTipRow}>
+                                    <Text style={styles.friendTipMatch}>
+                                      {formatTeamForMatch(match, match.homeTeam.name, true)} vs {formatTeamForMatch(match, match.awayTeam.name, false)}
+                                    </Text>
+                                    <TextInput
+                                      style={styles.friendTipInput}
+                                      value={tip.home}
+                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'home', v)}
+                                      keyboardType="numeric"
+                                      maxLength={2}
+                                      placeholder="H"
+                                    />
+                                    <Text style={styles.tipDash}>-</Text>
+                                    <TextInput
+                                      style={styles.friendTipInput}
+                                      value={tip.away}
+                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'away', v)}
+                                      keyboardType="numeric"
+                                      maxLength={2}
+                                      placeholder="A"
+                                    />
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    </View>
+                  </Modal>
+                </>
+              )}
             </View>
 
             <View
@@ -1003,23 +1725,19 @@ export default function TeamScreen() {
                       {groupTable.length > 0 && (
                         <View style={styles.groupTableCard}>
                           <View style={styles.groupTableHeaderRow}>
-                            <Text style={styles.groupCell}>#</Text>
                             <Text style={[styles.groupCell, styles.groupTeamCol]}>Team</Text>
-                            <Text style={styles.groupCell}>P</Text>
-                            <Text style={styles.groupCell}>W</Text>
-                            <Text style={styles.groupCell}>D</Text>
-                            <Text style={styles.groupCell}>L</Text>
-                            <Text style={styles.groupCell}>GF</Text>
-                            <Text style={styles.groupCell}>GA</Text>
-                            <Text style={styles.groupCell}>GD</Text>
-                            <Text style={styles.groupCell}>Pts</Text>
+                            <Text style={styles.groupCell}>Sp</Text>
+                            <Text style={styles.groupCell}>S</Text>
+                            <Text style={styles.groupCell}>U</Text>
+                            <Text style={styles.groupCell}>N</Text>
+                            <Text style={styles.groupCell}>T</Text>
+                            <Text style={styles.groupCell}>GT</Text>
+                            <Text style={styles.groupCell}>TD</Text>
+                            <Text style={styles.groupCell}>Pkte</Text>
                           </View>
 
                           {groupTable.map((row) => (
                             <View key={row.id} style={styles.groupTableDataRow}>
-                              <Text style={[styles.groupCell, row.name === team.name ? styles.groupPoints : null]}>
-                                {row.rank}
-                              </Text>
                               <Pressable
                                 style={styles.groupTeamPressable}
                                 onPress={() => openTeamFromName(row.name)}
@@ -1033,7 +1751,7 @@ export default function TeamScreen() {
                                   ]}
                                   numberOfLines={1}
                                 >
-                                  {withGroupLetter(row.name)}
+                                  {row.name}
                                 </Text>
                               </Pressable>
                               <Text style={styles.groupCell}>{row.played}</Text>
@@ -1058,12 +1776,12 @@ export default function TeamScreen() {
                           <View key={member.id} style={styles.groupMemberCard}>
                             <Pressable onPress={() => openTeamFromName(member.name)}>
                               <Text style={[styles.groupMemberName, styles.groupTeamLink]}>
-                                {withGroupLetter(member.name)}
+                                {member.name}
                               </Text>
                             </Pressable>
                             {member.matches.map((m) => (
                               <Text key={m.id} style={styles.groupMemberMatch}>
-                                {withGroupLetter(m.homeTeam)} {m.homeScore} - {m.awayScore} {withGroupLetter(m.awayTeam)}
+                                {m.homeTeam} {m.homeScore} - {m.awayScore} {m.awayTeam}
                               </Text>
                             ))}
                           </View>
@@ -1075,19 +1793,84 @@ export default function TeamScreen() {
                       <Text style={styles.region}>{team.region}</Text>
 
                       <Text style={styles.goalHint}>
-                        WAV plays once on selection and automatically on goals.
+                        Tap Send Roar for a test. Enable Auto for in-app goal roar alerts.
                       </Text>
                     </View>
                   </View>
 
                   {isDesktopWeb ? (
                     <View style={styles.squadOutsideStackDesktop}>
-                      <PlayerList
-                        players={players}
-                        isLoading={playersLoading}
-                        error={playersError}
-                        trainerName={trainerName}
-                      />
+                      <View style={styles.squadAndFriendsRowDesktop}>
+                        <View style={styles.squadPanelDesktop}>
+                          <PlayerList
+                            players={players}
+                            isLoading={playersLoading}
+                            error={playersError}
+                            trainerName={trainerName}
+                          />
+                        </View>
+                        <View style={[styles.friendsPanel, styles.friendsPanelDesktop]}>
+                          <Text style={styles.friendsPanelTitle}>Friends</Text>
+                          <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} friends</Text>
+                          <View style={styles.friendsAddRow}>
+                            <TextInput
+                              style={styles.friendsAddInput}
+                              value={friendNameInput}
+                              onChangeText={setFriendNameInput}
+                              placeholder="Add friend..."
+                              maxLength={24}
+                            />
+                            <TouchableOpacity
+                              style={[
+                                styles.friendsAddButton,
+                                friends.length >= MAX_FRIENDS ? styles.friendsAddButtonDisabled : null,
+                              ]}
+                              onPress={addFriend}
+                              disabled={friends.length >= MAX_FRIENDS}
+                            >
+                              <Text style={styles.friendsAddButtonText}>Add</Text>
+                            </TouchableOpacity>
+                          </View>
+                          {friends.length === 0 && <Text style={styles.friendsEmpty}>No friends yet.</Text>}
+                          {friends.map((friend) => (
+                            <View key={friend.id} style={styles.friendCard}>
+                              <View style={styles.friendCardHeader}>
+                                <Text style={styles.friendName}>{friend.name}</Text>
+                                <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
+                                  <Text style={styles.friendRemoveBtnText}>x</Text>
+                                </TouchableOpacity>
+                              </View>
+                              {schedule.map((match) => {
+                                const tip = friendTips[friend.id]?.[match.id] ?? { home: '', away: '' };
+                                return (
+                                  <View key={match.id} style={styles.friendTipRow}>
+                                    <Text style={styles.friendTipMatch}>
+                                      {formatTeamForMatch(match, match.homeTeam.name, true)} vs {formatTeamForMatch(match, match.awayTeam.name, false)}
+                                    </Text>
+                                    <TextInput
+                                      style={styles.friendTipInput}
+                                      value={tip.home}
+                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'home', v)}
+                                      keyboardType="numeric"
+                                      maxLength={2}
+                                      placeholder="H"
+                                    />
+                                    <Text style={styles.tipDash}>-</Text>
+                                    <TextInput
+                                      style={styles.friendTipInput}
+                                      value={tip.away}
+                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'away', v)}
+                                      keyboardType="numeric"
+                                      maxLength={2}
+                                      placeholder="A"
+                                    />
+                                  </View>
+                                );
+                              })}
+                            </View>
+                          ))}
+                        </View>
+                      </View>
                       <TournamentStages groupStageData={groupStageDiagramData} />
                     </View>
                   ) : (
@@ -1177,9 +1960,18 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   squadOutsideStackDesktop: {
-    width: 240,
-    flexShrink: 0,
+    flex: 1,
+    minWidth: 0,
     gap: 12,
+  },
+  squadAndFriendsRowDesktop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  squadPanelDesktop: {
+    flex: 1,
+    minWidth: 220,
   },
   notFound: {
     flex: 1,
@@ -1199,6 +1991,25 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
   },
+  navLeftControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  groupChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#35543a',
+    backgroundColor: 'rgba(10, 20, 13, 0.75)',
+  },
+  groupChipText: {
+    color: '#a9d7ae',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   navButton: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -1211,6 +2022,30 @@ const styles = StyleSheet.create({
     color: '#4caf50',
     fontSize: 16,
     fontWeight: '600',
+  },
+  navGroupLetterRail: {
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#101c12',
+    borderWidth: 2,
+    borderColor: '#2e7d32',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  navGroupLetter: {
+    color: '#a9d7ae',
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: 2,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    marginTop: 1,
   },
   hero: {
     width: '100%',
@@ -1488,12 +2323,142 @@ const styles = StyleSheet.create({
     color: '#f2f2f2',
     fontSize: 20,
     fontWeight: '800',
+    flex: 1,
+  },
+  scheduleTitleCompact: {
+    flex: 0,
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  scheduleHeaderTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+  },
+  scheduleHeaderTopRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  roarActionFrame: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  roarActionFrameCompact: {
+    justifyContent: 'flex-start',
+    width: '100%',
+    gap: 6,
+  },
+  roarSendButton: {
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(8, 24, 10, 0.9)',
+  },
+  roarSendButtonCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  roarSendButtonText: {
+    color: '#d4f5d7',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  roarSendButtonTextCompact: {
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  friendsHeaderButton: {
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(8, 24, 10, 0.9)',
+  },
+  friendsHeaderButtonCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  friendsHeaderButtonText: {
+    color: '#d4f5d7',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  friendsHeaderButtonTextCompact: {
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  roarSwitchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  roarSwitchWrapCompact: {
+    gap: 4,
+  },
+  roarSwitchLabel: {
+    color: '#c9efcc',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  roarSwitchLabelCompact: {
+    fontSize: 10,
+    letterSpacing: 0.3,
   },
   scheduleSubTitle: {
     color: '#9cd6a0',
     marginTop: 4,
     fontSize: 12,
     fontWeight: '600',
+  },
+  calendarActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarActionsRowCompact: {
+    width: '100%',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  calendarActionButton: {
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(8, 24, 10, 0.9)',
+  },
+  calendarActionButtonCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  calendarActionButtonDisabled: {
+    opacity: 0.45,
+  },
+  calendarActionText: {
+    color: '#d4f5d7',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  calendarActionTextCompact: {
+    fontSize: 10,
+    letterSpacing: 0.3,
   },
   scheduleError: {
     width: '100%',
@@ -1543,6 +2508,12 @@ const styles = StyleSheet.create({
   stageCompact: {
     fontSize: 11,
   },
+  roundLine: {
+    marginTop: 2,
+    color: '#7fa886',
+    fontSize: 11,
+    fontWeight: '600',
+  },
   versus: {
     marginTop: 4,
     color: '#f5f5f5',
@@ -1557,6 +2528,29 @@ const styles = StyleSheet.create({
     color: '#afafaf',
     fontSize: 13,
     marginBottom: 10,
+  },
+  venueScoreLine: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 28,
+    marginBottom: 8,
+    flexWrap: 'wrap',
+    textAlign: 'center',
+    alignSelf: 'center',
+  },
+  venueScoreLineCompact: {
+    fontSize: 18,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  venueMetaTitle: {
+    color: '#9cd6a0',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 6,
   },
   venueSection: {
     flexDirection: 'row',
@@ -1650,6 +2644,101 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 6,
   },
+  friendsTipsInlineList: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#324534',
+    paddingTop: 6,
+    gap: 6,
+  },
+  friendsTipsInlineListCompact: {
+    marginTop: 6,
+    paddingTop: 4,
+    gap: 4,
+  },
+  friendsTipsInlineTitle: {
+    color: '#9acfa0',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  friendsTipsInlineTitleCompact: {
+    fontSize: 10,
+    letterSpacing: 0.4,
+  },
+  friendsTipsInlineGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  friendsTipsInlineGridCompact: {
+    gap: 6,
+  },
+  friendsTipInlineCard: {
+    width: '31%',
+    minWidth: 96,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#324534',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    padding: 6,
+  },
+  friendsTipInlineCardCompact: {
+    minWidth: 88,
+    padding: 4,
+  },
+  friendsTipInlineScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendsTipInlineScoreRowCompact: {
+    marginTop: -1,
+  },
+  friendsTipInlineName: {
+    color: '#c9dfcb',
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  friendsTipInlineNameCompact: {
+    fontSize: 10,
+    marginBottom: 4,
+  },
+  friendsTipInlineBox: {
+    width: 30,
+    height: 26,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a5040',
+    backgroundColor: '#111713',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendsTipInlineBoxCompact: {
+    width: 26,
+    height: 22,
+  },
+  friendsTipInlineDash: {
+    color: '#d7e3d8',
+    fontSize: 16,
+    fontWeight: '700',
+    marginHorizontal: 6,
+  },
+  friendsTipInlineDashCompact: {
+    fontSize: 14,
+    marginHorizontal: 4,
+  },
+  friendsTipInlineBoxText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  friendsTipInlineBoxTextCompact: {
+    fontSize: 11,
+  },
   tipRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1704,5 +2793,158 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
+  },
+  friendsPanel: {
+    marginTop: 14,
+    width: '100%',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: 'rgba(8, 24, 10, 0.55)',
+    borderWidth: 1,
+    borderColor: '#2b4b2f',
+  },
+  friendsPanelDesktop: {
+    marginTop: 0,
+    width: 300,
+    maxWidth: 300,
+    alignSelf: 'stretch',
+  },
+  friendsPanelTitle: {
+    color: '#d8f5da',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  friendsAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  friendsAddInput: {
+    flex: 1,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3a5040',
+    backgroundColor: '#111713',
+    color: '#ffffff',
+    paddingHorizontal: 10,
+  },
+  friendsAddButton: {
+    borderRadius: 8,
+    backgroundColor: '#2e7d32',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  friendsAddButtonDisabled: {
+    opacity: 0.45,
+  },
+  friendsAddButtonText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  friendsLimitText: {
+    color: '#8fb090',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  friendsEmpty: {
+    color: '#8fb090',
+    fontSize: 13,
+  },
+  friendCard: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2b3a2c',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: 10,
+  },
+  friendCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  friendName: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  friendRemoveBtn: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#2e7d32',
+  },
+  friendRemoveBtnText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 16,
+    lineHeight: 18,
+  },
+  friendTipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  friendTipMatch: {
+    flex: 1,
+    color: '#cdd9ce',
+    fontSize: 12,
+    marginRight: 6,
+  },
+  friendTipInput: {
+    width: 34,
+    height: 30,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#3a5040',
+    backgroundColor: '#111713',
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  friendsMobileOpenBtn: {
+    backgroundColor: '#2e7d32',
+    borderRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  friendsMobileOpenBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+  friendsModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  friendsModalPanel: {
+    backgroundColor: 'rgba(18, 28, 18, 0.99)',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    padding: 18,
+    minHeight: 320,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  friendsModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
 });

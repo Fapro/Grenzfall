@@ -31,6 +31,18 @@ function isDnsResolutionError(err: unknown): boolean {
   return cause?.code === 'ENOTFOUND';
 }
 
+function isGroupStageFixture(raw: SportMonksFixture): boolean {
+  const stage = (raw.stage?.name ?? '').toLowerCase();
+  const round = (raw.round?.name ?? '').toLowerCase();
+  const combined = `${stage} ${round}`.trim();
+
+  if (!combined) {
+    return false;
+  }
+
+  return /\bgroup\b/.test(combined) || /\bgrp\b/.test(combined);
+}
+
 function normalizeName(name: string): string {
   return name
     .normalize('NFD')
@@ -188,7 +200,8 @@ async function attachVenueImages(fixtures: AppFixture[]): Promise<AppFixture[]> 
 router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) => {
   const sportTeamId = Number(req.params.sportTeamId);
   const seasonId = process.env.SPORTMONKS_SEASON_ID;
-  const cacheKey = `fixtures:sport:${sportTeamId}:${seasonId ?? 'all'}`;
+  const seasonIdNum = seasonId ? Number(seasonId) : 26618;
+  const cacheKey = `fixtures:sport:${sportTeamId}:${seasonIdNum}`;
 
   if (!Number.isFinite(sportTeamId) || sportTeamId <= 0) {
     return res.status(400).json({ error: 'Invalid SportMonks team id' });
@@ -206,15 +219,11 @@ router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) =>
 
   try {
     const rawFixtures = await fetchTeamFixtures(sportTeamId, apiKey);
-    const seasonIdNum = seasonId ? Number(seasonId) : null;
-    const filteredBySeason =
-      seasonIdNum && !Number.isNaN(seasonIdNum)
-        ? rawFixtures.filter((raw) => raw.season_id === seasonIdNum)
-        : rawFixtures;
+    const filteredBySeason = Number.isNaN(seasonIdNum)
+      ? rawFixtures
+      : rawFixtures.filter((raw) => raw.season_id === seasonIdNum);
 
-    const selected = filteredBySeason.length
-      ? filteredBySeason
-      : rawFixtures.slice(0, 8);
+    const selected = filteredBySeason;
 
     const fixtures = await attachVenueImages(
       selected.map((raw) => normaliseFixture(raw, String(sportTeamId)))
@@ -244,7 +253,8 @@ router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) =>
 router.get('/:appTeamId', async (req: Request, res: Response) => {
   const appTeamId = String(req.params.appTeamId);
   const seasonId = process.env.SPORTMONKS_SEASON_ID;
-  const cacheKey = `fixtures:${appTeamId}:${seasonId ?? 'all'}`;
+  const seasonIdNum = seasonId ? Number(seasonId) : 26618;
+  const cacheKey = `fixtures:${appTeamId}:${seasonIdNum}`;
 
   const cached = cache.get<AppFixture[]>(cacheKey);
   if (cached) {
@@ -285,15 +295,11 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
       }
     }
 
-    const seasonIdNum = seasonId ? Number(seasonId) : null;
-    const filteredBySeason =
-      seasonIdNum && !Number.isNaN(seasonIdNum)
-        ? rawFixtures.filter((raw) => raw.season_id === seasonIdNum)
-        : rawFixtures;
+    const filteredBySeason = Number.isNaN(seasonIdNum)
+      ? rawFixtures
+      : rawFixtures.filter((raw) => raw.season_id === seasonIdNum);
 
-    const selected = filteredBySeason.length
-      ? filteredBySeason
-      : rawFixtures.slice(0, 8);
+    const selected = filteredBySeason;
 
     const fixtures = await attachVenueImages(
       selected.map((raw) => normaliseFixture(raw, appTeamId))
@@ -323,7 +329,8 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
  */
 router.get('/group-stage/all', async (req: Request, res: Response) => {
   const seasonId = process.env.SPORTMONKS_SEASON_ID;
-  const cacheKey = `fixtures:group-stage:${seasonId ?? 'all'}`;
+  const seasonIdNum = seasonId ? Number(seasonId) : 26618;
+  const cacheKey = `fixtures:group-stage:${seasonIdNum}`;
 
   const cached = cache.get<AppFixture[]>(cacheKey);
   if (cached) {
@@ -336,7 +343,6 @@ router.get('/group-stage/all', async (req: Request, res: Response) => {
   }
 
   try {
-    const seasonIdNum = seasonId ? Number(seasonId) : 26618;
     // Fetch season fixtures via season endpoint; includes are valid here.
     const fixtureIncludes =
       'fixtures;fixtures.participants;fixtures.scores;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
@@ -352,10 +358,7 @@ router.get('/group-stage/all', async (req: Request, res: Response) => {
     const allFixtures = body.data?.fixtures ?? [];
     
     // Filter to only group stage matches
-    const groupStageMatches = allFixtures.filter((raw) => {
-      const stage = raw.stage?.name ?? '';
-      return stage.toLowerCase().includes('group');
-    });
+    const groupStageMatches = allFixtures.filter(isGroupStageFixture);
 
     const fixtures = await attachVenueImages(
       groupStageMatches.map((raw) => normaliseFixture(raw, 'all-group-stage'))
