@@ -174,39 +174,23 @@ export function TournamentStages({ groupStageData }: TournamentStagesProps) {
   }, [groupStageData?.groupLetter]);
 
   const selectedRangeLetters = GROUP_RANGE_LETTERS[selectedGroupRange] ?? [];
-  const hasDataForSelectedRange =
-    !!groupStageData?.groupLetter &&
-    selectedRangeLetters.includes(groupStageData.groupLetter.toUpperCase());
 
   const selectedGroupRangeData = useMemo(() => {
-    const baseData = createEmptyGroupRangeData(selectedGroupRange);
-    if (!groupStageData?.groupLetter) {
-      return baseData;
-    }
-
-    const groupLetter = groupStageData.groupLetter.toUpperCase();
-    if (!selectedRangeLetters.includes(groupLetter)) {
-      return baseData;
-    }
-
     return {
-      ...baseData,
-      teams: groupStageData.teams,
-      results: groupStageData.results,
+      ...createEmptyGroupRangeData(selectedGroupRange),
     };
-  }, [groupStageData, selectedGroupRange, selectedRangeLetters]);
+  }, [selectedGroupRange]);
 
   const selectedRangeSections = useMemo<GroupLetterSection[]>(() => {
     return selectedRangeLetters.map((letter) => {
       const fromAllGroups = groupStageData?.groups?.[letter];
-      const isLoadedGroup = groupStageData?.groupLetter?.toUpperCase() === letter;
       return {
         letter,
-        teams: fromAllGroups?.teams ?? (isLoadedGroup ? selectedGroupRangeData.teams : []),
-        results: fromAllGroups?.results ?? (isLoadedGroup ? selectedGroupRangeData.results : []),
+        teams: fromAllGroups?.teams ?? [],
+        results: fromAllGroups?.results ?? [],
       };
     });
-  }, [groupStageData?.groupLetter, groupStageData?.groups, selectedGroupRangeData.results, selectedGroupRangeData.teams, selectedRangeLetters]);
+  }, [groupStageData?.groups, selectedRangeLetters]);
 
   return (
     <View style={styles.container}>
@@ -389,11 +373,6 @@ export function TournamentStages({ groupStageData }: TournamentStagesProps) {
                   </View>
                 ))}
 
-                {!hasDataForSelectedRange && (
-                  <Text style={styles.groupDataEmpty}>
-                    Select a team from groups {selectedRangeLetters.join(', ')} to load real fixtures for this range.
-                  </Text>
-                )}
               </View>
             )}
 
@@ -409,12 +388,13 @@ export function TournamentStages({ groupStageData }: TournamentStagesProps) {
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
+    alignSelf: 'stretch',
     backgroundColor: 'rgba(20, 35, 20, 0.9)',
     borderRadius: 12,
     padding: 14,
     borderColor: '#2e7d32',
     borderWidth: 1,
-    marginVertical: 12,
   },
   title: {
     color: '#ffffff',

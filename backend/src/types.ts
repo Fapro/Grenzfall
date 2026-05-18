@@ -3,6 +3,7 @@ export interface AppFixture {
   id: string;
   stage: string;
   round: string;
+  groupLetter?: string;           // e.g. "A", "B", etc. for group stage
   kickoffUtc: string;            // ISO-8601 UTC e.g. "2026-06-14T18:00:00Z"
   homeScore: number;
   awayScore: number;
@@ -73,7 +74,8 @@ function getCurrentGoals(raw: SportMonksFixture, participantId?: number): number
 /** Converts a SportMonks fixture into the app's simplified shape. */
 export function normaliseFixture(
   raw: SportMonksFixture,
-  appTeamId: string
+  appTeamId: string,
+  groupLetter?: string
 ): AppFixture {
   const home = raw.participants?.find((p) => p.meta.location === 'home');
   const away = raw.participants?.find((p) => p.meta.location === 'away');
@@ -85,8 +87,9 @@ export function normaliseFixture(
 
   return {
     id: String(raw.id),
-    stage: raw.stage?.name ?? '',
+    stage: raw.stage?.name ?? 'Group Stage',
     round: raw.round?.name ?? '',
+    groupLetter,
     kickoffUtc: kickoffUtc.endsWith('Z') ? kickoffUtc : kickoffUtc + 'Z',
     homeScore: getCurrentGoals(raw, home?.id),
     awayScore: getCurrentGoals(raw, away?.id),

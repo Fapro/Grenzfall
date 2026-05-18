@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function NotFoundScreen() {
@@ -19,6 +19,9 @@ export default function NotFoundScreen() {
     <View style={styles.container}>
       <ActivityIndicator size="small" color="#4caf50" />
       <Text style={styles.text}>Opening team selection...</Text>
+      <TouchableOpacity style={styles.homeButton} onPress={() => router.replace('/')}>
+        <Text style={styles.homeButtonText}>Home</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -34,5 +37,19 @@ const styles = StyleSheet.create({
   text: {
     color: '#d5d5d5',
     fontSize: 14,
+  },
+  homeButton: {
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    backgroundColor: 'rgba(12, 18, 16, 0.7)',
+  },
+  homeButtonText: {
+    color: '#4caf50',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

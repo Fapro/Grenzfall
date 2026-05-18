@@ -1,0 +1,140 @@
+{
+  "users": [
+    {
+      "id": "usr_3062ce2487974fd7b8460e452f93b136",
+      "email": "owner.acme@example.com",
+      "name": "Acme Owner",
+      "passwordHash": "31337640f45e563d9f819c1e6c369509:bffe98caec8fe2be630c63da06d352c783f70eeab2bff0c8851a74a708fa6384a26da89e171dd97d36706227159c38648fd2091b58bddf6e1cc0b34a474beb44",
+      "createdAt": "2026-05-18T11:57:02.297Z"
+    },
+    {
+      "id": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "email": "farrukh.salim@gmail.com",
+      "name": "farrukh",
+      "passwordHash": "55a84c4a59c0c029eb46e43ed0b9d059:b965ec350cd4b323c290f3951e9d803a42cdb704784d11782caeae0af118c639c16ba723cd0e73b0b42b94123f2ac561a63416d77426be9885421bb8f192a54a",
+      "createdAt": "2026-05-18T12:10:26.982Z"
+    },
+    {
+      "id": "usr_130c90bf9022414e8164cb6bda060241",
+      "email": "admin@test.com",
+      "name": "Test Admin",
+      "passwordHash": "0b037a41da90a9cb6ae4df73e38e77f8:5f9e9ae6d989de9bb964031fdf489b14f23747f8e8a9e8e436efc40673cd56c4112709a7cf4567c586fb8597c9299aedc3a41568cc1cd5b824b8f76c0a9fd257",
+      "createdAt": "2026-05-18T13:29:50.572Z"
+    }
+  ],
+  "tenants": [
+    {
+      "id": "ten_2d86377c50c4474a9ab95c04970a19a4",
+      "slug": "acme-cup",
+      "name": "Acme Cup",
+      "ownerUserId": "usr_3062ce2487974fd7b8460e452f93b136",
+      "createdAt": "2026-05-18T11:57:02.243Z"
+    },
+    {
+      "id": "ten_463f744508e4489cb2a37b55a984976f",
+      "slug": "bonnei-cup",
+      "name": "Bonn-Ei",
+      "ownerUserId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T12:10:26.934Z"
+    },
+    {
+      "id": "ten_4923c119eb8647e28a3a5b8f6e44e518",
+      "slug": "admin-test",
+      "name": "Admin Test",
+      "ownerUserId": "usr_130c90bf9022414e8164cb6bda060241",
+      "createdAt": "2026-05-18T13:29:50.519Z"
+    }
+  ],
+  "members": [
+    {
+      "id": "mem_70da1c2c4f0e4969b8b9a7f0304462ef",
+      "tenantId": "ten_2d86377c50c4474a9ab95c04970a19a4",
+      "userId": "usr_3062ce2487974fd7b8460e452f93b136",
+      "role": "owner",
+      "createdAt": "2026-05-18T11:57:02.298Z"
+    },
+    {
+      "id": "mem_2931df48470c4491b371aaf65e838f9c",
+      "tenantId": "ten_463f744508e4489cb2a37b55a984976f",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "role": "owner",
+      "createdAt": "2026-05-18T12:10:26.982Z"
+    },
+    {
+      "id": "mem_0c485d539bd0442c991d168b659a9c15",
+      "tenantId": "ten_4923c119eb8647e28a3a5b8f6e44e518",
+      "userId": "usr_130c90bf9022414e8164cb6bda060241",
+      "role": "owner",
+      "createdAt": "2026-05-18T13:29:50.572Z"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "ec2c1f279f2426eec7dbde5f4552bcab82bb41d485a1f76deda39b2aff61993e",
+      "userId": "usr_3062ce2487974fd7b8460e452f93b136",
+      "createdAt": "2026-05-18T11:57:02.298Z",
+      "lastSeenAt": "2026-05-18T11:57:09.979Z"
+    },
+    {
+      "token": "54e57d13e7b73a22c0bf6e3ed7d7f94a8b2b655fe7c3d66566b2bdf342740d4d",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T12:10:26.982Z",
+      "lastSeenAt": "2026-05-18T14:00:47.814Z"
+    },
+    {
+      "token": "4624b4050291e657ff993eb7bdc49e6a41cb508476673782831d8b3d5d33b7bc",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T12:59:30.540Z",
+      "lastSeenAt": "2026-05-18T13:12:19.609Z"
+    },
+    {
+      "token": "b7d0cad62f4f4ff6fd52343e317450c3c62f537fb637df0aceb7eaae5392bb1c",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T13:00:43.135Z",
+      "lastSeenAt": "2026-05-18T13:09:57.800Z"
+    },
+    {
+      "token": "d97cbf8a77d5b26d16965e984bb72d7c02a1b2ed1ada47f0b8dac07877e1a9d4",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T13:10:34.606Z",
+      "lastSeenAt": "2026-05-18T13:12:36.450Z"
+    },
+    {
+      "token": "15ce20469e2ee855f0b9d79eb934607dbaab9b219a0eb5200e048dd80102a3f4",
+      "userId": "usr_130c90bf9022414e8164cb6bda060241",
+      "createdAt": "2026-05-18T13:29:50.573Z",
+      "lastSeenAt": "2026-05-18T13:30:35.555Z"
+    },
+    {
+      "token": "76af4a9d6c539b7195656238253ddea8af06b870ec2dba041bf917be7ccbc57f",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T13:34:22.012Z",
+      "lastSeenAt": "2026-05-18T13:40:44.821Z"
+    },
+    {
+      "token": "4e3a37fb29769c517414003f3d30e439c10c989a46ba372781884ba8f90f7789",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T13:38:12.933Z",
+      "lastSeenAt": "2026-05-18T13:51:47.807Z"
+    },
+    {
+      "token": "d1a71f3d73ad711b8f076a8eb5346884963b532157ff9851adee4994d8eea72e",
+      "userId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "createdAt": "2026-05-18T13:44:47.195Z",
+      "lastSeenAt": "2026-05-18T13:52:18.936Z"
+    }
+  ],
+  "invites": [
+    {
+      "id": "inv_7a2fdfbbb2c743d4bccf5d510a90ceca",
+      "token": "055b85aa04f0c1865eea5d06c3dd77bba72942362628a6b61b3b64f5b7751507",
+      "tenantId": "ten_463f744508e4489cb2a37b55a984976f",
+      "invitedByUserId": "usr_c38f58c462b74a8b8d2103142f92fae2",
+      "email": "m_steinbrecher@hotmail.com",
+      "role": "member",
+      "createdAt": "2026-05-18T13:35:28.420Z",
+      "expiresAt": "2026-06-01T13:35:28.420Z"
+    }
+  ],
+  "friendsByTenantTeam": {}
+}

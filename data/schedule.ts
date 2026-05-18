@@ -1,9 +1,10 @@
-import { BACKEND_URL } from '@/config/api';
+import { apiFetch } from '@/config/api';
 
 export interface TeamMatch {
   id: string;
   stage: string;
   round: string;
+  groupLetter?: string;
   kickoffUtc: string;
   homeScore: number;
   awayScore: number;
@@ -20,8 +21,7 @@ export interface TeamMatch {
 
 /** Fetch team schedule from the backend (which calls SportMonks server-side). */
 export async function fetchTeamSchedule(teamId: string): Promise<TeamMatch[]> {
-  const url = `${BACKEND_URL}/api/fixtures/${encodeURIComponent(teamId)}`;
-  const res = await fetch(url);
+  const res = await apiFetch(`/api/fixtures/${encodeURIComponent(teamId)}`);
   if (!res.ok) {
     throw new Error(`Schedule fetch failed: ${res.status}`);
   }
@@ -33,8 +33,7 @@ export async function fetchTeamSchedule(teamId: string): Promise<TeamMatch[]> {
 export async function fetchSportMonksTeamSchedule(
   sportTeamId: string
 ): Promise<TeamMatch[]> {
-  const url = `${BACKEND_URL}/api/fixtures/by-sportmonks/${encodeURIComponent(sportTeamId)}`;
-  const res = await fetch(url);
+  const res = await apiFetch(`/api/fixtures/by-sportmonks/${encodeURIComponent(sportTeamId)}`);
   if (!res.ok) {
     throw new Error(`Opponent schedule fetch failed: ${res.status}`);
   }
@@ -44,8 +43,7 @@ export async function fetchSportMonksTeamSchedule(
 
 /** Fetch all group stage fixtures for 2026 World Cup (used for standings). */
 export async function fetchAllGroupStageMatches(): Promise<TeamMatch[]> {
-  const url = `${BACKEND_URL}/api/fixtures/group-stage/all`;
-  const res = await fetch(url);
+  const res = await apiFetch('/api/fixtures/group-stage/all');
   if (!res.ok) {
     throw new Error(`Group stage fetch failed: ${res.status}`);
   }

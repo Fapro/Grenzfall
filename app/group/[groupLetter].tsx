@@ -1,25 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Pressable, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { fetchAllGroupStageMatches } from '@/data/schedule';
+import { GROUP_LETTERS, TEAM_GROUP_BY_ID } from '@/data/groups';
 import { TEAMS } from '@/data/teams';
-
-const TEAM_GROUP_BY_ID: Record<string, string> = {
-  cze: 'A', kor: 'A', mex: 'A', zaf: 'A',
-  can: 'B', qat: 'B', sui: 'B', bih: 'B',
-  bra: 'C', mar: 'C', sco: 'C', hai: 'C',
-  aus: 'D', tur: 'D', usa: 'D', par: 'D',
-  civ: 'E', ecu: 'E', ger: 'E', cuw: 'E',
-  jpn: 'F', ned: 'F', tun: 'F', swe: 'F',
-  bel: 'G', egy: 'G', irn: 'G', nzl: 'G',
-  cpv: 'H', sau: 'H', esp: 'H', uru: 'H',
-  fra: 'I', irq: 'I', nor: 'I', sen: 'I',
-  arg: 'J', aut: 'J', jor: 'J', alg: 'J',
-  col: 'K', drc: 'K', por: 'K', uzb: 'K',
-  eng: 'L', pan: 'L', cro: 'L', gha: 'L',
-};
-
-const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as const;
 
 function getTeamsForGroup(letter: string) {
   return TEAMS.filter((t) => TEAM_GROUP_BY_ID[t.id] === letter);
@@ -30,6 +14,13 @@ export default function GroupStatsPage() {
   const [groupMatches, setGroupMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.push('/');
+  };
   const normalizedGroupLetter = (groupLetter || 'A').toUpperCase();
   const currentGroupIndex = GROUP_LETTERS.indexOf(
     normalizedGroupLetter as (typeof GROUP_LETTERS)[number]
@@ -37,18 +28,6 @@ export default function GroupStatsPage() {
 
   const goToGroup = (letter: string) => {
     router.push(`/group/${letter}`);
-  };
-
-  const goToPrevGroup = () => {
-    if (currentGroupIndex < 0) return;
-    const prevIndex = (currentGroupIndex - 1 + GROUP_LETTERS.length) % GROUP_LETTERS.length;
-    goToGroup(GROUP_LETTERS[prevIndex]);
-  };
-
-  const goToNextGroup = () => {
-    if (currentGroupIndex < 0) return;
-    const nextIndex = (currentGroupIndex + 1) % GROUP_LETTERS.length;
-    goToGroup(GROUP_LETTERS[nextIndex]);
   };
 
   useEffect(() => {
@@ -108,16 +87,17 @@ export default function GroupStatsPage() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Gruppe {normalizedGroupLetter}</Text>
-      <View style={styles.groupNavRow}>
-        <Pressable style={styles.groupNavButton} onPress={goToPrevGroup}>
-          <Text style={styles.groupNavButtonText}>‹ Prev</Text>
-        </Pressable>
-        <Pressable style={styles.groupNavButton} onPress={goToNextGroup}>
-          <Text style={styles.groupNavButtonText}>Next ›</Text>
-        </Pressable>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.navButton} onPress={handleBack}>
+          <Text style={styles.navButtonText}>‹ Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.topBarBrandText} numberOfLines={1}>ROOAR WM 2026</Text>
+        <TouchableOpacity style={styles.navButton} onPress={() => router.push('/')}>
+          <Text style={styles.navButtonText}>Home</Text>
+        </TouchableOpacity>
       </View>
-      <View style={styles.groupLettersWrap}>
+      <View style={styles.groupNavBar}>
+        <View style={styles.groupLettersWrap}>
         {GROUP_LETTERS.map((letter) => {
           const isActive = letter === normalizedGroupLetter;
           return (
@@ -132,7 +112,9 @@ export default function GroupStatsPage() {
             </Pressable>
           );
         })}
+        </View>
       </View>
+      <Text style={styles.title}>Group {normalizedGroupLetter}</Text>
       {loading ? <ActivityIndicator /> : (
         <View style={styles.tableCard}>
           <View style={styles.tableHeaderRow}>
@@ -163,50 +145,64 @@ export default function GroupStatsPage() {
           ))}
         </View>
       )}
-      <Pressable style={styles.backBtn} onPress={() => router.back()}>
-        <Text style={styles.backBtnText}>Zurück</Text>
-      </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 18, alignItems: 'center' },
-  title: { color: '#a9d7ae', fontSize: 22, fontWeight: '800', marginBottom: 18 },
-  groupNavRow: {
-    width: '100%',
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 6,
+    marginBottom: 8,
   },
-  groupNavButton: {
-    flex: 1,
+  navButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#2e7d32',
-    backgroundColor: '#16311a',
-    paddingVertical: 8,
-    alignItems: 'center',
+    backgroundColor: 'rgba(12, 18, 16, 0.7)',
   },
-  groupNavButtonText: {
-    color: '#dff5e1',
+  navButtonText: {
+    color: '#4caf50',
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  topBarBrandText: {
+    flex: 1,
+    marginHorizontal: 10,
+    color: '#dff5e1',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.8,
+  },
+  title: { color: '#a9d7ae', fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  groupNavBar: {
+    width: '100%',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    backgroundColor: '#132317',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    marginBottom: 10,
   },
   groupLettersWrap: {
     width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
+    gap: 6,
     justifyContent: 'center',
   },
   groupLetterChip: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: '#35543a',
     backgroundColor: '#152218',
@@ -219,7 +215,7 @@ const styles = StyleSheet.create({
   },
   groupLetterChipText: {
     color: '#c6dfc8',
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700',
   },
   groupLetterChipTextActive: {
@@ -230,6 +226,4 @@ const styles = StyleSheet.create({
   tableDataRow: { flexDirection: 'row', padding: 8, borderBottomWidth: 1, borderBottomColor: '#1a2a1a' },
   cell: { flex: 1, color: '#eaf8ec', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   teamCol: { flex: 2, textAlign: 'left' },
-  backBtn: { marginTop: 18, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8, backgroundColor: '#2e7d32' },
-  backBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

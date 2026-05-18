@@ -16,7 +16,6 @@ import {
   Platform,
   Image,
   Modal,
-  Switch,
   Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -35,7 +34,7 @@ import {
   type TeamMatch,
 } from '@/data/schedule';
 import { fetchTeamPlayers, type Player } from '@/data/players';
-import { BACKEND_URL } from '@/config/api';
+import { apiFetch } from '@/config/api';
 
 type GroupMemberMatches = {
   id: string;
@@ -90,7 +89,7 @@ type FriendPayload = {
   tips: Record<string, MatchTip>;
 };
 
-const MAX_FRIENDS = 7;
+const MAX_FRIENDS = 25;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as const;
 const TEAM_GROUP_BY_ID: Record<string, string> = {
   cze: 'A',
@@ -266,9 +265,38 @@ function fallbackGroupLetterFromNames(teamNames: string[]): string {
   return String.fromCharCode(65 + (hash % 12));
 }
 
+/** Returns points for a single tip vs. actual result (3 = exact, 1 = correct tendency, 0 = wrong). */
+function scoreTip(tip: MatchTip, homeScore: number, awayScore: number): number {
+  const tipHome = parseInt(tip.home, 10);
+  const tipAway = parseInt(tip.away, 10);
+  if (isNaN(tipHome) || isNaN(tipAway)) return 0;
+  if (tipHome === homeScore && tipAway === awayScore) return 3;
+  if (Math.sign(tipHome - tipAway) === Math.sign(homeScore - awayScore)) return 1;
+  return 0;
+}
+
 export default function TeamScreen() {
   const { teamId, group } = useLocalSearchParams<{ teamId: string; group?: string }>();
   const router = useRouter();
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    router.push('/');
+  }, [router]);
+
+  const toggleFriendExpanded = useCallback((friendId: string) => {
+    setExpandedFriendIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(friendId)) {
+        newSet.delete(friendId);
+      } else {
+        newSet.add(friendId);
+      }
+      return newSet;
+    });
+  }, []);
   const { play, isPlaying } = useRoar();
   const { width } = useWindowDimensions();
   const isDesktopWeb = Platform.OS === 'web' && width >= 1100;
@@ -290,8 +318,7 @@ export default function TeamScreen() {
   const [groupStageLoading, setGroupStageLoading] = useState(false);
   const scoreByFixtureRef = useRef<Record<string, { home: number; away: number }>>({});
   const [liveFeedEvents, setLiveFeedEvents] = useState<LiveFeedEvent[]>([]);
-  const [roarConsentGranted, setRoarConsentGranted] = useState(false);
-  const roarConsentRef = useRef(false);
+  const [isRoarSliderOn, setIsRoarSliderOn] = useState(false);
   const [tipsByMatch, setTipsByMatch] = useState<
     Record<string, { home: string; away: string }>
   >({});
@@ -299,6 +326,7 @@ export default function TeamScreen() {
   const [friendTips, setFriendTips] = useState<Record<string, Record<string, MatchTip>>>({});
   const [friendNameInput, setFriendNameInput] = useState('');
   const [friendsModalVisible, setFriendsModalVisible] = useState(false);
+  const [expandedFriendIds, setExpandedFriendIds] = useState<Set<string>>(new Set());
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [trainerName, setTrainerName] = useState<string | null>(null);
@@ -658,6 +686,55 @@ export default function TeamScreen() {
     [groupTable, team]
   );
 
+  const upcomingMatch = useMemo(() => {
+    const now = Date.now();
+    return schedule
+      .filter((match) => new Date(match.kickoffUtc).getTime() > now)
+      .sort(
+        (a, b) =>
+          new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime()
+      )[0] ?? null;
+  }, [schedule]);
+
+  const upcomingKickoffText = useMemo(() => {
+    if (!upcomingMatch) {
+      return '';
+    }
+
+    return `${upcomingMatch.homeTeam.name} vs ${upcomingMatch.awayTeam.name}: ${formatInTimeZone(
+      upcomingMatch.kickoffUtc,
+      deviceTimeZone
+    )}`;
+  }, [deviceTimeZone, upcomingMatch]);
+
+  const friendLeaderboard = useMemo(() => {
+    if (friends.length === 0 || schedule.length === 0) return [];
+    const now = Date.now();
+    const playedMatches = schedule.filter(
+      (m) => new Date(m.kickoffUtc).getTime() <= now
+    );
+    return friends
+      .map((friend) => {
+        const tips = friendTips[friend.id] ?? {};
+        let pts = 0;
+        let exact = 0;
+        for (const match of playedMatches) {
+          const tip = tips[match.id];
+          if (!tip) continue;
+          const p = scoreTip(tip, match.homeScore, match.awayScore);
+          pts += p;
+          if (p === 3) exact += 1;
+        }
+        return { id: friend.id, name: friend.name, pts, exact, played: playedMatches.length };
+      })
+      .sort((a, b) => b.pts - a.pts || b.exact - a.exact);
+  }, [friends, friendTips, schedule]);
+
+  const allMatchesPlayed = useMemo(
+    () => schedule.length > 0 && schedule.every((m) => new Date(m.kickoffUtc).getTime() <= Date.now()),
+    [schedule]
+  );
+
   const tickerItems = useMemo(() => {
     const liveItems = liveFeedEvents.slice(0, 10).map(
       (event) =>
@@ -682,19 +759,13 @@ export default function TeamScreen() {
     if (resolvedGroupLetter) {
       newsItems.push(`[GROUP] Competing in Group ${resolvedGroupLetter}`);
     }
-
-    const now = Date.now();
-    const upcomingMatch = schedule
-      .filter((match) => new Date(match.kickoffUtc).getTime() > now)
-      .sort(
-        (a, b) =>
-          new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime()
-      )[0];
     if (upcomingMatch) {
       newsItems.push(
         `[NEXT] ${upcomingMatch.homeTeam.name} vs ${upcomingMatch.awayTeam.name} (${new Date(upcomingMatch.kickoffUtc).toLocaleString()})`
       );
     }
+
+    const now = Date.now();
 
     const recentPlayedMatch = schedule
       .filter((match) => new Date(match.kickoffUtc).getTime() <= now)
@@ -726,13 +797,7 @@ export default function TeamScreen() {
   }, [tickerItems]);
 
   const groupStageDiagramData = useMemo(() => {
-    const uniqueResults = new Map<string, string>();
-    for (const match of selectedGroupMatches) {
-      uniqueResults.set(
-        match.id,
-        `${match.homeTeam.name} ${match.homeScore} - ${match.awayScore} ${match.awayTeam.name}`
-      );
-    }
+    const now = Date.now();
 
     const letters = Array.from({ length: 12 }, (_, index) =>
       String.fromCharCode(65 + index)
@@ -758,10 +823,13 @@ export default function TeamScreen() {
 
       teamsByGroup.get(letter)?.add(match.homeTeam.name);
       teamsByGroup.get(letter)?.add(match.awayTeam.name);
-      resultsByGroup.get(letter)?.set(
-        match.id,
-        `${match.homeTeam.name} ${match.homeScore} - ${match.awayScore} ${match.awayTeam.name}`
-      );
+      const isPlayed = new Date(match.kickoffUtc).getTime() <= now;
+      if (isPlayed) {
+        resultsByGroup.get(letter)?.set(
+          match.id,
+          `${match.homeTeam.name} ${match.homeScore} - ${match.awayScore} ${match.awayTeam.name}`
+        );
+      }
     }
 
     const baseGroups: Record<string, GroupStageGroupData> = {};
@@ -777,20 +845,15 @@ export default function TeamScreen() {
       };
     });
 
-    if (currentGroupLetter && baseGroups[currentGroupLetter]) {
-      baseGroups[currentGroupLetter] = {
-        teams: groupTable.map((row) => row.name),
-        results: Array.from(uniqueResults.values()),
-      };
-    }
+    const currentGroupData = currentGroupLetter ? baseGroups[currentGroupLetter] : undefined;
 
     return {
       groupLetter: currentGroupLetter,
-      teams: groupTable.map((row) => row.name),
-      results: Array.from(uniqueResults.values()),
+      teams: currentGroupData?.teams ?? [],
+      results: currentGroupData?.results ?? ['Results pending'],
       groups: baseGroups,
     };
-  }, [currentGroupLetter, groupStageMatches, groupTable, selectedGroupMatches]);
+  }, [currentGroupLetter, groupStageMatches]);
 
   const openTeamFromName = useCallback(
     (teamName: string) => {
@@ -819,57 +882,87 @@ export default function TeamScreen() {
   );
 
   const saveFriendsToBackend = useCallback(
-    async (nextFriends: Friend[], nextTips: Record<string, Record<string, MatchTip>>) => {
+    async () => {
       if (!team) {
         return;
       }
 
-      const payloadFriends: FriendPayload[] = nextFriends.map((friend) => ({
-        id: friend.id,
-        name: friend.name,
-        tips: nextTips[friend.id] ?? {},
-      }));
-
       try {
-        await fetch(`${BACKEND_URL}/api/friends/${encodeURIComponent(team.id)}`, {
+        await apiFetch(`/api/friends/${encodeURIComponent(team.id)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ friends: payloadFriends }),
+          body: JSON.stringify({ tips: tipsByMatch }),
         });
       } catch (error) {
-        console.warn('Failed to persist friends:', error);
+        console.warn('Failed to persist tips:', error);
       }
     },
-    [team]
+    [team, tipsByMatch]
   );
 
+  const loadFriendsFromWorkspace = useCallback(async () => {
+    if (!team) {
+      return;
+    }
+
+    try {
+      const friendsData = await apiFetch(`/api/friends/${encodeURIComponent(team.id)}`, {
+        method: 'GET',
+      });
+
+      if (Array.isArray(friendsData)) {
+        // Extract unique friends
+        const friendList: Friend[] = friendsData.map((friend: any) => ({
+          id: friend.id,
+          name: friend.name,
+        }));
+
+        // Extract tips for each friend
+        const tips: Record<string, Record<string, MatchTip>> = {};
+        friendsData.forEach((friend: any) => {
+          if (friend.tips && typeof friend.tips === 'object') {
+            tips[friend.id] = friend.tips;
+          }
+        });
+
+        setFriends(friendList);
+        setFriendTips(tips);
+      }
+    } catch (error) {
+      console.warn('Failed to load friends from workspace:', error);
+    }
+  }, [team]);
+
   const setFriendTip = useCallback(
-    (friendId: string, matchId: string, side: 'home' | 'away', value: string) => {
+    (matchId: string, side: 'home' | 'away', value: string) => {
       const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
 
-      setFriendTips((prev) => {
+      setTipsByMatch((prev) => {
         const next = {
           ...prev,
-          [friendId]: {
-            ...(prev[friendId] ?? {}),
-            [matchId]: {
-              home: prev[friendId]?.[matchId]?.home ?? '',
-              away: prev[friendId]?.[matchId]?.away ?? '',
-              [side]: cleaned,
-            },
+          [matchId]: {
+            home: prev[matchId]?.home ?? '',
+            away: prev[matchId]?.away ?? '',
+            [side]: cleaned,
           },
         };
 
-        void saveFriendsToBackend(friends, next);
+        void saveFriendsToBackend();
         return next;
       });
     },
-    [friends, saveFriendsToBackend]
+    [saveFriendsToBackend]
   );
 
   const addFriend = useCallback(() => {
     const name = friendNameInput.trim().slice(0, 24);
     if (!name) {
+      return;
+    }
+
+    // Check if friend already exists
+    if (friends.some((f) => f.name.toLowerCase() === name.toLowerCase())) {
+      Alert.alert('Friend exists', `You already have ${name} in your friends list.`);
       return;
     }
 
@@ -879,35 +972,35 @@ export default function TeamScreen() {
     }
 
     const newFriend: Friend = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name,
     };
 
     setFriends((prev) => {
       const next = [...prev, newFriend];
-      void saveFriendsToBackend(next, friendTips);
       return next;
     });
     setFriendNameInput('');
-  }, [friendNameInput, friendTips, friends.length, saveFriendsToBackend]);
+  }, [friendNameInput, friends]);
 
-  const removeFriend = useCallback(
-    (friendId: string) => {
-      setFriends((prev) => {
-        const next = prev.filter((friend) => friend.id !== friendId);
+  const removeFriend = useCallback((friendId: string) => {
+    // Can only remove manually-added friends (those with id starting with 'manual-')
+    if (!friendId.startsWith('manual-')) {
+      Alert.alert('Cannot remove', 'You cannot remove workspace members.');
+      return;
+    }
 
-        setFriendTips((prevTips) => {
-          const nextTips = { ...prevTips };
-          delete nextTips[friendId];
-          void saveFriendsToBackend(next, nextTips);
-          return nextTips;
-        });
+    setFriends((prev) => {
+      const next = prev.filter((friend) => friend.id !== friendId);
+      return next;
+    });
 
-        return next;
-      });
-    },
-    [saveFriendsToBackend]
-  );
+    setFriendTips((prevTips) => {
+      const nextTips = { ...prevTips };
+      delete nextTips[friendId];
+      return nextTips;
+    });
+  }, []);
 
   const requestRoarToDevice = useCallback(() => {
     play();
@@ -917,16 +1010,15 @@ export default function TeamScreen() {
     );
   }, [play]);
 
-  const toggleRoarAlerts = useCallback((value: boolean) => {
-    setRoarConsentGranted(value);
-    roarConsentRef.current = value;
-    Alert.alert(
-      value ? 'Auto roar enabled' : 'Auto roar disabled',
-      value
-        ? 'You will hear an in-app roar when new goals are detected.'
-        : 'Automatic roar alerts are now turned off.'
-    );
-  }, []);
+  const toggleRoarSlider = useCallback(() => {
+    setIsRoarSliderOn((prev) => {
+      const next = !prev;
+      if (next) {
+        requestRoarToDevice();
+      }
+      return next;
+    });
+  }, [requestRoarToDevice]);
 
   const downloadCalendarFile = useCallback(async () => {
     if (!team || !calendarIcs) {
@@ -1007,7 +1099,7 @@ export default function TeamScreen() {
       const fixtures = await fetchTeamSchedule(team.id);
       if (detectGoals) {
         const nextFeedEvents: LiveFeedEvent[] = [];
-        const goalDetected = fixtures.some((fixture) => {
+        fixtures.some((fixture) => {
           const prevScore = scoreByFixtureRef.current[fixture.id];
           if (!prevScore) {
             return false;
@@ -1042,10 +1134,6 @@ export default function TeamScreen() {
 
         if (nextFeedEvents.length > 0) {
           setLiveFeedEvents((prev) => [...nextFeedEvents, ...prev].slice(0, 12));
-        }
-
-        if (goalDetected && roarConsentRef.current) {
-          play();
         }
       }
 
@@ -1132,37 +1220,8 @@ export default function TeamScreen() {
   }, []);
 
   useEffect(() => {
-    roarConsentRef.current = roarConsentGranted;
-  }, [roarConsentGranted]);
-
-  useEffect(() => {
-    const loadFriends = async () => {
-      if (!team) {
-        setFriends([]);
-        setFriendTips({});
-        return;
-      }
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/friends/${encodeURIComponent(team.id)}`);
-        if (!res.ok) {
-          return;
-        }
-        const payload = (await res.json()) as FriendPayload[];
-        const nextFriends: Friend[] = payload.map((item) => ({ id: item.id, name: item.name }));
-        const nextTips: Record<string, Record<string, MatchTip>> = {};
-        payload.forEach((item) => {
-          nextTips[item.id] = item.tips ?? {};
-        });
-        setFriends(nextFriends);
-        setFriendTips(nextTips);
-      } catch (error) {
-        console.warn('Failed to load friends:', error);
-      }
-    };
-
-    void loadFriends();
-  }, [team]);
+    void loadFriendsFromWorkspace();
+  }, [team, loadFriendsFromWorkspace]);
 
   useEffect(() => {
     if (tickerViewportWidth <= 0 || tickerContentWidth <= 0) {
@@ -1209,23 +1268,101 @@ export default function TeamScreen() {
     >
       <SafeAreaView style={styles.safe}>
         <View style={styles.topBar}>
-           <View style={styles.navLeftControls}>
-             <View style={styles.navGroupLetterRail}>
-               <Text style={styles.navGroupLetter}>{currentGroupLetter || '-'}</Text>
-             </View>
-             <TouchableOpacity style={styles.navButton} onPress={() => router.back()}>
-               <Text style={styles.navButtonText}>‹ Back</Text>
-             </TouchableOpacity>
-             <TouchableOpacity style={styles.navButton} onPress={goToNextGroup}>
-               <Text style={styles.navButtonText}>Next ›</Text>
-             </TouchableOpacity>
-            <View style={styles.groupChip}>
-              <Text style={styles.groupChipText}>{topBarGroupLabel}</Text>
-            </View>
-           </View>
-          <TouchableOpacity style={styles.navButton} onPress={() => router.push('/')}>
-            <Text style={styles.navButtonText}>Home</Text>
+          <TouchableOpacity style={styles.navButton} onPress={handleBack}>
+            <Text style={styles.navButtonText}>‹ Back</Text>
           </TouchableOpacity>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.topBarNavScroll}
+            contentContainerStyle={styles.topBarGroupLettersWrap}
+          >
+            {GROUP_LETTERS.map((letter) => {
+              const isActive = letter === currentGroupLetter;
+              return (
+                <Pressable
+                  key={letter}
+                  style={[
+                    styles.topBarGroupLetterChip,
+                    isActive ? styles.topBarGroupLetterChipActive : null,
+                  ]}
+                  onPress={() => router.push(`/group/${letter}`)}
+                >
+                  <Text
+                    style={[
+                      styles.topBarGroupLetterChipText,
+                      isActive ? styles.topBarGroupLetterChipTextActive : null,
+                    ]}
+                  >
+                    {letter}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            <View style={styles.topBarStageDivider} />
+
+            {['16-1', '16-2', '16-3', '16-4'].map((stageCode) => (
+              <Pressable
+                key={stageCode}
+                style={styles.topBarStageButton}
+                onPress={() => {
+                  // Stage shortcuts are visual quick-access controls in header.
+                }}
+              >
+                <Text style={styles.topBarStageButtonText}>{stageCode}</Text>
+              </Pressable>
+            ))}
+
+            <View style={styles.topBarStageDivider} />
+
+            {['QF-1', 'QF-2', 'QF-3', 'QF-4'].map((stageCode) => (
+              <Pressable
+                key={stageCode}
+                style={styles.topBarStageButton}
+                onPress={() => {
+                  // Stage shortcuts are visual quick-access controls in header.
+                }}
+              >
+                <Text style={styles.topBarStageButtonText}>{stageCode}</Text>
+              </Pressable>
+            ))}
+
+            <View style={styles.topBarStageDivider} />
+
+            {['Semi-F1', 'Semi-F2'].map((stageCode) => (
+              <Pressable
+                key={stageCode}
+                style={[styles.topBarStageButton, styles.topBarStageButtonWide]}
+                onPress={() => {
+                  // Stage shortcuts are visual quick-access controls in header.
+                }}
+              >
+                <Text style={styles.topBarStageButtonText}>{stageCode}</Text>
+              </Pressable>
+            ))}
+
+            <View style={styles.topBarStageDivider} />
+
+            <Pressable
+              style={[styles.topBarStageButton, styles.topBarStageButtonFinal]}
+              onPress={() => {
+                // Stage shortcuts are visual quick-access controls in header.
+              }}
+            >
+              <Text style={styles.topBarStageButtonText}>World Cup Final</Text>
+            </Pressable>
+          </ScrollView>
+
+          <View style={styles.navButtonsRow}>
+            <TouchableOpacity style={styles.navButton} onPress={() => router.push('/workspace-admin')}>
+              <Text style={styles.navButtonText}>⚙️ Admin</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navButton} onPress={() => router.push('/')}>
+              <Text style={styles.navButtonText}>Home</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -1242,6 +1379,27 @@ export default function TeamScreen() {
                   : `${team.name} Match Schedule`}
               </Text>
               <View style={[styles.roarActionFrame, isSmallMobile ? styles.roarActionFrameCompact : null]}>
+                {!(isDesktopWeb || isUltraWideWeb) && (
+                  <TouchableOpacity
+                    style={[styles.friendsHeaderButton, isSmallMobile ? styles.friendsHeaderButtonCompact : null]}
+                    onPress={() => setFriendsModalVisible(true)}
+                  >
+                    <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
+                  </TouchableOpacity>
+                )}
+                <Pressable
+                  style={[
+                    styles.roarSliderControl,
+                    isRoarSliderOn ? styles.roarSliderControlOn : null,
+                    isSmallMobile ? styles.roarSliderControlCompact : null,
+                  ]}
+                  onPress={toggleRoarSlider}
+                >
+                  <Text style={[styles.roarSliderLabel, isSmallMobile ? styles.roarSliderLabelCompact : null]}>Roar</Text>
+                  <View style={[styles.roarSliderTrack, isRoarSliderOn ? styles.roarSliderTrackOn : null]}>
+                    <View style={[styles.roarSliderThumb, isRoarSliderOn ? styles.roarSliderThumbOn : null]} />
+                  </View>
+                </Pressable>
                 <View style={[styles.calendarActionsRow, isSmallMobile ? styles.calendarActionsRowCompact : null]}>
                   <TouchableOpacity
                     style={[
@@ -1277,35 +1435,16 @@ export default function TeamScreen() {
                     <Text style={[styles.calendarActionText, isSmallMobile ? styles.calendarActionTextCompact : null]}>Gmail</Text>
                   </TouchableOpacity>
                 </View>
-                {!(isDesktopWeb || isUltraWideWeb) && (
-                  <TouchableOpacity
-                    style={[styles.friendsHeaderButton, isSmallMobile ? styles.friendsHeaderButtonCompact : null]}
-                    onPress={() => setFriendsModalVisible(true)}
-                  >
-                    <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity
-                  style={[styles.roarSendButton, isSmallMobile ? styles.roarSendButtonCompact : null]}
-                  onPress={requestRoarToDevice}
-                >
-                  <Text style={[styles.roarSendButtonText, isSmallMobile ? styles.roarSendButtonTextCompact : null]}>Send Roar</Text>
-                </TouchableOpacity>
-                <View style={[styles.roarSwitchWrap, isSmallMobile ? styles.roarSwitchWrapCompact : null]}>
-                  <Text style={[styles.roarSwitchLabel, isSmallMobile ? styles.roarSwitchLabelCompact : null]}>Auto</Text>
-                  <Switch
-                    value={roarConsentGranted}
-                    onValueChange={toggleRoarAlerts}
-                    trackColor={{ false: '#28402a', true: '#2e7d32' }}
-                    thumbColor={roarConsentGranted ? '#e9ffe8' : '#9fb8a0'}
-                    ios_backgroundColor="#28402a"
-                  />
-                </View>
               </View>
             </View>
             <Text style={styles.scheduleSubTitle}>
-              Device timezone: {deviceTimeZone}
+              Gerätezeitzone: {deviceTimeZone}
             </Text>
+            {upcomingKickoffText ? (
+              <Text style={styles.scheduleNextKickoff}>
+                🕒 Nächster Anstoß: {upcomingKickoffText}
+              </Text>
+            ) : null}
 
             <View style={styles.tickerBlock}>
               <Text style={styles.tickerLabel}>Team news ticker</Text>
@@ -1370,12 +1509,13 @@ export default function TeamScreen() {
                   }
                 }
                 return (
-                  <View
+                  <Pressable
                     key={match.id}
                     style={[
                       styles.matchCard,
                       isGroupFixture ? styles.matchCardCompact : null,
                     ]}
+                    onPress={() => router.push(`/match/${match.id}`)}
                   >
                     <View
                       style={[
@@ -1420,28 +1560,26 @@ export default function TeamScreen() {
                             {match.venue.name}, {match.venue.city}, {match.venue.country}
                           </Text>
 
-                          <Text style={[styles.venueScoreLine, isGroupFixture ? styles.venueScoreLineCompact : null]}>
-                            {formatTeamForMatch(match, match.homeTeam.name, true)} {match.homeScore}:{match.awayScore} {formatTeamForMatch(match, match.awayTeam.name, false)}
-                          </Text>
+                          <View style={styles.timeBlocksRow}>
+                            <View style={[styles.timeBlockInline, isGroupFixture ? styles.timeBlockCompact : null]}>
+                              <Text style={styles.timeLabel}>Venue time ({match.venue.timeZone})</Text>
+                              <Text style={styles.timeValue}>
+                                {formatInTimeZone(match.kickoffUtc, match.venue.timeZone)}
+                              </Text>
+                            </View>
 
-                          <View style={[styles.timeBlockInline, isGroupFixture ? styles.timeBlockCompact : null]}>
-                            <Text style={styles.timeLabel}>Venue time ({match.venue.timeZone})</Text>
-                            <Text style={styles.timeValue}>
-                              {formatInTimeZone(match.kickoffUtc, match.venue.timeZone)}
-                            </Text>
-                          </View>
-
-                          <View style={[styles.timeBlockInline, isGroupFixture ? styles.timeBlockCompact : null]}>
-                            <Text style={styles.timeLabel}>Your time ({deviceTimeZone})</Text>
-                            <Text style={styles.timeValue}>
-                              {formatInTimeZone(match.kickoffUtc, deviceTimeZone)}
-                            </Text>
+                            <View style={[styles.timeBlockInline, isGroupFixture ? styles.timeBlockCompact : null]}>
+                              <Text style={styles.timeLabel}>Your time ({deviceTimeZone})</Text>
+                              <Text style={styles.timeValue}>
+                                {formatInTimeZone(match.kickoffUtc, deviceTimeZone)}
+                              </Text>
+                            </View>
                           </View>
                         </View>
                       </View>
 
                     <View style={[styles.resultBlock, isGroupFixture ? styles.resultBlockCompact : null]}>
-                      <Text style={styles.resultLabel}>Ergebnis</Text>
+                      <Text style={styles.resultLabel}>Score</Text>
                       <Text style={[styles.resultValue, isGroupFixture ? styles.resultValueCompact : null]}>
                         {formatTeamForMatch(match, match.homeTeam.name, true)} {match.homeScore}:{match.awayScore} {formatTeamForMatch(match, match.awayTeam.name, false)}
                       </Text>
@@ -1562,7 +1700,7 @@ export default function TeamScreen() {
                       )}
                     </View>
 
-                  </View>
+                  </Pressable>
                 );
               })}
 
@@ -1585,7 +1723,7 @@ export default function TeamScreen() {
                             <Text style={styles.friendRemoveBtnText}>x</Text>
                           </TouchableOpacity>
                         </View>
-                        <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} friends</Text>
+                        <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} members & friends</Text>
                         <View style={styles.friendsAddRow}>
                           <TextInput
                             style={styles.friendsAddInput}
@@ -1605,45 +1743,112 @@ export default function TeamScreen() {
                             <Text style={styles.friendsAddButtonText}>Add</Text>
                           </TouchableOpacity>
                         </View>
+                        {friendLeaderboard.length > 0 && (
+                          <View style={styles.leaderboardBlock}>
+                            <Text style={styles.leaderboardTitle}>
+                              {allMatchesPlayed ? '🏆 Endabrechnung' : '📊 Tipp-Rangliste'}
+                            </Text>
+                            {allMatchesPlayed && friendLeaderboard[0] && (
+                              <View style={styles.leaderboardWinnerBanner}>
+                                <Text style={styles.leaderboardWinnerText}>🏆 {friendLeaderboard[0].name} gewinnt!</Text>
+                              </View>
+                            )}
+                            {friendLeaderboard.map((row, i) => (
+                              <View key={row.id} style={[styles.leaderboardRow, i === 0 ? styles.leaderboardRowFirst : null]}>
+                                <Text style={styles.leaderboardMedal}>
+                                  {allMatchesPlayed && i === 0 ? '🏆' : i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                                </Text>
+                                <Text style={[styles.leaderboardName, i === 0 ? styles.leaderboardNameFirst : null]} numberOfLines={1}>{row.name}</Text>
+                                <Text style={styles.leaderboardPts}>{row.pts}<Text style={styles.leaderboardPtsLabel}> Pkt</Text></Text>
+                                <Text style={styles.leaderboardExact}>{row.exact}✓</Text>
+                              </View>
+                            ))}
+                            <Text style={styles.leaderboardHint}>3 Pkt = genaues Ergebnis · 1 Pkt = richtige Tendenz</Text>
+                          </View>
+                        )}
                         <ScrollView>
                           {friends.length === 0 && <Text style={styles.friendsEmpty}>No friends yet.</Text>}
-                          {friends.map((friend) => (
-                            <View key={friend.id} style={styles.friendCard}>
-                              <View style={styles.friendCardHeader}>
-                                <Text style={styles.friendName}>{friend.name}</Text>
-                                <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
-                                  <Text style={styles.friendRemoveBtnText}>x</Text>
-                                </TouchableOpacity>
-                              </View>
-                              {schedule.map((match) => {
-                                const tip = friendTips[friend.id]?.[match.id] ?? { home: '', away: '' };
-                                return (
-                                  <View key={match.id} style={styles.friendTipRow}>
-                                    <Text style={styles.friendTipMatch}>
-                                      {formatTeamForMatch(match, match.homeTeam.name, true)} vs {formatTeamForMatch(match, match.awayTeam.name, false)}
-                                    </Text>
-                                    <TextInput
-                                      style={styles.friendTipInput}
-                                      value={tip.home}
-                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'home', v)}
-                                      keyboardType="numeric"
-                                      maxLength={2}
-                                      placeholder="H"
-                                    />
-                                    <Text style={styles.tipDash}>-</Text>
-                                    <TextInput
-                                      style={styles.friendTipInput}
-                                      value={tip.away}
-                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'away', v)}
-                                      keyboardType="numeric"
-                                      maxLength={2}
-                                      placeholder="A"
-                                    />
+                          {friends.map((friend) => {
+                            const isExpanded = expandedFriendIds.has(friend.id);
+                            const friendTipsForUser = friendTips[friend.id] || {};
+                            return (
+                              <View key={friend.id} style={styles.friendCard}>
+                                <TouchableOpacity
+                                  onPress={() => toggleFriendExpanded(friend.id)}
+                                  style={styles.friendCardHeaderButton}
+                                >
+                                  <View style={styles.friendCardHeader}>
+                                    <View style={styles.friendNameWithChevron}>
+                                      <Text style={styles.friendNameChevron}>{isExpanded ? '▼' : '▶'}</Text>
+                                      <Text style={styles.friendName}>{friend.name}</Text>
+                                    </View>
+                                    <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
+                                      <Text style={styles.friendRemoveBtnText}>x</Text>
+                                    </TouchableOpacity>
                                   </View>
-                                );
-                              })}
-                            </View>
-                          ))}
+                                </TouchableOpacity>
+                                {isExpanded && schedule.length > 0 && (
+                                  <View style={styles.friendTipsExpandedContainer}>
+                                    <View style={styles.friendTipsComparisonHeader}>
+                                      <Text style={styles.friendTipsComparisonLabel}>You</Text>
+                                      <Text style={styles.friendTipsComparisonLabel}>{friend.name}</Text>
+                                    </View>
+                                    {schedule.map((match) => {
+                                      const userTip = tipsByMatch[match.id];
+                                      const friendTip = friendTipsForUser[match.id];
+                                      return (
+                                        <View key={match.id} style={styles.friendTipComparisonRow}>
+                                          <Text style={styles.friendTipMatch}>
+                                            {match.homeTeam.name.substring(0, 3).toUpperCase()} vs {match.awayTeam.name.substring(0, 3).toUpperCase()}
+                                          </Text>
+                                          <View style={styles.friendTipsComparisonPair}>
+                                            <View style={styles.tipColumn}>
+                                              <TextInput
+                                                style={styles.friendTipInput}
+                                                placeholder="-"
+                                                value={userTip?.home || ''}
+                                                onChangeText={(val) => setFriendTip(match.id, 'home', val)}
+                                                keyboardType="numeric"
+                                                maxLength={2}
+                                                textAlign="center"
+                                              />
+                                              <Text style={styles.friendTipDash}>-</Text>
+                                              <TextInput
+                                                style={styles.friendTipInput}
+                                                placeholder="-"
+                                                value={userTip?.away || ''}
+                                                onChangeText={(val) => setFriendTip(match.id, 'away', val)}
+                                                keyboardType="numeric"
+                                                maxLength={2}
+                                                textAlign="center"
+                                              />
+                                            </View>
+                                            <View style={styles.tipColumn}>
+                                              <TextInput
+                                                style={[styles.friendTipInput, styles.friendTipInputReadonly]}
+                                                placeholder="-"
+                                                value={friendTip?.home || ''}
+                                                editable={false}
+                                                textAlign="center"
+                                              />
+                                              <Text style={styles.friendTipDash}>-</Text>
+                                              <TextInput
+                                                style={[styles.friendTipInput, styles.friendTipInputReadonly]}
+                                                placeholder="-"
+                                                value={friendTip?.away || ''}
+                                                editable={false}
+                                                textAlign="center"
+                                              />
+                                            </View>
+                                          </View>
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          })}
                         </ScrollView>
                       </View>
                     </View>
@@ -1811,7 +2016,7 @@ export default function TeamScreen() {
                         </View>
                         <View style={[styles.friendsPanel, styles.friendsPanelDesktop]}>
                           <Text style={styles.friendsPanelTitle}>Friends</Text>
-                          <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} friends</Text>
+                          <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} members & friends</Text>
                           <View style={styles.friendsAddRow}>
                             <TextInput
                               style={styles.friendsAddInput}
@@ -1831,61 +2036,127 @@ export default function TeamScreen() {
                               <Text style={styles.friendsAddButtonText}>Add</Text>
                             </TouchableOpacity>
                           </View>
-                          {friends.length === 0 && <Text style={styles.friendsEmpty}>No friends yet.</Text>}
-                          {friends.map((friend) => (
-                            <View key={friend.id} style={styles.friendCard}>
-                              <View style={styles.friendCardHeader}>
-                                <Text style={styles.friendName}>{friend.name}</Text>
-                                <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
-                                  <Text style={styles.friendRemoveBtnText}>x</Text>
-                                </TouchableOpacity>
-                              </View>
-                              {schedule.map((match) => {
-                                const tip = friendTips[friend.id]?.[match.id] ?? { home: '', away: '' };
-                                return (
-                                  <View key={match.id} style={styles.friendTipRow}>
-                                    <Text style={styles.friendTipMatch}>
-                                      {formatTeamForMatch(match, match.homeTeam.name, true)} vs {formatTeamForMatch(match, match.awayTeam.name, false)}
-                                    </Text>
-                                    <TextInput
-                                      style={styles.friendTipInput}
-                                      value={tip.home}
-                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'home', v)}
-                                      keyboardType="numeric"
-                                      maxLength={2}
-                                      placeholder="H"
-                                    />
-                                    <Text style={styles.tipDash}>-</Text>
-                                    <TextInput
-                                      style={styles.friendTipInput}
-                                      value={tip.away}
-                                      onChangeText={(v) => setFriendTip(friend.id, match.id, 'away', v)}
-                                      keyboardType="numeric"
-                                      maxLength={2}
-                                      placeholder="A"
-                                    />
-                                  </View>
-                                );
-                              })}
+                          {friendLeaderboard.length > 0 && (
+                            <View style={styles.leaderboardBlock}>
+                              <Text style={styles.leaderboardTitle}>
+                                {allMatchesPlayed ? '🏆 Endabrechnung' : '📊 Tipp-Rangliste'}
+                              </Text>
+                              {allMatchesPlayed && friendLeaderboard[0] && (
+                                <View style={styles.leaderboardWinnerBanner}>
+                                  <Text style={styles.leaderboardWinnerText}>🏆 {friendLeaderboard[0].name} gewinnt!</Text>
+                                </View>
+                              )}
+                              {friendLeaderboard.map((row, i) => (
+                                <View key={row.id} style={[styles.leaderboardRow, i === 0 ? styles.leaderboardRowFirst : null]}>
+                                  <Text style={styles.leaderboardMedal}>
+                                    {allMatchesPlayed && i === 0 ? '🏆' : i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`}
+                                  </Text>
+                                  <Text style={[styles.leaderboardName, i === 0 ? styles.leaderboardNameFirst : null]} numberOfLines={1}>{row.name}</Text>
+                                  <Text style={styles.leaderboardPts}>{row.pts}<Text style={styles.leaderboardPtsLabel}> Pkt</Text></Text>
+                                  <Text style={styles.leaderboardExact}>{row.exact}✓</Text>
+                                </View>
+                              ))}
+                              <Text style={styles.leaderboardHint}>3 Pkt = genaues Ergebnis · 1 Pkt = richtige Tendenz</Text>
                             </View>
-                          ))}
+                          )}
+                          {friends.length === 0 && <Text style={styles.friendsEmpty}>No friends yet.</Text>}
+                          {friends.map((friend) => {
+                            const isExpanded = expandedFriendIds.has(friend.id);
+                            const friendTipsForUser = friendTips[friend.id] || {};
+                            return (
+                              <View key={friend.id} style={styles.friendCard}>
+                                <TouchableOpacity
+                                  onPress={() => toggleFriendExpanded(friend.id)}
+                                  style={styles.friendCardHeaderButton}
+                                >
+                                  <View style={styles.friendCardHeader}>
+                                    <View style={styles.friendNameWithChevron}>
+                                      <Text style={styles.friendNameChevron}>{isExpanded ? '▼' : '▶'}</Text>
+                                      <Text style={styles.friendName}>{friend.name}</Text>
+                                    </View>
+                                    <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
+                                      <Text style={styles.friendRemoveBtnText}>x</Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </TouchableOpacity>
+                                {isExpanded && schedule.length > 0 && (
+                                  <View style={styles.friendTipsExpandedContainer}>
+                                    <View style={styles.friendTipsComparisonHeader}>
+                                      <Text style={styles.friendTipsComparisonLabel}>You</Text>
+                                      <Text style={styles.friendTipsComparisonLabel}>{friend.name}</Text>
+                                    </View>
+                                    {schedule.map((match) => {
+                                      const userTip = tipsByMatch[match.id];
+                                      const friendTip = friendTipsForUser[match.id];
+                                      return (
+                                        <View key={match.id} style={styles.friendTipComparisonRow}>
+                                          <Text style={styles.friendTipMatch}>
+                                            {match.homeTeam.name.substring(0, 3).toUpperCase()} vs {match.awayTeam.name.substring(0, 3).toUpperCase()}
+                                          </Text>
+                                          <View style={styles.friendTipsComparisonPair}>
+                                            <View style={styles.tipColumn}>
+                                              <TextInput
+                                                style={styles.friendTipInput}
+                                                placeholder="-"
+                                                value={userTip?.home || ''}
+                                                onChangeText={(val) => setFriendTip(match.id, 'home', val)}
+                                                keyboardType="numeric"
+                                                maxLength={2}
+                                                textAlign="center"
+                                              />
+                                              <Text style={styles.friendTipDash}>-</Text>
+                                              <TextInput
+                                                style={styles.friendTipInput}
+                                                placeholder="-"
+                                                value={userTip?.away || ''}
+                                                onChangeText={(val) => setFriendTip(match.id, 'away', val)}
+                                                keyboardType="numeric"
+                                                maxLength={2}
+                                                textAlign="center"
+                                              />
+                                            </View>
+                                            <View style={styles.tipColumn}>
+                                              <TextInput
+                                                style={[styles.friendTipInput, styles.friendTipInputReadonly]}
+                                                placeholder="-"
+                                                value={friendTip?.home || ''}
+                                                editable={false}
+                                                textAlign="center"
+                                              />
+                                              <Text style={styles.friendTipDash}>-</Text>
+                                              <TextInput
+                                                style={[styles.friendTipInput, styles.friendTipInputReadonly]}
+                                                placeholder="-"
+                                                value={friendTip?.away || ''}
+                                                editable={false}
+                                                textAlign="center"
+                                              />
+                                            </View>
+                                          </View>
+                                        </View>
+                                      );
+                                    })}
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          })}
                         </View>
                       </View>
                       <TournamentStages groupStageData={groupStageDiagramData} />
                     </View>
                   ) : (
-                    <PlayerList
-                      players={players}
-                      isLoading={playersLoading}
-                      error={playersError}
-                      trainerName={trainerName}
-                    />
+                    <>
+                      <PlayerList
+                        players={players}
+                        isLoading={playersLoading}
+                        error={playersError}
+                        trainerName={trainerName}
+                      />
+                      <TournamentStages groupStageData={groupStageDiagramData} />
+                    </>
                   )}
                 </View>
-
-                {!isDesktopWeb && (
-                  <TournamentStages groupStageData={groupStageDiagramData} />
-                )}
               </View>
             </View>
           </View>
@@ -1991,10 +2262,79 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 4,
   },
+  topBarNavScroll: {
+    flex: 1,
+    marginHorizontal: 10,
+  },
+  topBarGroupLettersWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  topBarGroupLetterChip: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#35543a',
+    backgroundColor: '#152218',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarGroupLetterChipActive: {
+    borderColor: '#7edb86',
+    backgroundColor: '#24552b',
+  },
+  topBarGroupLetterChipText: {
+    color: '#c6dfc8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  topBarGroupLetterChipTextActive: {
+    color: '#ffffff',
+  },
+  topBarStageDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: '#35543a',
+    marginHorizontal: 4,
+  },
+  topBarStageButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#35543a',
+    backgroundColor: '#152218',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBarStageButtonText: {
+    color: '#c6dfc8',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  topBarStageButtonWide: {
+    minWidth: 58,
+  },
+  topBarStageButtonFinal: {
+    minWidth: 110,
+  },
   navLeftControls: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  topBarBrandText: {
+    flex: 1,
+    marginHorizontal: 10,
+    color: '#dff5e1',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.8,
   },
   groupChip: {
     paddingHorizontal: 10,
@@ -2017,6 +2357,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#2e7d32',
     backgroundColor: 'rgba(12, 18, 16, 0.7)',
+  },
+  navButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 4,
   },
   navButtonText: {
     color: '#4caf50',
@@ -2146,6 +2493,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginTop: 4,
     marginBottom: 20,
+  },
+  scheduleNextKickoff: {
+    color: '#dff5e1',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
   },
   goalHint: {
     marginTop: 12,
@@ -2352,6 +2705,62 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     width: '100%',
     gap: 6,
+  },
+  roarSliderControl: {
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(8, 24, 10, 0.9)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  roarSliderControlOn: {
+    borderColor: '#ff9800',
+    backgroundColor: 'rgba(43, 27, 7, 0.92)',
+  },
+  roarSliderControlCompact: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    gap: 6,
+  },
+  roarSliderLabel: {
+    color: '#d4f5d7',
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  roarSliderLabelCompact: {
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  roarSliderTrack: {
+    width: 34,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    backgroundColor: '#1a2b1b',
+    paddingHorizontal: 2,
+    justifyContent: 'center',
+  },
+  roarSliderTrackOn: {
+    borderColor: '#ff9800',
+    backgroundColor: '#5a3b11',
+  },
+  roarSliderThumb: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#9fb8a0',
+    alignSelf: 'flex-start',
+  },
+  roarSliderThumbOn: {
+    backgroundColor: '#ffb74d',
+    alignSelf: 'flex-end',
   },
   roarSendButton: {
     borderWidth: 1,
@@ -2601,30 +3010,37 @@ const styles = StyleSheet.create({
   resultBlock: {
     backgroundColor: 'rgba(76, 175, 80, 0.1)',
     borderRadius: 10,
-    padding: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: '#2e7d32',
     marginBottom: 8,
+    alignItems: 'center',
   },
   resultBlockCompact: {
-    padding: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
     marginBottom: 6,
   },
   resultLabel: {
     color: '#9cd6a0',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 3,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   resultValue: {
     color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   resultValueCompact: {
-    fontSize: 13,
+    fontSize: 24,
+    lineHeight: 28,
   },
   tipBlock: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -2773,47 +3189,59 @@ const styles = StyleSheet.create({
     padding: 10,
     marginTop: 8,
   },
+  timeBlocksRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+  },
   timeBlockInline: {
+    flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderRadius: 10,
-    padding: 10,
-    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginTop: 0,
   },
   timeBlockCompact: {
-    padding: 8,
-    marginTop: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
   },
   timeLabel: {
     color: '#a7c9a9',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   timeValue: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '700',
   },
   friendsPanel: {
-    marginTop: 14,
+    marginTop: 12,
     width: '100%',
     borderRadius: 12,
-    padding: 12,
-    backgroundColor: 'rgba(8, 24, 10, 0.55)',
+    padding: 14,
+    backgroundColor: 'rgba(20, 35, 20, 0.9)',
     borderWidth: 1,
-    borderColor: '#2b4b2f',
+    borderColor: '#2e7d32',
   },
   friendsPanelDesktop: {
-    marginTop: 0,
-    width: 300,
-    maxWidth: 300,
+    marginTop: 12,
+    marginBottom: 12,
+    flex: 1,
+    minWidth: 220,
+    maxWidth: undefined,
+    height: 500,
+    maxHeight: 500,
     alignSelf: 'stretch',
   },
   friendsPanelTitle: {
-    color: '#d8f5da',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '800',
-    marginBottom: 10,
+    letterSpacing: 0.5,
+    marginBottom: 12,
   },
   friendsAddRow: {
     flexDirection: 'row',
@@ -2846,9 +3274,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   friendsLimitText: {
-    color: '#8fb090',
+    color: '#9cd6a0',
     fontSize: 12,
-    marginBottom: 8,
+    fontWeight: '700',
+    marginTop: -4,
+    marginBottom: 10,
   },
   friendsEmpty: {
     color: '#8fb090',
@@ -2862,16 +3292,79 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     padding: 10,
   },
+  friendCardHeaderButton: {
+    padding: 0,
+  },
   friendCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 6,
   },
+  friendNameWithChevron: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+  friendNameChevron: {
+    color: '#7fa886',
+    fontSize: 11,
+    marginRight: 8,
+    fontWeight: '600',
+  },
   friendName: {
     color: '#ffffff',
     fontWeight: '700',
     fontSize: 14,
+    flex: 1,
+    minWidth: 0,
+  },
+  friendTipsExpandedContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#3a5040',
+    paddingTop: 10,
+    marginTop: 6,
+  },
+  friendTipDash: {
+    color: '#7fa886',
+    fontSize: 12,
+    marginHorizontal: 4,
+  },
+  friendTipsComparisonHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  friendTipsComparisonLabel: {
+    color: '#9cd6a0',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  friendTipComparisonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  friendTipsComparisonPair: {
+    flexDirection: 'row',
+    flex: 1,
+    gap: 16,
+  },
+  tipColumn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 2,
+  },
+  friendTipInputReadonly: {
+    backgroundColor: '#0a0f0a',
+    opacity: 0.7,
   },
   friendRemoveBtn: {
     marginLeft: 8,
@@ -2893,6 +3386,8 @@ const styles = StyleSheet.create({
   },
   friendTipMatch: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
     color: '#cdd9ce',
     fontSize: 12,
     marginRight: 6,
@@ -2946,5 +3441,90 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  leaderboardBlock: {
+    marginBottom: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2e7d32',
+    backgroundColor: 'rgba(20, 40, 22, 0.9)',
+    padding: 12,
+  },
+  leaderboardTitle: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  leaderboardWinnerBanner: {
+    backgroundColor: 'rgba(255, 193, 7, 0.18)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffc107',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  leaderboardWinnerText: {
+    color: '#ffd54f',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  leaderboardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    borderRadius: 7,
+    marginBottom: 3,
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  leaderboardRowFirst: {
+    backgroundColor: 'rgba(255, 193, 7, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 193, 7, 0.35)',
+  },
+  leaderboardMedal: {
+    width: 22,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  leaderboardName: {
+    flex: 1,
+    color: '#d5e8d7',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  leaderboardNameFirst: {
+    color: '#ffd54f',
+    fontWeight: '800',
+  },
+  leaderboardPts: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 44,
+    textAlign: 'right',
+  },
+  leaderboardPtsLabel: {
+    color: '#9cd6a0',
+    fontWeight: '600',
+    fontSize: 11,
+  },
+  leaderboardExact: {
+    color: '#4caf50',
+    fontSize: 11,
+    fontWeight: '700',
+    minWidth: 26,
+    textAlign: 'right',
+  },
+  leaderboardHint: {
+    color: '#7a9e7e',
+    fontSize: 10,
+    marginTop: 8,
   },
 });

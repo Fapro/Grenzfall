@@ -17,12 +17,9 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   ita: 735,   // Italy
   aut: 730,   // Austria
   sui: 739,   // Switzerland
-  swe: 18564, // Sweden
   hun: 734,   // Hungary
   sco: 1161,  // Scotland
   cze: 731,   // Czech Republic
-  cro: 18588, // Croatia
-  bih: 18625, // Bosnia and Herzegovina
   tur: 18716, // Türkiye
   srb: 741,   // Serbia
   alb: 1025,  // Albania
@@ -30,7 +27,6 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   bra: 6,     // Brazil
   arg: 951,   // Argentina
   col: 110,   // Colombia
-  par: 18723, // Paraguay
   uru: 744,   // Uruguay
   ecu: 732,   // Ecuador
   ven: 742,   // Venezuela
@@ -39,17 +35,12 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   mex: 454,   // Mexico
   can: 108,   // Canada
   pan: 1028,  // Panama
-  hai: 18804, // Haiti
-  cuw: 18910, // Curacao
   crc: 1024,  // Costa Rica
   jam: 1027,  // Jamaica
   // CAF
-  alg: 18620, // Algeria
   mar: 489,   // Morocco
   sen: 498,   // Senegal
   egy: 733,   // Egypt
-  gha: 18553, // Ghana
-  zaf: 18555, // South Africa
   nga: 493,   // Nigeria
   cmr: 109,   // Cameroon
   civ: 1033,  // Côte d'Ivoire
@@ -68,4 +59,16 @@ export const APP_TO_SPORTMONKS_TEAM_ID: Record<string, number> = {
   irq: 1041,  // Iraq
   // OFC
   nzl: 1049,  // New Zealand
+  // Additional WC 2026 teams (SportMonks IDs resolved at runtime if wrong)
+  bih: 18559, // Bosnia and Herzegovina
+  hai: 1026,  // Haiti
+  zaf: 18715, // South Africa
+  par: 1048,  // Paraguay
+  cuw: 18573, // Curacao
+  swe: 499,   // Sweden
+  cpv: 18572, // Cape Verde
+  nor: 491,   // Norway
+  alg: 1030,  // Algeria
+  cro: 1023,  // Croatia
+  gha: 485,   // Ghana
 };

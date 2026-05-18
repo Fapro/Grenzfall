@@ -8,60 +8,8 @@ import {
 } from 'react-native';
 import { FlagCard } from './FlagCard';
 import { TEAMS } from '@/data/teams';
+import { GROUP_LETTERS, TEAM_GROUP_BY_ID } from '@/data/groups';
 import type { Team } from '@/data/teams';
-
-const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-
-const TEAM_GROUP_BY_ID: Record<string, string> = {
-  cze: 'A',
-  kor: 'A',
-  mex: 'A',
-  zaf: 'A',
-  can: 'B',
-  qat: 'B',
-  sui: 'B',
-  bih: 'B',
-  bra: 'C',
-  mar: 'C',
-  sco: 'C',
-  hai: 'C',
-  aus: 'D',
-  tur: 'D',
-  usa: 'D',
-  par: 'D',
-  civ: 'E',
-  ecu: 'E',
-  ger: 'E',
-  cuw: 'E',
-  jpn: 'F',
-  ned: 'F',
-  tun: 'F',
-  swe: 'F',
-  bel: 'G',
-  egy: 'G',
-  irn: 'G',
-  nzl: 'G',
-  cpv: 'H',
-  sau: 'H',
-  esp: 'H',
-  uru: 'H',
-  fra: 'I',
-  irq: 'I',
-  nor: 'I',
-  sen: 'I',
-  arg: 'J',
-  aut: 'J',
-  jor: 'J',
-  alg: 'J',
-  col: 'K',
-  drc: 'K',
-  por: 'K',
-  uzb: 'K',
-  eng: 'L',
-  pan: 'L',
-  cro: 'L',
-  gha: 'L',
-};
 
 
 interface FlagGridProps {
@@ -115,7 +63,7 @@ export function FlagGrid({ onSelect, onGroupSelect }: FlagGridProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🏆 World Cup 2026</Text>
+      <Text style={styles.title}>ROOAR 🏆 World Cup 2026</Text>
       <Text style={styles.subtitle}>Pick your team and hear the roar</Text>
       <TextInput
         style={styles.search}

@@ -1,25 +1,40 @@
-import { Platform } from 'react-native';
-
-/**
- * Backend base URL.
- * Override with your deployed server URL before releasing.
- * In dev: the Express backend runs on port 3001 locally.
- */
-const DEV_BACKEND =
-  Platform.OS === 'android' ? 'http://10.0.2.2:3001' : 'http://localhost:3001';
+import { getSession } from '@/config/session';
 
 const EXPLICIT_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL?.trim();
 
-function getWebBackendUrl(): string {
-  if (typeof window === 'undefined' || !window.location?.hostname) {
-    return 'http://localhost:3001';
-  }
-  return `http://${window.location.hostname}:3001`;
+if (!EXPLICIT_BACKEND_URL) {
+  throw new Error('EXPO_PUBLIC_BACKEND_URL is required');
 }
 
-export const BACKEND_URL =
-  EXPLICIT_BACKEND_URL && EXPLICIT_BACKEND_URL.length > 0
-    ? EXPLICIT_BACKEND_URL
-    : Platform.OS === 'web'
-      ? getWebBackendUrl()
-      : DEV_BACKEND;
+export const BACKEND_URL = EXPLICIT_BACKEND_URL;
+
+function buildAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const session = getSession();
+
+  if (session?.token) {
+    headers.Authorization = `Bearer ${session.token}`;
+  }
+
+  if (session?.currentTenant?.slug) {
+    headers['X-Tenant-Slug'] = session.currentTenant.slug;
+  }
+
+  return headers;
+}
+
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const url = `${BACKEND_URL}${normalizedPath}`;
+
+  const authHeaders = buildAuthHeaders();
+  const mergedHeaders: Record<string, string> = {
+    ...authHeaders,
+    ...(init.headers as Record<string, string> | undefined),
+  };
+
+  return fetch(url, {
+    ...init,
+    headers: mergedHeaders,
+  });
+}

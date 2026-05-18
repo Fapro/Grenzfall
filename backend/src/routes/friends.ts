@@ -1,22 +1,97 @@
-import express from 'express';
+import { Router, Request, Response } from 'express';
+import { requireAuth, requireTenant } from '../middleware/tenant';
+import {
+  getTenantTeamFriends,
+  setTenantTeamFriends,
+  listMembersByTenantId,
+  findUserById,
+} from '../multitenant/store';
+import { FriendEntry } from '../multitenant/types';
 
-const router = express.Router();
+const router = Router();
 
-// In-memory store for demo
-const friendsByTeam: Record<string, { id: string; name: string; tips: Record<string, { home: string; away: string }> }[]> = {};
+function isValidFriendEntry(value: unknown): value is FriendEntry {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
 
-// Get friends for a team
-router.get('/:teamId', (req, res) => {
-  const { teamId } = req.params;
-  res.json(friendsByTeam[teamId] || []);
+  const candidate = value as FriendEntry;
+  if (typeof candidate.id !== 'string' || typeof candidate.name !== 'string') {
+    return false;
+  }
+
+  if (!candidate.tips || typeof candidate.tips !== 'object') {
+    return false;
+  }
+
+  return Object.values(candidate.tips).every((tip) => {
+    if (!tip || typeof tip !== 'object') {
+      return false;
+    }
+    return typeof tip.home === 'string' && typeof tip.away === 'string';
+  });
+}
+
+// Get all workspace members as friends with their tips
+router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId ?? '').trim();
+  const tenantId = req.currentTenant!.id;
+
+  // Get all members of the workspace
+  const members = listMembersByTenantId(tenantId);
+
+  // Get stored tips for all members
+  const allFriendsTips = getTenantTeamFriends(tenantId, teamId);
+
+  // Build response with member names and their tips
+  const friends = members
+    .map((member) => {
+      const user = findUserById(member.userId);
+      const memberTips = allFriendsTips.find((f) => f.id === member.userId);
+      return {
+        id: member.userId,
+        name: user?.name || 'Unknown',
+        email: user?.email,
+        tips: memberTips?.tips || {},
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  res.json(friends);
 });
 
-// Add/update friends and tips for a team
-router.post('/:teamId', (req, res) => {
-  const { teamId } = req.params;
-  const { friends } = req.body;
-  if (!Array.isArray(friends)) return res.status(400).json({ error: 'Invalid friends' });
-  friendsByTeam[teamId] = friends;
+// Save tips for current user in this team
+router.post('/:teamId', requireAuth, requireTenant, (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId ?? '').trim();
+  const tenantId = req.currentTenant!.id;
+  const userId = req.currentUser!.id;
+  const tips = req.body?.tips;
+
+  if (!tips || typeof tips !== 'object') {
+    res.status(400).json({ error: 'Invalid tips payload' });
+    return;
+  }
+
+  // Get current friends list
+  let friends = getTenantTeamFriends(tenantId, teamId);
+
+  // Find or create entry for current user
+  const existingIndex = friends.findIndex((f) => f.id === userId);
+  const user = findUserById(userId);
+
+  if (existingIndex >= 0) {
+    // Update existing
+    friends[existingIndex].tips = tips;
+  } else {
+    // Add new
+    friends.push({
+      id: userId,
+      name: user?.name || 'Unknown',
+      tips,
+    });
+  }
+
+  setTenantTeamFriends(tenantId, teamId, friends);
   res.json({ ok: true });
 });
 

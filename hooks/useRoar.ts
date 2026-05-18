@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { NativeModulesProxy } from 'expo-modules-core';
 
 export function useRoar() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -7,6 +8,15 @@ export function useRoar() {
 
   const play = useCallback(async () => {
     if (isPlayingRef.current) return;
+
+    // Some runtimes (especially misconfigured Android builds) don't expose ExponentAV.
+    // Skip roar playback instead of throwing a native module error.
+    if (!NativeModulesProxy?.ExponentAV) {
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      return;
+    }
+
     isPlayingRef.current = true;
     setIsPlaying(true);
     try {
