@@ -19,6 +19,7 @@ const TEAM_SOUND_PATH = `${process.env.PUBLIC_URL || ''}/assets/sounds/goal-crow
 const ROAR_VOLUME_STORAGE_KEY = 'rooarVolume';
 const ROAR_TEAM_IDS_STORAGE_KEY = 'rooarTeamIds';
 const ROAR_PANEL_STORAGE_KEY = 'rooarPanelOpen';
+const TENANT_SLUG_STORAGE_KEY = 'currentTenantSlug';
 const VENUE_PLACEHOLDER_PATH = `${process.env.PUBLIC_URL || ''}/assets/venue-placeholder.svg`;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 const HOST_VENUES = [
@@ -384,6 +385,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState(localStorage.getItem('authToken') || '');
+  const [tenantSlug, setTenantSlug] = useState(localStorage.getItem(TENANT_SLUG_STORAGE_KEY) || '');
   const [user, setUser] = useState(null);
   const [query, setQuery] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState(localStorage.getItem('selectedTeamId') || '');
@@ -520,6 +522,83 @@ function App() {
     return q ? groups.filter(([, teams]) => teams.length > 0) : groups;
   }, [query]);
 
+  function persistTenantSlug(nextSlug) {
+    const normalizedSlug = String(nextSlug || '').trim().toLowerCase();
+
+    if (normalizedSlug) {
+      localStorage.setItem(TENANT_SLUG_STORAGE_KEY, normalizedSlug);
+    } else {
+      localStorage.removeItem(TENANT_SLUG_STORAGE_KEY);
+    }
+
+    setTenantSlug(normalizedSlug);
+  }
+
+  function resolveTenantSlugFromPayload(payload) {
+    if (payload?.tenant?.slug) {
+      return String(payload.tenant.slug).trim().toLowerCase();
+    }
+
+    if (Array.isArray(payload?.tenants)) {
+      const match = payload.tenants.find((tenant) => tenant?.slug);
+      if (match?.slug) {
+        return String(match.slug).trim().toLowerCase();
+      }
+    }
+
+    if (Array.isArray(payload?.memberships)) {
+      const match = payload.memberships.find((membership) => membership?.tenant?.slug);
+      if (match?.tenant?.slug) {
+        return String(match.tenant.slug).trim().toLowerCase();
+      }
+    }
+
+    return '';
+  }
+
+  function buildAuthHeaders(extraHeaders = {}) {
+    return {
+      ...extraHeaders,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {}),
+    };
+  }
+
+  function flattenFriendTips(friendRows) {
+    return (Array.isArray(friendRows) ? friendRows : []).flatMap((friend) => {
+      const tipsByFixture = friend?.tips && typeof friend.tips === 'object' ? friend.tips : {};
+
+      return Object.entries(tipsByFixture)
+        .filter(([, tip]) => tip && typeof tip === 'object')
+        .map(([fixtureId, tip]) => ({
+          id: `${friend.id}:${fixtureId}`,
+          fixture_id: fixtureId,
+          friend_id: friend.id,
+          friend_name: friend.name,
+          home_tip: String(tip.home ?? ''),
+          away_tip: String(tip.away ?? ''),
+        }));
+    });
+  }
+
+  function buildCurrentUserTipsPayload(currentTips, currentUserId) {
+    if (!currentUserId) {
+      return {};
+    }
+
+    return currentTips.reduce((acc, tip) => {
+      if (String(tip.friend_id) !== String(currentUserId)) {
+        return acc;
+      }
+
+      acc[String(tip.fixture_id)] = {
+        home: String(tip.home_tip ?? ''),
+        away: String(tip.away_tip ?? ''),
+      };
+      return acc;
+    }, {});
+  }
+
   async function loadMe(currentToken) {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: { Authorization: `Bearer ${currentToken}` }
@@ -531,6 +610,7 @@ function App() {
 
     const data = await response.json();
     setUser(data.user);
+    persistTenantSlug(tenantSlug || resolveTenantSlugFromPayload(data));
   }
 
   useEffect(() => {
@@ -573,6 +653,7 @@ function App() {
       localStorage.setItem('authToken', data.token);
       setToken(data.token);
       setUser(data.user);
+      persistTenantSlug(resolveTenantSlugFromPayload(data));
       setForm({ name: '', email: '', password: '' });
     } catch (submitError) {
       setError(submitError.message);
@@ -583,7 +664,9 @@ function App() {
 
   function logout() {
     localStorage.removeItem('authToken');
+    localStorage.removeItem(TENANT_SLUG_STORAGE_KEY);
     setToken('');
+    setTenantSlug('');
     setUser(null);
   }
 
@@ -901,10 +984,10 @@ function App() {
 
   const tickerText = useMemo(() => {
     if (!rssItems.length) {
-      return 'Live-Ticker wird geladen...';
+      return rssError || 'Live-Ticker derzeit nicht verfuegbar.';
     }
     return rssItems.map((item) => item.title).join('   •   ');
-  }, [rssItems]);
+  }, [rssError, rssItems]);
 
   const friendPointsTable = useMemo(() => {
     const pointsByFriend = new Map();
@@ -1157,12 +1240,12 @@ function App() {
 
       try {
         const response = await fetch(`${API_BASE_URL}/fixtures/${selectedTeam.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: buildAuthHeaders()
         });
         const json = await response.json();
 
         if (!response.ok) {
-          throw new Error(json.message || 'Fixtures konnten nicht geladen werden.');
+          throw new Error(json.error || json.message || 'Fixtures konnten nicht geladen werden.');
         }
 
         const enriched = enrichFixtureTeams(json.data || []);
@@ -1190,21 +1273,29 @@ function App() {
     }
 
     async function loadFriendsAndTips() {
+      if (!tenantSlug) {
+        if (!cancelled) {
+          setFriends([]);
+          setTips([]);
+        }
+        return;
+      }
+
       try {
-        const [friendsRes, tipsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/friends`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_BASE_URL}/friend-tips`, { headers: { Authorization: `Bearer ${token}` } })
-        ]);
+        const friendsRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+          headers: buildAuthHeaders()
+        });
 
         const friendsJson = await friendsRes.json();
-        const tipsJson = await tipsRes.json();
+        const friendRows = Array.isArray(friendsJson) ? friendsJson : [];
 
         if (!cancelled) {
           if (friendsRes.ok) {
-            setFriends(friendsJson.data || []);
-          }
-          if (tipsRes.ok) {
-            setTips(tipsJson.data || []);
+            setFriends(friendRows);
+            setTips(flattenFriendTips(friendRows));
+          } else {
+            setFriends([]);
+            setTips([]);
           }
         }
       } catch {
@@ -1216,21 +1307,9 @@ function App() {
     }
 
     async function loadRssTicker() {
-      try {
+      if (!cancelled) {
+        setRssItems([]);
         setRssError('');
-        const response = await fetch(`${API_BASE_URL}/rss/${selectedTeam.id}`);
-        const json = await response.json();
-        if (!response.ok) {
-          throw new Error(json.message || 'RSS konnte nicht geladen werden.');
-        }
-        if (!cancelled) {
-          setRssItems(json.data || []);
-        }
-      } catch (rssLoadError) {
-        if (!cancelled) {
-          setRssItems([]);
-          setRssError(rssLoadError instanceof Error ? rssLoadError.message : 'RSS konnte nicht geladen werden.');
-        }
       }
     }
 
@@ -1238,15 +1317,18 @@ function App() {
       try {
         setSquadLoading(true);
         setSquadError('');
-        const response = await fetch(`${API_BASE_URL}/team-squad/${selectedTeam.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const response = await fetch(`${API_BASE_URL}/players/${selectedTeam.id}`, {
+          headers: buildAuthHeaders()
         });
         const json = await response.json();
         if (!response.ok) {
-          throw new Error(json.message || 'Squad konnte nicht geladen werden.');
+          throw new Error(json.error || json.message || 'Squad konnte nicht geladen werden.');
         }
         if (!cancelled) {
-          setSquadData(json.data || { coach: null, players: [] });
+          setSquadData({
+            coach: json.trainer ? { name: json.trainer } : null,
+            players: Array.isArray(json.data) ? json.data : []
+          });
         }
       } catch (squadLoadError) {
         if (!cancelled) {
@@ -1261,63 +1343,21 @@ function App() {
     }
 
     async function loadNextPhase() {
-      try {
+      if (!cancelled) {
         setNextPhaseLoading(true);
         setNextPhaseError('');
-        const response = await fetch(`${API_BASE_URL}/next-phase/${selectedTeam.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const json = await response.json();
-        if (!response.ok) {
-          throw new Error(json.message || 'Naechste Phase konnte nicht geladen werden.');
-        }
-        if (!cancelled) {
-          setNextPhaseData(Array.isArray(json.data) ? json.data : []);
-        }
-      } catch (nextPhaseLoadError) {
-        if (!cancelled) {
-          setNextPhaseData([]);
-          setNextPhaseError(nextPhaseLoadError instanceof Error ? nextPhaseLoadError.message : 'Naechste Phase konnte nicht geladen werden.');
-        }
-      } finally {
-        if (!cancelled) {
-          setNextPhaseLoading(false);
-        }
+        setNextPhaseData([]);
+        setNextPhaseLoading(false);
       }
     }
 
     async function loadTeamView() {
-      try {
+      if (!cancelled) {
         setTeamViewError('');
-        const response = await fetch(`${API_BASE_URL}/team-view/${selectedTeam.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const json = await response.json();
-        if (!response.ok) {
-          throw new Error(json.message || 'Team View konnte nicht geladen werden.');
-        }
-
-        const data = json.data || {};
-        if (!cancelled) {
-          if (data.squad) {
-            setSquadData(data.squad);
-          }
-          if (Array.isArray(data.nextPhase)) {
-            setNextPhaseData(data.nextPhase);
-          }
-          setGroupViewData(data.groupView || { fixtures: [], summary: null, groupLetter: null, teams: [] });
-          setFormationData(Array.isArray(data.formations) ? data.formations : []);
-          setMatchesResultsData(Array.isArray(data.matchesAndResults) ? data.matchesAndResults : []);
-          setTournamentStructureData(Array.isArray(data.tournamentStructure) ? data.tournamentStructure : []);
-        }
-      } catch (teamViewLoadError) {
-        if (!cancelled) {
-          setGroupViewData({ fixtures: [], summary: null, groupLetter: null, teams: [] });
-          setFormationData([]);
-          setMatchesResultsData([]);
-          setTournamentStructureData([]);
-          setTeamViewError(teamViewLoadError instanceof Error ? teamViewLoadError.message : 'Team View konnte nicht geladen werden.');
-        }
+        setGroupViewData({ fixtures: [], summary: null, groupLetter: null, teams: [] });
+        setFormationData([]);
+        setMatchesResultsData([]);
+        setTournamentStructureData([]);
       }
     }
 
@@ -1337,7 +1377,7 @@ function App() {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [showGroupStage, selectedTeam, token, roarTeamIds]);
+  }, [roarTeamIds, selectedTeam, showGroupStage, tenantSlug, token]);
 
   async function addFriend(event) {
     event.preventDefault();
@@ -1345,51 +1385,11 @@ function App() {
       return;
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/friends`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ name: friendName.trim(), email: friendEmail.trim() || null })
-      });
-
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.message || 'Freund konnte nicht angelegt werden.');
-      }
-
-      setFriends((prev) => [...prev, json.friend].sort((a, b) => a.name.localeCompare(b.name)));
-      setFriendName('');
-      setFriendEmail('');
-    } catch (saveError) {
-      setFixturesError(saveError instanceof Error ? saveError.message : 'Freund konnte nicht angelegt werden.');
-    }
+    setFixturesError('Freunde werden automatisch aus deinem Workspace geladen und hier nicht manuell angelegt.');
   }
 
   async function removeFriend(friendId, friendName = 'diesen Freund') {
-    const shouldDelete = window.confirm(`Mochtest du ${friendName} wirklich entfernen?`);
-    if (!shouldDelete) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(friendId)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.message || 'Freund konnte nicht entfernt werden.');
-      }
-
-      setFriends((prev) => prev.filter((friend) => Number(friend.id) !== Number(friendId)));
-      setTips((prev) => prev.filter((tip) => Number(tip.friend_id) !== Number(friendId)));
-    } catch (removeError) {
-      setFixturesError(removeError instanceof Error ? removeError.message : 'Freund konnte nicht entfernt werden.');
-    }
+    setFixturesError(`${friendName} wird aus deinem Workspace verwaltet und kann hier nicht entfernt werden.`);
   }
 
   async function saveTip(event, fixtureId) {
@@ -1399,35 +1399,49 @@ function App() {
       return;
     }
 
+    if (!selectedTeam) {
+      return;
+    }
+
+    if (!tenantSlug) {
+      setFixturesError('Workspace-Kontext fehlt fuer diesen Tipp.');
+      return;
+    }
+
+    if (draft.friendId && user?.id && String(draft.friendId) !== String(user.id)) {
+      setFixturesError('Du kannst im Webclient derzeit nur deine eigenen Tipps speichern.');
+      return;
+    }
+
     try {
-      const response = await fetch(`${API_BASE_URL}/friend-tips`, {
+      const nextTipsPayload = buildCurrentUserTipsPayload(tips, user?.id);
+      nextTipsPayload[String(fixtureId)] = {
+        home: String(draft.homeTip),
+        away: String(draft.awayTip)
+      };
+
+      const response = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          ...buildAuthHeaders(),
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          fixtureId,
-          friendId: Number(draft.friendId),
-          homeTip: Number(draft.homeTip),
-          awayTip: Number(draft.awayTip)
-        })
+        body: JSON.stringify({ tips: nextTipsPayload })
       });
 
       const json = await response.json();
       if (!response.ok) {
-        throw new Error(json.message || 'Tipp konnte nicht gespeichert werden.');
+        throw new Error(json.error || json.message || 'Tipp konnte nicht gespeichert werden.');
       }
 
-      const refreshRes = await fetch(`${API_BASE_URL}/friend-tips?fixtureId=${encodeURIComponent(fixtureId)}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+        headers: buildAuthHeaders()
       });
       const refreshJson = await refreshRes.json();
       if (refreshRes.ok) {
-        setTips((prev) => {
-          const withoutFixture = prev.filter((tip) => String(tip.fixture_id) !== String(fixtureId));
-          return [...withoutFixture, ...(refreshJson.data || [])];
-        });
+        const friendRows = Array.isArray(refreshJson) ? refreshJson : [];
+        setFriends(friendRows);
+        setTips(flattenFriendTips(friendRows));
       }
     } catch (saveError) {
       setFixturesError(saveError instanceof Error ? saveError.message : 'Tipp konnte nicht gespeichert werden.');

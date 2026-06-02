@@ -4,6 +4,10 @@ import * as cache from '../cache';
 const router = Router();
 const BASE = 'https://api.sportmonks.com/v3/football';
 
+function getSportMonksApiKey(): string {
+  return String(process.env.SPORTMONKS_API_KEY || process.env.SPORTMONKS_API_TOKEN || '').trim();
+}
+
 interface StandingsRow {
   team_id: number;
   team: {
@@ -56,7 +60,7 @@ router.get('/standings/:seasonId', async (req: Request, res: Response) => {
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = process.env.SPORTMONKS_API_KEY;
+  const apiKey = getSportMonksApiKey();
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }

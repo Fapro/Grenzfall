@@ -10,6 +10,10 @@ const INCLUDES =
   'fixtures;fixtures.participants;fixtures.scores;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
 const RUNTIME_TEAM_ID_BY_APP_ID: Record<string, number> = {};
 
+function getSportMonksApiKey(): string {
+  return String(process.env.SPORTMONKS_API_KEY || process.env.SPORTMONKS_API_TOKEN || '').trim();
+}
+
 /** Canonical World Cup 2026 grouping (must mirror home page TEAM_GROUP_BY_ID). */
 const APP_TEAM_GROUP_BY_ID: Record<string, string> = {
   cze: 'A',
@@ -339,9 +343,10 @@ router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) =>
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = process.env.SPORTMONKS_API_KEY;
+  const apiKey = getSportMonksApiKey();
   if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
+    console.warn(`[fixtures] missing SPORTMONKS_API_KEY, returning empty fallback for sport team ${sportTeamId}`);
+    return res.json({ data: [], source: 'fallback', warning: 'API key not configured' });
   }
 
   try {
@@ -399,9 +404,10 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
     return res.status(404).json({ error: `Unknown team id: ${appTeamId}` });
   }
 
-  const apiKey = process.env.SPORTMONKS_API_KEY;
+  const apiKey = getSportMonksApiKey();
   if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
+    console.warn(`[fixtures] missing SPORTMONKS_API_KEY, returning empty fallback for ${appTeamId}`);
+    return res.json({ data: [], source: 'fallback', warning: 'API key not configured' });
   }
 
   try {
@@ -450,15 +456,10 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
     return res.json({ data: fixtures, source: 'api' });
   } catch (err) {
     console.error('[fixtures]', err);
-
-    if (isDnsResolutionError(err)) {
-      return res.status(503).json({
-        error:
-          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
-      });
-    }
-
-    return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
+    const warning = isDnsResolutionError(err)
+      ? 'Could not resolve SportMonks host (api.sportmonks.com). Using empty fallback data.'
+      : 'Failed to fetch from SportMonks. Using empty fallback data.';
+    return res.json({ data: [], source: 'fallback', warning });
   }
 });
 
@@ -476,7 +477,7 @@ router.get('/group-stage/all', async (req: Request, res: Response) => {
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = process.env.SPORTMONKS_API_KEY;
+  const apiKey = getSportMonksApiKey();
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
@@ -539,7 +540,7 @@ router.get('/match/:matchId', async (req: Request, res: Response) => {
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = process.env.SPORTMONKS_API_KEY;
+  const apiKey = getSportMonksApiKey();
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }

@@ -6,6 +6,10 @@ import * as cache from '../cache';
 const router = Router();
 const BASE = 'https://api.sportmonks.com/v3/football';
 
+function getSportMonksApiKey(): string {
+  return String(process.env.SPORTMONKS_API_KEY || process.env.SPORTMONKS_API_TOKEN || '').trim();
+}
+
 async function fetchFromSportMonks(url: string): Promise<unknown> {
   const res = await fetch(url, {
     headers: { Accept: 'application/json' },
@@ -379,7 +383,7 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
     return res.status(404).json({ error: `Unknown team id: ${appTeamId}` });
   }
 
-  const apiKey = process.env.SPORTMONKS_API_KEY;
+  const apiKey = getSportMonksApiKey();
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
