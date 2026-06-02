@@ -919,6 +919,54 @@ body {
   letter-spacing: 0.04em;
 }
 
+.tournament-hierarchy-scroll {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.tournament-hierarchy {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: max-content;
+}
+
+.hierarchy-stage-node {
+  border: 1px solid #2e4d33;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(76, 175, 80, 0.08);
+  color: #dff5e1;
+  display: grid;
+  gap: 3px;
+  min-width: 170px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hierarchy-stage-node:hover {
+  border-color: #53a65d;
+  background: rgba(76, 175, 80, 0.16);
+}
+
+.hierarchy-stage-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.hierarchy-stage-meta {
+  font-size: 0.72rem;
+  color: #9cd6a0;
+}
+
+.hierarchy-stage-connector {
+  color: #8fc697;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .phase-diagram-overlay {
   position: fixed;
   inset: 0;

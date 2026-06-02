@@ -1427,6 +1427,40 @@ function App() {
     });
   }, [tournamentStructureData]);
 
+  const tournamentHierarchy = useMemo(() => {
+    const hierarchyOrder = [
+      'Play-offs',
+      'Round of 32',
+      'Round of 16',
+      'Quarter-finals',
+      'Semi-finals',
+      '3rd Place Final',
+      'Final'
+    ];
+
+    const stageMap = new Map(
+      tournamentBracketStages.map((stage) => [String(stage.stage || '').trim(), stage])
+    );
+
+    const orderedKnownStages = hierarchyOrder.filter((stageName) => stageMap.has(stageName));
+    const unknownStages = tournamentBracketStages
+      .map((stage) => String(stage.stage || '').trim())
+      .filter((stageName) => stageName && !hierarchyOrder.includes(stageName));
+
+    const sequence = [...orderedKnownStages, ...unknownStages];
+
+    return sequence.map((stageName) => {
+      const stage = stageMap.get(stageName) || { stage: stageName, fixtures: [] };
+      const fixtureCount = Array.isArray(stage.fixtures) ? stage.fixtures.length : 0;
+      const teamsCount = fixtureCount > 0 ? fixtureCount * 2 : 0;
+      return {
+        ...stage,
+        fixtureCount,
+        teamsCount
+      };
+    });
+  }, [tournamentBracketStages]);
+
   const selectedDiagramStage = useMemo(
     () => tournamentBracketStages.find((stage) => stage.stage === selectedDiagramStageName) || null,
     [selectedDiagramStageName, tournamentBracketStages]
@@ -2098,25 +2132,31 @@ function App() {
 
                     <section className="side-card">
                       <h4>Tournament Structure</h4>
-                      {tournamentBracketStages.length > 0 ? (
-                        <div className="stage-card-grid">
-                          {tournamentBracketStages.map((stage) => {
-                            const matchCount = Array.isArray(stage.fixtures) ? stage.fixtures.length : 0;
-                            const teamsCount = matchCount > 0 ? matchCount * 2 : 0;
-
-                            return (
-                              <button
-                                key={`ts-${stage.stage}`}
-                                type="button"
-                                className="stage-card-item stage-card-button"
-                                onClick={() => setSelectedDiagramStageName(stage.stage)}
-                                title={`Diagramm fur ${stage.stage} anzeigen`}
-                              >
-                                <h5>{stage.stage}</h5>
-                                <p>{teamsCount} teams</p>
-                              </button>
-                            );
-                          })}
+                      {tournamentHierarchy.length > 0 ? (
+                        <div className="tournament-hierarchy-scroll">
+                          <div className="tournament-hierarchy" aria-label="Tournament hierarchy flow">
+                            {tournamentHierarchy.map((stage, index) => (
+                              <React.Fragment key={`ths-${stage.stage}-${index}`}>
+                                <button
+                                  type="button"
+                                  className="hierarchy-stage-node"
+                                  onClick={() => setSelectedDiagramStageName(stage.stage)}
+                                  title={`Diagramm fur ${stage.stage} anzeigen`}
+                                >
+                                  <span className="hierarchy-stage-title">{stage.stage}</span>
+                                  <span className="hierarchy-stage-meta">
+                                    {stage.fixtureCount} Spiele · {stage.teamsCount} Teams
+                                  </span>
+                                </button>
+                                {index < tournamentHierarchy.length - 1 ? (
+                                  <span className="hierarchy-stage-connector" aria-hidden="true">
+                                    →
+                                  </span>
+                                ) : null}
+                              </React.Fragment>
+                            ))}
+                          </div>
+                          <span className="stage-card-hint">Stage anklicken fur Match-Diagramm</span>
                         </div>
                       ) : (
                         <p className="tips-empty">Noch keine Tournament-Structure-Daten vorhanden.</p>
