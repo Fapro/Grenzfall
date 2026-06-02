@@ -960,6 +960,74 @@ function App() {
     ];
   }
 
+  function buildTournamentStructureTemplate(groupLetter, standingsRows) {
+    const stagePlan = [
+      { stage: 'Round of 32', matches: 16 },
+      { stage: 'Round of 16', matches: 8 },
+      { stage: 'Quarter-finals', matches: 4 },
+      { stage: 'Semi-finals', matches: 2 },
+      { stage: '3rd Place Final', matches: 1 },
+      { stage: 'Final', matches: 1 }
+    ];
+
+    const topTwo = Array.isArray(standingsRows)
+      ? standingsRows.slice(0, 2).map((row) => getCanonicalTeamMeta(row.teamId, row.teamName))
+      : [];
+
+    const baseDate = Date.UTC(2026, 6, 1, 18, 0, 0);
+    const venue = HOST_VENUES[0] || {
+      name: 'TBD Stadium',
+      city: 'TBD',
+      country: 'USA',
+      timeZone: 'America/New_York',
+      image: ''
+    };
+
+    return stagePlan.map((plan, stageIndex) => {
+      const fixtures = Array.from({ length: plan.matches }, (_, matchIndex) => {
+        const kickoffUtc = new Date(
+          baseDate + ((stageIndex * 3 + matchIndex) * 24 * 60 * 60 * 1000)
+        ).toISOString();
+
+        const isFirstProjectedMatch = stageIndex === 0 && matchIndex === 0 && topTwo.length >= 2;
+        const homeTeam = isFirstProjectedMatch
+          ? topTwo[0]
+          : { id: `tbd-${plan.stage}-${matchIndex}-h`, name: 'TBD', flag: '🏳️' };
+        const awayTeam = isFirstProjectedMatch
+          ? topTwo[1]
+          : { id: `tbd-${plan.stage}-${matchIndex}-a`, name: 'TBD', flag: '🏳️' };
+
+        return {
+          id: `template-${groupLetter || 'x'}-${plan.stage}-${matchIndex + 1}`,
+          stage: plan.stage,
+          round: 'Projected',
+          kickoffUtc,
+          homeScore: 0,
+          awayScore: 0,
+          homeTeam: {
+            id: homeTeam.id,
+            name: homeTeam.name,
+            flag: homeTeam.flag || '🏳️'
+          },
+          awayTeam: {
+            id: awayTeam.id,
+            name: awayTeam.name,
+            flag: awayTeam.flag || '🏳️'
+          },
+          venue: {
+            ...venue,
+            image: ''
+          }
+        };
+      });
+
+      return {
+        stage: plan.stage,
+        fixtures
+      };
+    });
+  }
+
   function buildLiveTickerItems(fixtures, teamName) {
     const nowMs = Date.now();
 
@@ -1364,17 +1432,22 @@ function App() {
       : (sortedTeamFixtures.length > 0 ? sortedTeamFixtures : selectedGroupFixtures);
     setMatchesResultsData(matchRows);
 
-    let knockoutFixtures = sortedTeamFixtures.filter((fixture) => !isGroupStageName(fixture.stage));
+    const knockoutFixtures = sortedTeamFixtures.filter((fixture) => !isGroupStageName(fixture.stage));
     const nowMs = Date.now();
-    let upcomingKnockout = knockoutFixtures.filter((fixture) => {
+    const upcomingKnockout = knockoutFixtures.filter((fixture) => {
       const kickoffMs = parseFixtureKickoffMs(fixture);
       return kickoffMs === null || kickoffMs >= nowMs - 3 * 60 * 60 * 1000;
     });
 
     if (knockoutFixtures.length === 0) {
-      const projected = buildProjectedNextPhaseFixtures(selectedGroupLetter, groupStandings);
-      knockoutFixtures = projected;
-      upcomingKnockout = projected;
+      const projectedStructure = buildTournamentStructureTemplate(selectedGroupLetter, groupStandings);
+      const projectedNext = buildProjectedNextPhaseFixtures(selectedGroupLetter, groupStandings);
+      setTournamentStructureData(projectedStructure);
+      setNextPhaseData(projectedNext.length > 0 ? projectedNext : (projectedStructure[0]?.fixtures || []).slice(0, 12));
+      setNextPhaseLoading(false);
+      setNextPhaseError('');
+      setTeamViewError('');
+      return;
     }
 
     const fixturesByStage = new Map();
