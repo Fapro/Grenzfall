@@ -27,7 +27,7 @@ function sanitizeUser(user: { id: string; email: string; name: string }) {
   return { id: user.id, email: user.email, name: user.name };
 }
 
-router.post('/signup', async (req: Request, res: Response) => {
+async function handleSignup(req: Request, res: Response) {
   const emailRaw = String(req.body?.email ?? '');
   const nameRaw = String(req.body?.name ?? '');
   const password = String(req.body?.password ?? '');
@@ -111,7 +111,10 @@ router.post('/signup', async (req: Request, res: Response) => {
     tenant: createdTenant,
     membership: tenantMembership,
   });
-});
+}
+
+router.post('/signup', handleSignup);
+router.post('/register', handleSignup);
 
 router.post('/login', async (req: Request, res: Response) => {
   const email = normalizeEmail(String(req.body?.email ?? ''));
