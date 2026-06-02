@@ -2066,15 +2066,6 @@ function App() {
                       ) : (
                         <p className="tips-empty">Keine Group-View-Daten vorhanden.</p>
                       )}
-                      {Array.isArray(selectedGroupTeams) && selectedGroupTeams.length > 0 ? (
-                        <div className="group-team-strip compact">
-                          {selectedGroupTeams.map((team) => (
-                            <span key={team.id} className="group-team-chip">
-                              {getCanonicalTeamName(team.id, team.name)}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
                     </section>
 
                     <section className="side-card">
