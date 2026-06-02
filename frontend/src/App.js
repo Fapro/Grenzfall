@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = (
+  process.env.REACT_APP_API_URL
+  || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3001/api'
+    : 'https://wm2026-backend.onrender.com/api')
+).replace(/\/$/, '');
 const TEAM_SOUND_PATH = `${process.env.PUBLIC_URL || ''}/assets/sounds/goal-crowd-roaring_F_minor.wav`;
 const ROAR_VOLUME_STORAGE_KEY = 'rooarVolume';
 const ROAR_TEAM_IDS_STORAGE_KEY = 'rooarTeamIds';
