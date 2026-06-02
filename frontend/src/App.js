@@ -545,7 +545,7 @@ function App() {
     setError('');
 
     try {
-      const endpoint = mode === 'login' ? '/auth/login' : '/auth/register';
+      const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
       const payload = mode === 'login'
         ? { email: form.email, password: form.password }
         : { name: form.name, email: form.email, password: form.password };
