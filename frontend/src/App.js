@@ -2070,26 +2070,7 @@ function App() {
                         <div className="group-team-strip compact">
                           {selectedGroupTeams.map((team) => (
                             <span key={team.id} className="group-team-chip">
-                              {(() => {
-                                const canonicalTeam = getCanonicalTeamMeta(team.id, team.name);
-                                const flagSrc = getFlagImageSrc(canonicalTeam);
-
-                                if (flagSrc) {
-                                  return (
-                                    <>
-                                      <img
-                                        className="inline-flag-img"
-                                        src={flagSrc}
-                                        alt={`${canonicalTeam.name} Flagge`}
-                                        loading="lazy"
-                                      />
-                                      {' '}{canonicalTeam.name}
-                                    </>
-                                  );
-                                }
-
-                                return <>{canonicalTeam.flag || '🏳️'} {canonicalTeam.name}</>;
-                              })()}
+                              {getCanonicalTeamName(team.id, team.name)}
                             </span>
                           ))}
                         </div>
