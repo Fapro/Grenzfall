@@ -1,11 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 
+const IS_LOCAL_RUNTIME = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const CONFIGURED_API_BASE_URL = (process.env.REACT_APP_API_URL || '').trim();
+const SHOULD_IGNORE_LOCALHOST_ENV =
+  !IS_LOCAL_RUNTIME &&
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(CONFIGURED_API_BASE_URL);
+
 const API_BASE_URL = (
-  process.env.REACT_APP_API_URL
-  || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3001/api'
-    : 'https://wm2026-backend.onrender.com/api')
+  SHOULD_IGNORE_LOCALHOST_ENV
+    ? 'https://wm2026-backend.onrender.com/api'
+    : (CONFIGURED_API_BASE_URL
+      || (IS_LOCAL_RUNTIME
+        ? 'http://localhost:3001/api'
+        : 'https://wm2026-backend.onrender.com/api'))
 ).replace(/\/$/, '');
 const TEAM_SOUND_PATH = `${process.env.PUBLIC_URL || ''}/assets/sounds/goal-crowd-roaring_F_minor.wav`;
 const ROAR_VOLUME_STORAGE_KEY = 'rooarVolume';
