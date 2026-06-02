@@ -333,14 +333,14 @@ function buildGroupFixtures(groupLetter) {
 function getVenueImageSrc(venue) {
   const raw = String(venue?.image || '').trim();
   if (!raw) {
-    return VENUE_PLACEHOLDER_PATH;
+    return '';
   }
 
   if (/^https?:\/\//i.test(raw) || raw.startsWith('/')) {
     return raw;
   }
 
-  return VENUE_PLACEHOLDER_PATH;
+  return '';
 }
 
 function getVenueFallbackSvg(venue) {
@@ -423,7 +423,6 @@ function App() {
   const [nextPhaseLoading, setNextPhaseLoading] = useState(false);
   const [nextPhaseError, setNextPhaseError] = useState('');
   const [selectedDiagramStageName, setSelectedDiagramStageName] = useState('');
-  const [groupViewData, setGroupViewData] = useState({ fixtures: [], summary: null });
   const [formationData, setFormationData] = useState([]);
   const [matchesResultsData, setMatchesResultsData] = useState([]);
   const [tournamentStructureData, setTournamentStructureData] = useState([]);
@@ -903,6 +902,64 @@ function App() {
     return Number.isFinite(kickoffMs) ? kickoffMs : null;
   }
 
+  function isGroupStageName(stageName) {
+    return /group/i.test(String(stageName || ''));
+  }
+
+  function isFixturePlayed(fixture) {
+    const status = String(fixture?.status || '').trim().toLowerCase();
+    const hasResultStatus = status && !/(not started|upcoming|scheduled|to be announced|postponed|canceled|cancelled)/i.test(status);
+    const homeGoals = Number(fixture?.homeScore || 0);
+    const awayGoals = Number(fixture?.awayScore || 0);
+    const hasNumericResult = Number.isFinite(homeGoals) && Number.isFinite(awayGoals) && (homeGoals > 0 || awayGoals > 0);
+    return Boolean(hasResultStatus || hasNumericResult);
+  }
+
+  function buildProjectedNextPhaseFixtures(groupLetter, standingsRows) {
+    if (!groupLetter || !Array.isArray(standingsRows) || standingsRows.length < 2) {
+      return [];
+    }
+
+    const topTwo = standingsRows.slice(0, 2).map((row) => getCanonicalTeamMeta(row.teamId, row.teamName));
+    if (topTwo.length < 2) {
+      return [];
+    }
+
+    const kickoffDate = new Date(Date.UTC(2026, 6, 1, 18, 0, 0));
+    const venue = HOST_VENUES[0] || {
+      name: 'TBD Stadium',
+      city: 'TBD',
+      country: 'USA',
+      timeZone: 'America/New_York',
+      image: ''
+    };
+
+    return [
+      {
+        id: `projected-${groupLetter}-${topTwo[0].id}-${topTwo[1].id}`,
+        stage: 'Round of 32',
+        round: 'Projected',
+        kickoffUtc: kickoffDate.toISOString(),
+        homeScore: 0,
+        awayScore: 0,
+        homeTeam: {
+          id: topTwo[0].id,
+          name: topTwo[0].name,
+          flag: topTwo[0].flag || '🏳️'
+        },
+        awayTeam: {
+          id: topTwo[1].id,
+          name: topTwo[1].name,
+          flag: topTwo[1].flag || '🏳️'
+        },
+        venue: {
+          ...venue,
+          image: ''
+        }
+      }
+    ];
+  }
+
   function buildLiveTickerItems(fixtures, teamName) {
     const nowMs = Date.now();
 
@@ -1019,7 +1076,7 @@ function App() {
   }
 
   const selectedTeam = TEAMS.find((team) => team.id === selectedTeamId) || null;
-  const selectedGroupLetter = selectedTeam ? (groupViewData.groupLetter || TEAM_GROUP_BY_ID[selectedTeam.id] || null) : null;
+  const selectedGroupLetter = selectedTeam ? (TEAM_GROUP_BY_ID[selectedTeam.id] || null) : null;
   const localFallbackGroupFixtures = useMemo(() => {
     if (!selectedGroupLetter) {
       return [];
@@ -1045,7 +1102,7 @@ function App() {
       return String(teamId || '').toLowerCase();
     };
 
-    const liveCandidates = [...(Array.isArray(groupViewData.fixtures) ? groupViewData.fixtures : []), ...teamFixtures]
+    const liveCandidates = [...teamFixtures]
       .map((fixture) => {
         const homeId = normalizeFixtureTeamId(fixture.homeTeam?.id, fixture.homeTeam?.name);
         const awayId = normalizeFixtureTeamId(fixture.awayTeam?.id, fixture.awayTeam?.name);
@@ -1110,7 +1167,7 @@ function App() {
     }
 
     return localFallbackGroupFixtures;
-  }, [groupViewData.fixtures, localFallbackGroupFixtures, selectedGroupLetter, teamFixtures]);
+  }, [localFallbackGroupFixtures, selectedGroupLetter, teamFixtures]);
 
   const selectedGroupTeams = useMemo(() => {
     if (!selectedGroupLetter) {
@@ -1280,6 +1337,72 @@ function App() {
 
     return rows.map((row, index) => ({ ...row, rank: index + 1 }));
   }, [selectedGroupFixtures, selectedGroupTeams]);
+
+  useEffect(() => {
+    if (!showGroupStage || !selectedTeam) {
+      setNextPhaseData([]);
+      setMatchesResultsData([]);
+      setTournamentStructureData([]);
+      setNextPhaseLoading(false);
+      setNextPhaseError('');
+      setTeamViewError('');
+      return;
+    }
+
+    const sortedTeamFixtures = [...(Array.isArray(teamFixtures) ? teamFixtures : [])].sort((a, b) => {
+      const aKickoff = parseFixtureKickoffMs(a);
+      const bKickoff = parseFixtureKickoffMs(b);
+      if (aKickoff === null && bKickoff === null) return 0;
+      if (aKickoff === null) return 1;
+      if (bKickoff === null) return -1;
+      return aKickoff - bKickoff;
+    });
+
+    const playedFixtures = sortedTeamFixtures.filter((fixture) => isFixturePlayed(fixture));
+    const matchRows = playedFixtures.length > 0
+      ? playedFixtures
+      : (sortedTeamFixtures.length > 0 ? sortedTeamFixtures : selectedGroupFixtures);
+    setMatchesResultsData(matchRows);
+
+    let knockoutFixtures = sortedTeamFixtures.filter((fixture) => !isGroupStageName(fixture.stage));
+    const nowMs = Date.now();
+    let upcomingKnockout = knockoutFixtures.filter((fixture) => {
+      const kickoffMs = parseFixtureKickoffMs(fixture);
+      return kickoffMs === null || kickoffMs >= nowMs - 3 * 60 * 60 * 1000;
+    });
+
+    if (knockoutFixtures.length === 0) {
+      const projected = buildProjectedNextPhaseFixtures(selectedGroupLetter, groupStandings);
+      knockoutFixtures = projected;
+      upcomingKnockout = projected;
+    }
+
+    const fixturesByStage = new Map();
+    knockoutFixtures.forEach((fixture) => {
+      const stageName = String(fixture.stage || 'Knockout').trim() || 'Knockout';
+      const rows = fixturesByStage.get(stageName) || [];
+      rows.push(fixture);
+      fixturesByStage.set(stageName, rows);
+    });
+
+    const stageRows = Array.from(fixturesByStage.entries()).map(([stage, fixtures]) => ({
+      stage,
+      fixtures: [...fixtures].sort((a, b) => {
+        const aKickoff = parseFixtureKickoffMs(a);
+        const bKickoff = parseFixtureKickoffMs(b);
+        if (aKickoff === null && bKickoff === null) return 0;
+        if (aKickoff === null) return 1;
+        if (bKickoff === null) return -1;
+        return aKickoff - bKickoff;
+      })
+    }));
+
+    setTournamentStructureData(stageRows);
+    setNextPhaseData(upcomingKnockout.slice(0, 12));
+    setNextPhaseLoading(false);
+    setNextPhaseError('');
+    setTeamViewError('');
+  }, [groupStandings, selectedGroupFixtures, selectedGroupLetter, selectedTeam, showGroupStage, teamFixtures]);
 
   const tournamentBracketStages = useMemo(() => {
     const orderMap = {
@@ -1476,30 +1599,9 @@ function App() {
       }
     }
 
-    async function loadNextPhase() {
-      if (!cancelled) {
-        setNextPhaseLoading(true);
-        setNextPhaseError('');
-        setNextPhaseData([]);
-        setNextPhaseLoading(false);
-      }
-    }
-
-    async function loadTeamView() {
-      if (!cancelled) {
-        setTeamViewError('');
-        setGroupViewData({ fixtures: [], summary: null, groupLetter: null, teams: [] });
-        setFormationData([]);
-        setMatchesResultsData([]);
-        setTournamentStructureData([]);
-      }
-    }
-
     loadTeamFixtures();
     loadFriendsAndTips();
     loadSquad();
-    loadNextPhase();
-    loadTeamView();
 
     const intervalId = setInterval(() => {
       loadTeamFixtures();
@@ -1906,7 +2008,7 @@ function App() {
                     </section>
 
                     <section className="side-card">
-                      <h4>Group View {groupViewData.groupLetter ? `· Group ${groupViewData.groupLetter}` : ''}</h4>
+                      <h4>Group View {selectedGroupLetter ? `· Group ${selectedGroupLetter}` : ''}</h4>
                       {teamViewError ? <p className="inline-error">{teamViewError}</p> : null}
                       {groupStandings.length > 0 ? (
                         <div className="next-phase-table-wrap">
@@ -1964,12 +2066,12 @@ function App() {
                       ) : (
                         <p className="tips-empty">Keine Group-View-Daten vorhanden.</p>
                       )}
-                      {Array.isArray(groupViewData.teams) && groupViewData.teams.length > 0 ? (
+                      {Array.isArray(selectedGroupTeams) && selectedGroupTeams.length > 0 ? (
                         <div className="group-team-strip compact">
-                          {groupViewData.teams.map((team) => (
-                            <span key={team.teamId} className="group-team-chip">
+                          {selectedGroupTeams.map((team) => (
+                            <span key={team.id} className="group-team-chip">
                               {(() => {
-                                const canonicalTeam = getCanonicalTeamMeta(team.teamId, team.teamName);
+                                const canonicalTeam = getCanonicalTeamMeta(team.id, team.name);
                                 const flagSrc = getFlagImageSrc(canonicalTeam);
 
                                 if (flagSrc) {
