@@ -9,11 +9,11 @@ const SHOULD_IGNORE_LOCALHOST_ENV =
 
 const API_BASE_URL = (
   SHOULD_IGNORE_LOCALHOST_ENV
-    ? 'https://wm2026-backend.onrender.com/api'
+    ? 'https://grenzfall.onrender.com/api'
     : (CONFIGURED_API_BASE_URL
       || (IS_LOCAL_RUNTIME
         ? 'http://localhost:3001/api'
-        : 'https://wm2026-backend.onrender.com/api'))
+        : 'https://grenzfall.onrender.com/api'))
 ).replace(/\/$/, '');
 const TEAM_SOUND_PATH = `${process.env.PUBLIC_URL || ''}/assets/sounds/goal-crowd-roaring_F_minor.wav`;
 const ROAR_VOLUME_STORAGE_KEY = 'rooarVolume';

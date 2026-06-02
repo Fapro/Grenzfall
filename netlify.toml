@@ -4,7 +4,7 @@
   publish = "build"
 
 [build.environment]
-  REACT_APP_API_URL = "https://wm2026-backend.onrender.com/api"
+  REACT_APP_API_URL = "https://grenzfall.onrender.com/api"
 
 [[redirects]]
   from = "/*"
