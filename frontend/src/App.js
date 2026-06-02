@@ -838,6 +838,19 @@ function App() {
     return resolveLocalTeam(teamId, fallbackName)?.name || fallbackName || String(teamId || '');
   }
 
+  function getCanonicalTeamMeta(teamId, fallbackName) {
+    const localTeam = resolveLocalTeam(teamId, fallbackName);
+    if (localTeam) {
+      return localTeam;
+    }
+
+    return {
+      id: String(teamId || '').toLowerCase(),
+      name: fallbackName || String(teamId || ''),
+      flag: '🏳️'
+    };
+  }
+
   function enrichFixtureTeams(fixtures) {
     return fixtures.map((fixture) => {
       const homeLocal = resolveLocalTeam(fixture.homeTeam?.id, fixture.homeTeam?.name);
@@ -878,6 +891,68 @@ function App() {
       }
       return acc;
     }, 0);
+  }
+
+  function parseFixtureKickoffMs(fixture) {
+    const kickoffUtc = String(fixture?.kickoffUtc || '').trim();
+    if (!kickoffUtc) {
+      return null;
+    }
+
+    const kickoffMs = Date.parse(kickoffUtc);
+    return Number.isFinite(kickoffMs) ? kickoffMs : null;
+  }
+
+  function buildLiveTickerItems(fixtures, teamName) {
+    const nowMs = Date.now();
+
+    const sortedFixtures = [...(Array.isArray(fixtures) ? fixtures : [])].sort((a, b) => {
+      const kickoffA = parseFixtureKickoffMs(a);
+      const kickoffB = parseFixtureKickoffMs(b);
+      if (kickoffA === null && kickoffB === null) {
+        return 0;
+      }
+      if (kickoffA === null) {
+        return 1;
+      }
+      if (kickoffB === null) {
+        return -1;
+      }
+      return kickoffA - kickoffB;
+    });
+
+    const tickerRows = sortedFixtures.slice(0, 8).map((fixture) => {
+      const homeName = String(fixture.homeTeam?.name || 'Home');
+      const awayName = String(fixture.awayTeam?.name || 'Away');
+      const homeScore = Number(fixture.homeScore || 0);
+      const awayScore = Number(fixture.awayScore || 0);
+
+      const kickoffMs = parseFixtureKickoffMs(fixture);
+      const elapsedMinutes = kickoffMs === null ? null : Math.floor((nowMs - kickoffMs) / 60000);
+      const isStarted = elapsedMinutes !== null && elapsedMinutes >= 0;
+      const isLikelyLive = isStarted && elapsedMinutes <= 150;
+      const hasScore = homeScore > 0 || awayScore > 0;
+
+      if (!isStarted) {
+        const kickoffLabel = fixture.kickoffUtc ? formatClientKickoff(fixture.kickoffUtc) : 'Zeit offen';
+        return { title: `${homeName} vs ${awayName} - Start ${kickoffLabel}` };
+      }
+
+      if (isLikelyLive) {
+        const minuteLabel = elapsedMinutes !== null ? `${Math.max(1, Math.min(elapsedMinutes, 120))}'` : "'";
+        if (hasScore || (elapsedMinutes !== null && elapsedMinutes >= 1)) {
+          return { title: `LIVE ${minuteLabel}: ${homeName} ${homeScore}:${awayScore} ${awayName}` };
+        }
+      }
+
+      return { title: `FT: ${homeName} ${homeScore}:${awayScore} ${awayName}` };
+    });
+
+    if (tickerRows.length > 0) {
+      return tickerRows;
+    }
+
+    return [{ title: `${teamName}: Keine aktuellen Spiele verfuegbar.` }];
   }
 
   function loadTipsForFixture(fixtureId) {
@@ -954,16 +1029,84 @@ function App() {
   }, [selectedGroupLetter]);
 
   const selectedGroupFixtures = useMemo(() => {
-    if (Array.isArray(groupViewData.fixtures) && groupViewData.fixtures.length > 0) {
-      return groupViewData.fixtures;
-    }
-
-    if (teamFixtures.length > 0) {
-      return teamFixtures;
-    }
-
     if (!selectedGroupLetter) {
       return [];
+    }
+
+    const canonicalGroupTeamIds = new Set(
+      Object.keys(TEAM_GROUP_BY_ID).filter((teamId) => TEAM_GROUP_BY_ID[teamId] === selectedGroupLetter)
+    );
+
+    const normalizeFixtureTeamId = (teamId, teamName) => {
+      const localTeam = resolveLocalTeam(teamId, teamName);
+      if (localTeam?.id) {
+        return localTeam.id;
+      }
+      return String(teamId || '').toLowerCase();
+    };
+
+    const liveCandidates = [...(Array.isArray(groupViewData.fixtures) ? groupViewData.fixtures : []), ...teamFixtures]
+      .map((fixture) => {
+        const homeId = normalizeFixtureTeamId(fixture.homeTeam?.id, fixture.homeTeam?.name);
+        const awayId = normalizeFixtureTeamId(fixture.awayTeam?.id, fixture.awayTeam?.name);
+        return {
+          fixture,
+          homeId,
+          awayId
+        };
+      })
+      .filter((row) => canonicalGroupTeamIds.has(row.homeId) && canonicalGroupTeamIds.has(row.awayId));
+
+    const fixtureByPairKey = new Map();
+    liveCandidates.forEach((row) => {
+      const pairKey = [row.homeId, row.awayId].sort().join('::');
+      fixtureByPairKey.set(pairKey, row.fixture);
+    });
+
+    const mergedFixtures = localFallbackGroupFixtures.map((fixture) => {
+      const homeId = String(fixture.homeTeam?.id || '').toLowerCase();
+      const awayId = String(fixture.awayTeam?.id || '').toLowerCase();
+      const pairKey = [homeId, awayId].sort().join('::');
+      const liveFixture = fixtureByPairKey.get(pairKey);
+
+      if (!liveFixture) {
+        return {
+          ...fixture,
+          homeScore: Number(fixture.homeScore || 0),
+          awayScore: Number(fixture.awayScore || 0)
+        };
+      }
+
+      return {
+        ...fixture,
+        ...liveFixture,
+        stage: liveFixture.stage || fixture.stage,
+        kickoffUtc: liveFixture.kickoffUtc || fixture.kickoffUtc,
+        homeTeam: {
+          ...fixture.homeTeam,
+          ...liveFixture.homeTeam,
+          id: fixture.homeTeam?.id || liveFixture.homeTeam?.id || ''
+        },
+        awayTeam: {
+          ...fixture.awayTeam,
+          ...liveFixture.awayTeam,
+          id: fixture.awayTeam?.id || liveFixture.awayTeam?.id || ''
+        },
+        venue: {
+          ...fixture.venue,
+          ...liveFixture.venue
+        },
+        homeScore: Number(liveFixture.homeScore || 0),
+        awayScore: Number(liveFixture.awayScore || 0)
+      };
+    });
+
+    if (mergedFixtures.length > 0) {
+      return mergedFixtures;
+    }
+
+    if (liveCandidates.length > 0) {
+      return liveCandidates.map((row) => row.fixture);
     }
 
     return localFallbackGroupFixtures;
@@ -973,14 +1116,8 @@ function App() {
     if (!selectedGroupLetter) {
       return [];
     }
-    if (Array.isArray(groupViewData.teams) && groupViewData.teams.length > 0) {
-      return groupViewData.teams
-        .map((team) => TEAMS.find((entry) => entry.id === team.teamId) || null)
-        .filter(Boolean)
-        .sort((a, b) => a.name.localeCompare(b.name));
-    }
     return TEAMS.filter((team) => TEAM_GROUP_BY_ID[team.id] === selectedGroupLetter).sort((a, b) => a.name.localeCompare(b.name));
-  }, [groupViewData.teams, selectedGroupLetter]);
+  }, [selectedGroupLetter]);
 
   const tickerText = useMemo(() => {
     if (!rssItems.length) {
@@ -1259,11 +1396,15 @@ function App() {
 
         if (!cancelled) {
           setTeamFixtures(enriched);
+          setRssItems(buildLiveTickerItems(enriched, selectedTeam.name));
+          setRssError('');
         }
       } catch (loadError) {
         if (!cancelled) {
           setTeamFixtures([]);
           setFixturesError(loadError instanceof Error ? loadError.message : 'Fixtures konnten nicht geladen werden.');
+          setRssItems([]);
+          setRssError('Live-Ticker konnte nicht geladen werden.');
         }
       } finally {
         if (!cancelled) {
@@ -1303,13 +1444,6 @@ function App() {
           setFriends([]);
           setTips([]);
         }
-      }
-    }
-
-    async function loadRssTicker() {
-      if (!cancelled) {
-        setRssItems([]);
-        setRssError('');
       }
     }
 
@@ -1363,14 +1497,12 @@ function App() {
 
     loadTeamFixtures();
     loadFriendsAndTips();
-    loadRssTicker();
     loadSquad();
     loadNextPhase();
     loadTeamView();
 
     const intervalId = setInterval(() => {
       loadTeamFixtures();
-      loadRssTicker();
     }, 25000);
 
     return () => {
@@ -1465,7 +1597,48 @@ function App() {
                 <h2>ROOAR World Cup 2026</h2>
                 <p>Wahle dein Team und hore den Rooar.</p>
               </div>
-              <button className="outline-btn" onClick={logout}>Abmelden</button>
+              <div className="session-header-actions">
+                {showGroupStage && selectedTeam ? (
+                  <div className="title-actions session-title-actions">
+                    <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
+                      <span className="roar-toggle-label">ROOAR</span>
+                      <input
+                        type="checkbox"
+                        checked={showRoarPanel}
+                        onChange={(event) => {
+                          setShowRoarPanel(event.target.checked);
+                          if (event.target.checked) {
+                            scheduleRoarPanelAutoClose();
+                          }
+                        }}
+                        aria-label="ROOAR umschalten"
+                      />
+                      <span className="roar-toggle-track" aria-hidden="true">
+                        <span className="roar-toggle-thumb" />
+                      </span>
+                    </label>
+                    <button className="outline-btn" type="button" onClick={() => downloadIcs(selectedGroupFixtures, selectedTeam)}>
+                      .ics
+                    </button>
+                    <button
+                      className="outline-btn"
+                      type="button"
+                      onClick={() => {
+                        if (!selectedGroupFixtures.length) {
+                          return;
+                        }
+                        window.open(buildGoogleCalendarUrl(selectedGroupFixtures[0], selectedTeam), '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      Gmail Kalender
+                    </button>
+                    <button className="outline-btn" type="button" onClick={() => setShowGroupStage(false)}>
+                      Team wechseln
+                    </button>
+                  </div>
+                ) : null}
+                <button className="outline-btn" onClick={logout}>Abmelden</button>
+              </div>
             </div>
 
             <div className="user-meta compact">
@@ -1517,43 +1690,6 @@ function App() {
                     )}
                     {' '}{selectedTeam.name} · Group {selectedGroupLetter}
                   </h3>
-                  <div className="title-actions">
-                    <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
-                      <span className="roar-toggle-label">ROOAR</span>
-                      <input
-                        type="checkbox"
-                        checked={showRoarPanel}
-                        onChange={(event) => {
-                          setShowRoarPanel(event.target.checked);
-                          if (event.target.checked) {
-                            scheduleRoarPanelAutoClose();
-                          }
-                        }}
-                        aria-label="ROOAR umschalten"
-                      />
-                      <span className="roar-toggle-track" aria-hidden="true">
-                        <span className="roar-toggle-thumb" />
-                      </span>
-                    </label>
-                    <button className="outline-btn" type="button" onClick={() => downloadIcs(selectedGroupFixtures, selectedTeam)}>
-                      .ics
-                    </button>
-                    <button
-                      className="outline-btn"
-                      type="button"
-                      onClick={() => {
-                        if (!selectedGroupFixtures.length) {
-                          return;
-                        }
-                        window.open(buildGoogleCalendarUrl(selectedGroupFixtures[0], selectedTeam), '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      Gmail Kalender
-                    </button>
-                    <button className="outline-btn" type="button" onClick={() => setShowGroupStage(false)}>
-                      Team wechseln
-                    </button>
-                  </div>
                   {showRoarPanel ? (
                     <div className="roar-settings-panel">
                       <div className="roar-settings-row">
@@ -1792,7 +1928,27 @@ function App() {
                               {groupStandings.map((row) => (
                                 <tr key={`gst-${row.teamId}`}>
                                   <td>{row.rank}</td>
-                                  <td>{row.teamName}</td>
+                                  <td>
+                                    {(() => {
+                                      const canonicalTeam = getCanonicalTeamMeta(row.teamId, row.teamName);
+                                      const flagSrc = getFlagImageSrc(canonicalTeam);
+                                      return (
+                                        <span className="team-name-with-flag">
+                                          {flagSrc ? (
+                                            <img
+                                              className="inline-flag-img"
+                                              src={flagSrc}
+                                              alt={`${canonicalTeam.name} Flagge`}
+                                              loading="lazy"
+                                            />
+                                          ) : (
+                                            <span className="flag">{canonicalTeam.flag || '🏳️'}</span>
+                                          )}
+                                          {' '}{canonicalTeam.name}
+                                        </span>
+                                      );
+                                    })()}
+                                  </td>
                                   <td>{row.played}</td>
                                   <td>{row.won}</td>
                                   <td>{row.draw}</td>
@@ -1812,7 +1968,26 @@ function App() {
                         <div className="group-team-strip compact">
                           {groupViewData.teams.map((team) => (
                             <span key={team.teamId} className="group-team-chip">
-                              {getCanonicalTeamName(team.teamId, team.teamName)}
+                              {(() => {
+                                const canonicalTeam = getCanonicalTeamMeta(team.teamId, team.teamName);
+                                const flagSrc = getFlagImageSrc(canonicalTeam);
+
+                                if (flagSrc) {
+                                  return (
+                                    <>
+                                      <img
+                                        className="inline-flag-img"
+                                        src={flagSrc}
+                                        alt={`${canonicalTeam.name} Flagge`}
+                                        loading="lazy"
+                                      />
+                                      {' '}{canonicalTeam.name}
+                                    </>
+                                  );
+                                }
+
+                                return <>{canonicalTeam.flag || '🏳️'} {canonicalTeam.name}</>;
+                              })()}
                             </span>
                           ))}
                         </div>

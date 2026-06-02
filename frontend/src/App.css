@@ -191,6 +191,18 @@ body {
   gap: 12px;
 }
 
+.session-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.session-title-actions {
+  justify-content: flex-end;
+}
+
 .session-header p {
   margin: 4px 0 0;
   color: var(--text-soft);
@@ -1431,6 +1443,20 @@ body {
   .group-stage-headline {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .session-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .session-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .session-title-actions {
+    width: 100%;
   }
 
   .group-stage-content {
