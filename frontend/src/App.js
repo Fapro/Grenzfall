@@ -1726,7 +1726,65 @@ function App() {
       return;
     }
 
-    setFixturesError('Freunde werden automatisch aus deinem Workspace geladen und hier nicht manuell angelegt.');
+    if (!tenantSlug) {
+      setFixturesError('Workspace-Kontext fehlt. Bitte erneut anmelden oder Workspace waehlen.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
+        method: 'POST',
+        headers: {
+          ...buildAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: friendEmail.trim() || undefined,
+          role: 'member'
+        })
+      });
+
+      const json = await response.json();
+
+      if (response.status === 404) {
+        const legacyResponse = await fetch(`${API_BASE_URL}/friends`, {
+          method: 'POST',
+          headers: {
+            ...buildAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: friendName.trim(),
+            email: friendEmail.trim() || undefined
+          })
+        });
+
+        const legacyJson = await legacyResponse.json();
+        if (!legacyResponse.ok) {
+          throw new Error(legacyJson.error || legacyJson.message || 'Freund konnte nicht hinzugefuegt werden.');
+        }
+
+        setFriendName('');
+        setFriendEmail('');
+        setFixturesError('Freund wurde hinzugefuegt.');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(json.error || json.message || 'Einladung konnte nicht erstellt werden.');
+      }
+
+      const inviteUrl = typeof json?.inviteUrl === 'string' ? json.inviteUrl : '';
+      setFriendName('');
+      setFriendEmail('');
+      setFixturesError(
+        inviteUrl
+          ? `Einladung erstellt. Link: ${inviteUrl}`
+          : 'Einladung erstellt. Bitte den Link aus dem Workspace-Admin teilen.'
+      );
+    } catch (inviteError) {
+      setFixturesError(inviteError instanceof Error ? inviteError.message : 'Einladung konnte nicht erstellt werden.');
+    }
   }
 
   async function removeFriend(friendId, friendName = 'diesen Freund') {
