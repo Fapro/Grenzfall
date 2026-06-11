@@ -1726,69 +1726,52 @@ function App() {
       return;
     }
 
-    if (!tenantSlug) {
-      setFixturesError('Workspace-Kontext fehlt. Bitte erneut anmelden oder Workspace waehlen.');
-      return;
-    }
-
     try {
-      const response = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
+      const response = await fetch(`${API_BASE_URL}/friends`, {
         method: 'POST',
         headers: {
           ...buildAuthHeaders(),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          email: friendEmail.trim() || undefined,
-          role: 'member'
+          name: friendName.trim(),
+          email: friendEmail.trim() || undefined
         })
       });
 
       const json = await response.json();
-
-      if (response.status === 404) {
-        const legacyResponse = await fetch(`${API_BASE_URL}/friends`, {
-          method: 'POST',
-          headers: {
-            ...buildAuthHeaders(),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: friendName.trim(),
-            email: friendEmail.trim() || undefined
-          })
-        });
-
-        const legacyJson = await legacyResponse.json();
-        if (!legacyResponse.ok) {
-          throw new Error(legacyJson.error || legacyJson.message || 'Freund konnte nicht hinzugefuegt werden.');
-        }
-
-        setFriendName('');
-        setFriendEmail('');
-        setFixturesError('Freund wurde hinzugefuegt.');
-        return;
-      }
-
       if (!response.ok) {
-        throw new Error(json.error || json.message || 'Einladung konnte nicht erstellt werden.');
+        throw new Error(json.error || json.message || 'Freund konnte nicht hinzugefuegt werden.');
       }
 
-      const inviteUrl = typeof json?.inviteUrl === 'string' ? json.inviteUrl : '';
       setFriendName('');
       setFriendEmail('');
-      setFixturesError(
-        inviteUrl
-          ? `Einladung erstellt. Link: ${inviteUrl}`
-          : 'Einladung erstellt. Bitte den Link aus dem Workspace-Admin teilen.'
-      );
-    } catch (inviteError) {
-      setFixturesError(inviteError instanceof Error ? inviteError.message : 'Einladung konnte nicht erstellt werden.');
+      setFixturesError('');
+
+      const refreshRes = await fetch(`${API_BASE_URL}/friends`, { headers: buildAuthHeaders() });
+      const refreshJson = await refreshRes.json();
+      if (refreshRes.ok) {
+        setFriends(Array.isArray(refreshJson?.data) ? refreshJson.data : []);
+      }
+    } catch (addError) {
+      setFixturesError(addError instanceof Error ? addError.message : 'Freund konnte nicht hinzugefuegt werden.');
     }
   }
 
   async function removeFriend(friendId, friendName = 'diesen Freund') {
-    setFixturesError(`${friendName} wird aus deinem Workspace verwaltet und kann hier nicht entfernt werden.`);
+    try {
+      const response = await fetch(`${API_BASE_URL}/friends/${friendId}`, {
+        method: 'DELETE',
+        headers: buildAuthHeaders()
+      });
+      if (!response.ok) {
+        const json = await response.json().catch(() => ({}));
+        throw new Error(json.message || 'Freund konnte nicht entfernt werden.');
+      }
+      setFriends(prev => prev.filter(f => f.id !== friendId));
+    } catch (removeError) {
+      setFixturesError(removeError instanceof Error ? removeError.message : 'Freund konnte nicht entfernt werden.');
+    }
   }
 
   async function saveTip(event, fixtureId) {
