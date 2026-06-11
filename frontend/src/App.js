@@ -563,6 +563,31 @@ function App() {
     };
   }
 
+  async function parseJsonResponse(response, fallbackMessage) {
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    const rawBody = await response.text();
+
+    if (!rawBody) {
+      return {};
+    }
+
+    if (contentType.includes('application/json') || contentType.includes('+json')) {
+      try {
+        return JSON.parse(rawBody);
+      } catch {
+        throw new Error(fallbackMessage || 'Antwort vom Server war kein gueltiges JSON.');
+      }
+    }
+
+    try {
+      return JSON.parse(rawBody);
+    } catch {
+      throw new Error(
+        fallbackMessage || 'Der Server hat HTML statt JSON geliefert. Bitte API-URL/Redirect pruefen.'
+      );
+    }
+  }
+
   function flattenFriendTips(friendRows) {
     return (Array.isArray(friendRows) ? friendRows : []).flatMap((friend) => {
       const tipsByFixture = friend?.tips && typeof friend.tips === 'object' ? friend.tips : {};
@@ -1739,7 +1764,10 @@ function App() {
         })
       });
 
-      const json = await response.json();
+      const json = await parseJsonResponse(
+        response,
+        'Freund konnte nicht hinzugefuegt werden (ungueltige Serverantwort).'
+      );
       if (!response.ok) {
         throw new Error(json.error || json.message || 'Freund konnte nicht hinzugefuegt werden.');
       }
@@ -1749,7 +1777,10 @@ function App() {
       setFixturesError('');
 
       const refreshRes = await fetch(`${API_BASE_URL}/friends`, { headers: buildAuthHeaders() });
-      const refreshJson = await refreshRes.json();
+      const refreshJson = await parseJsonResponse(
+        refreshRes,
+        'Freundesliste konnte nicht aktualisiert werden (ungueltige Serverantwort).'
+      );
       if (refreshRes.ok) {
         setFriends(Array.isArray(refreshJson?.data) ? refreshJson.data : []);
       }
