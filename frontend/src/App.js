@@ -566,6 +566,7 @@ function App() {
   async function parseJsonResponse(response, fallbackMessage) {
     const contentType = String(response.headers.get('content-type') || '').toLowerCase();
     const rawBody = await response.text();
+    const statusInfo = `HTTP ${response.status}`;
 
     if (!rawBody) {
       return {};
@@ -583,7 +584,7 @@ function App() {
       return JSON.parse(rawBody);
     } catch {
       throw new Error(
-        fallbackMessage || 'Der Server hat HTML statt JSON geliefert. Bitte API-URL/Redirect pruefen.'
+        fallbackMessage || `Der Server hat keine JSON-Antwort geliefert (${statusInfo}). Bitte API-URL/Redirect pruefen.`
       );
     }
   }
