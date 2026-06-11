@@ -1755,33 +1755,7 @@ function App() {
     }
 
     try {
-      // Workspace backend expects invitations by email instead of free-form friend entries.
-      if (tenantSlug) {
-        if (!trimmedEmail) {
-          throw new Error('Bitte E-Mail eingeben, um einen Freund in den Workspace einzuladen.');
-        }
-
-        const inviteResponse = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
-          method: 'POST',
-          headers: {
-            ...buildAuthHeaders(),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: trimmedEmail,
-            role: 'member'
-          })
-        });
-
-        const inviteJson = await parseJsonResponse(
-          inviteResponse,
-          'Einladung konnte nicht erstellt werden (ungueltige Serverantwort).'
-        );
-
-        if (!inviteResponse.ok) {
-          throw new Error(inviteJson.error || inviteJson.message || 'Freund konnte nicht hinzugefuegt werden.');
-        }
-      } else {
+      const createViaLegacyEndpoint = async () => {
         const response = await fetch(`${API_BASE_URL}/friends`, {
           method: 'POST',
           headers: {
@@ -1801,6 +1775,56 @@ function App() {
         if (!response.ok) {
           throw new Error(json.error || json.message || 'Freund konnte nicht hinzugefuegt werden.');
         }
+      };
+
+      // Workspace backend expects invitations by email instead of free-form friend entries.
+      if (tenantSlug) {
+        if (!trimmedEmail) {
+          throw new Error('Bitte E-Mail eingeben, um einen Freund in den Workspace einzuladen.');
+        }
+
+        try {
+          const inviteResponse = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
+            method: 'POST',
+            headers: {
+              ...buildAuthHeaders(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email: trimmedEmail,
+              role: 'member'
+            })
+          });
+
+          const inviteJson = await parseJsonResponse(
+            inviteResponse,
+            'Einladung konnte nicht erstellt werden (ungueltige Serverantwort).'
+          );
+
+          if (!inviteResponse.ok) {
+            const inviteMessage = inviteJson.error || inviteJson.message || '';
+
+            // Keep explicit auth/permission feedback, but fallback for routing/shape mismatches.
+            if (inviteResponse.status === 401 || inviteResponse.status === 403 || inviteResponse.status === 409) {
+              throw new Error(inviteMessage || 'Freund konnte nicht hinzugefuegt werden.');
+            }
+
+            await createViaLegacyEndpoint();
+          }
+        } catch (inviteError) {
+          const message = inviteError instanceof Error ? inviteError.message : '';
+          const looksLikeResponseShapeIssue =
+            message.toLowerCase().includes('ungueltige serverantwort') ||
+            message.toLowerCase().includes('html statt json');
+
+          if (!looksLikeResponseShapeIssue) {
+            throw inviteError;
+          }
+
+          await createViaLegacyEndpoint();
+        }
+      } else {
+        await createViaLegacyEndpoint();
       }
 
       setFriendName('');
