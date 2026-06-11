@@ -1747,42 +1747,88 @@ function App() {
 
   async function addFriend(event) {
     event.preventDefault();
-    if (!friendName.trim()) {
+    const trimmedName = friendName.trim();
+    const trimmedEmail = friendEmail.trim();
+
+    if (!trimmedName) {
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/friends`, {
-        method: 'POST',
-        headers: {
-          ...buildAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: friendName.trim(),
-          email: friendEmail.trim() || undefined
-        })
-      });
+      // Workspace backend expects invitations by email instead of free-form friend entries.
+      if (tenantSlug) {
+        if (!trimmedEmail) {
+          throw new Error('Bitte E-Mail eingeben, um einen Freund in den Workspace einzuladen.');
+        }
 
-      const json = await parseJsonResponse(
-        response,
-        'Freund konnte nicht hinzugefuegt werden (ungueltige Serverantwort).'
-      );
-      if (!response.ok) {
-        throw new Error(json.error || json.message || 'Freund konnte nicht hinzugefuegt werden.');
+        const inviteResponse = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
+          method: 'POST',
+          headers: {
+            ...buildAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            role: 'member'
+          })
+        });
+
+        const inviteJson = await parseJsonResponse(
+          inviteResponse,
+          'Einladung konnte nicht erstellt werden (ungueltige Serverantwort).'
+        );
+
+        if (!inviteResponse.ok) {
+          throw new Error(inviteJson.error || inviteJson.message || 'Freund konnte nicht hinzugefuegt werden.');
+        }
+      } else {
+        const response = await fetch(`${API_BASE_URL}/friends`, {
+          method: 'POST',
+          headers: {
+            ...buildAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: trimmedName,
+            email: trimmedEmail || undefined
+          })
+        });
+
+        const json = await parseJsonResponse(
+          response,
+          'Freund konnte nicht hinzugefuegt werden (ungueltige Serverantwort).'
+        );
+        if (!response.ok) {
+          throw new Error(json.error || json.message || 'Freund konnte nicht hinzugefuegt werden.');
+        }
       }
 
       setFriendName('');
       setFriendEmail('');
       setFixturesError('');
 
-      const refreshRes = await fetch(`${API_BASE_URL}/friends`, { headers: buildAuthHeaders() });
-      const refreshJson = await parseJsonResponse(
-        refreshRes,
-        'Freundesliste konnte nicht aktualisiert werden (ungueltige Serverantwort).'
-      );
-      if (refreshRes.ok) {
-        setFriends(Array.isArray(refreshJson?.data) ? refreshJson.data : []);
+      if (tenantSlug && selectedTeam?.id) {
+        const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+          headers: buildAuthHeaders()
+        });
+        const refreshJson = await parseJsonResponse(
+          refreshRes,
+          'Freundesliste konnte nicht aktualisiert werden (ungueltige Serverantwort).'
+        );
+        if (refreshRes.ok) {
+          const friendRows = Array.isArray(refreshJson) ? refreshJson : [];
+          setFriends(friendRows);
+          setTips(flattenFriendTips(friendRows));
+        }
+      } else {
+        const refreshRes = await fetch(`${API_BASE_URL}/friends`, { headers: buildAuthHeaders() });
+        const refreshJson = await parseJsonResponse(
+          refreshRes,
+          'Freundesliste konnte nicht aktualisiert werden (ungueltige Serverantwort).'
+        );
+        if (refreshRes.ok) {
+          setFriends(Array.isArray(refreshJson?.data) ? refreshJson.data : []);
+        }
       }
     } catch (addError) {
       setFixturesError(addError instanceof Error ? addError.message : 'Freund konnte nicht hinzugefuegt werden.');
