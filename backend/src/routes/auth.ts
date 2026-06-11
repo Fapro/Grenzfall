@@ -32,7 +32,6 @@ async function handleSignup(req: Request, res: Response) {
   const nameRaw = String(req.body?.name ?? '');
   const password = String(req.body?.password ?? '');
   const workspaceNameRaw = String(req.body?.workspaceName ?? '').trim();
-  const workspaceSlugInput = String(req.body?.workspaceSlug ?? workspaceNameRaw);
 
   const email = normalizeEmail(emailRaw);
   const name = nameRaw.trim();
@@ -48,34 +47,34 @@ async function handleSignup(req: Request, res: Response) {
     res.status(400).json({ error: 'Password must be at least 8 characters' });
     return;
   }
+  if (!workspaceNameRaw) {
+    res.status(400).json({ error: 'Workspace name is required' });
+    return;
+  }
 
   if (findUserByEmail(email)) {
     res.status(409).json({ error: 'Email already registered' });
     return;
   }
 
-  let createdTenant = null;
-  let tenantMembership = null;
-
-  if (workspaceNameRaw) {
-    const slugResult = validateWorkspaceSlug(workspaceSlugInput);
-    if (!slugResult.ok) {
-      res.status(400).json({ error: slugResult.error });
-      return;
-    }
-    if (findTenantBySlug(slugResult.slug)) {
-      res.status(409).json({ error: 'Workspace slug is already taken' });
-      return;
-    }
-
-    createdTenant = {
-      id: randomId('ten'),
-      slug: slugResult.slug,
-      name: workspaceNameRaw,
-      ownerUserId: '',
-      createdAt: new Date().toISOString(),
-    };
+  const slugResult = validateWorkspaceSlug(workspaceNameRaw);
+  if (!slugResult.ok) {
+    res.status(400).json({ error: slugResult.error });
+    return;
   }
+  if (findTenantBySlug(slugResult.slug)) {
+    res.status(409).json({ error: 'Workspace slug is already taken' });
+    return;
+  }
+
+  let createdTenant = {
+    id: randomId('ten'),
+    slug: slugResult.slug,
+    name: workspaceNameRaw,
+    ownerUserId: '',
+    createdAt: new Date().toISOString(),
+  };
+  let tenantMembership = null;
 
   const user = addUser({
     id: randomId('usr'),
@@ -85,17 +84,15 @@ async function handleSignup(req: Request, res: Response) {
     createdAt: new Date().toISOString(),
   });
 
-  if (createdTenant) {
-    createdTenant.ownerUserId = user.id;
-    addTenant(createdTenant);
-    tenantMembership = addTenantMember({
-      id: randomId('mem'),
-      tenantId: createdTenant.id,
-      userId: user.id,
-      role: 'owner',
-      createdAt: new Date().toISOString(),
-    });
-  }
+  createdTenant.ownerUserId = user.id;
+  addTenant(createdTenant);
+  tenantMembership = addTenantMember({
+    id: randomId('mem'),
+    tenantId: createdTenant.id,
+    userId: user.id,
+    role: 'owner',
+    createdAt: new Date().toISOString(),
+  });
 
   const token = randomToken();
   createSession({

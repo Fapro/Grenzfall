@@ -381,7 +381,7 @@ function getFlagImageSrc(team) {
 
 function App() {
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', workspaceName: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState(localStorage.getItem('authToken') || '');
@@ -661,7 +661,12 @@ function App() {
       const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
       const payload = mode === 'login'
         ? { email: form.email, password: form.password }
-        : { name: form.name, email: form.email, password: form.password };
+        : {
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          workspaceName: form.workspaceName,
+        };
 
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
@@ -672,14 +677,14 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Anfrage fehlgeschlagen.');
+        throw new Error(data.error || data.message || 'Anfrage fehlgeschlagen.');
       }
 
       localStorage.setItem('authToken', data.token);
       setToken(data.token);
       setUser(data.user);
       persistTenantSlug(resolveTenantSlugFromPayload(data));
-      setForm({ name: '', email: '', password: '' });
+      setForm({ name: '', email: '', password: '', workspaceName: '' });
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -2641,6 +2646,19 @@ function App() {
                     onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                     required
                     placeholder="Dein Name"
+                  />
+                </label>
+              )}
+
+              {mode === 'register' && (
+                <label>
+                  Gruppenname
+                  <input
+                    type="text"
+                    value={form.workspaceName}
+                    onChange={(event) => setForm((prev) => ({ ...prev, workspaceName: event.target.value }))}
+                    required
+                    placeholder="z. B. Team Freunde"
                   />
                 </label>
               )}
