@@ -1783,45 +1783,26 @@ function App() {
           throw new Error('Bitte E-Mail eingeben, um einen Freund in den Workspace einzuladen.');
         }
 
-        try {
-          const inviteResponse = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
-            method: 'POST',
-            headers: {
-              ...buildAuthHeaders(),
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              email: trimmedEmail,
-              role: 'member'
-            })
-          });
+        const inviteResponse = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
+          method: 'POST',
+          headers: {
+            ...buildAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            role: 'member'
+          })
+        });
 
-          const inviteJson = await parseJsonResponse(
-            inviteResponse,
-            'Einladung konnte nicht erstellt werden (ungueltige Serverantwort).'
-          );
+        const inviteJson = await parseJsonResponse(
+          inviteResponse,
+          'Einladung konnte nicht erstellt werden (ungueltige Serverantwort).'
+        );
 
-          if (!inviteResponse.ok) {
-            const inviteMessage = inviteJson.error || inviteJson.message || '';
-
-            // Keep explicit auth/permission feedback, but fallback for routing/shape mismatches.
-            if (inviteResponse.status === 401 || inviteResponse.status === 403 || inviteResponse.status === 409) {
-              throw new Error(inviteMessage || 'Freund konnte nicht hinzugefuegt werden.');
-            }
-
-            await createViaLegacyEndpoint();
-          }
-        } catch (inviteError) {
-          const message = inviteError instanceof Error ? inviteError.message : '';
-          const looksLikeResponseShapeIssue =
-            message.toLowerCase().includes('ungueltige serverantwort') ||
-            message.toLowerCase().includes('html statt json');
-
-          if (!looksLikeResponseShapeIssue) {
-            throw inviteError;
-          }
-
-          await createViaLegacyEndpoint();
+        if (!inviteResponse.ok) {
+          const inviteMessage = inviteJson.error || inviteJson.message || '';
+          throw new Error(inviteMessage || 'Freund konnte nicht hinzugefuegt werden.');
         }
       } else {
         await createViaLegacyEndpoint();
