@@ -1769,10 +1769,7 @@ function App() {
           })
         });
 
-        const json = await parseJsonResponse(
-          response,
-          'Freund konnte nicht hinzugefuegt werden (ungueltige Serverantwort).'
-        );
+        const json = await parseJsonResponse(response);
         if (!response.ok) {
           throw new Error(json.error || json.message || 'Freund konnte nicht hinzugefuegt werden.');
         }
@@ -1796,10 +1793,7 @@ function App() {
           })
         });
 
-        const inviteJson = await parseJsonResponse(
-          inviteResponse,
-          'Einladung konnte nicht erstellt werden (ungueltige Serverantwort).'
-        );
+        const inviteJson = await parseJsonResponse(inviteResponse);
 
         if (!inviteResponse.ok) {
           const inviteMessage = inviteJson.error || inviteJson.message || '';
@@ -1817,10 +1811,7 @@ function App() {
         const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
           headers: buildAuthHeaders()
         });
-        const refreshJson = await parseJsonResponse(
-          refreshRes,
-          'Freundesliste konnte nicht aktualisiert werden (ungueltige Serverantwort).'
-        );
+        const refreshJson = await parseJsonResponse(refreshRes);
         if (refreshRes.ok) {
           const friendRows = Array.isArray(refreshJson) ? refreshJson : [];
           setFriends(friendRows);
@@ -1828,10 +1819,7 @@ function App() {
         }
       } else {
         const refreshRes = await fetch(`${API_BASE_URL}/friends`, { headers: buildAuthHeaders() });
-        const refreshJson = await parseJsonResponse(
-          refreshRes,
-          'Freundesliste konnte nicht aktualisiert werden (ungueltige Serverantwort).'
-        );
+        const refreshJson = await parseJsonResponse(refreshRes);
         if (refreshRes.ok) {
           setFriends(Array.isArray(refreshJson?.data) ? refreshJson.data : []);
         }
