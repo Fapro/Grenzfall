@@ -62,6 +62,32 @@ body {
   overflow: hidden;
 }
 
+.brand-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.language-switch-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.language-select {
+  border: 1px solid var(--line-strong);
+  background: #0b130d;
+  color: var(--text-main);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.language-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.18);
+}
+
 .brand-row h1 {
   margin: 10px 0 8px;
   font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem);

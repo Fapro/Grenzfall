@@ -21,6 +21,7 @@ const ROAR_TEAM_IDS_STORAGE_KEY = 'rooarTeamIds';
 const ROAR_PANEL_STORAGE_KEY = 'rooarPanelOpen';
 const TENANT_SLUG_STORAGE_KEY = 'currentTenantSlug';
 const FRIENDS_SCOPE_KEY = 'all-matches';
+const LANGUAGE_STORAGE_KEY = 'uiLanguage';
 const VENUE_PLACEHOLDER_PATH = `${process.env.PUBLIC_URL || ''}/assets/venue-placeholder.svg`;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 const HOST_VENUES = [
@@ -381,6 +382,10 @@ function getFlagImageSrc(team) {
 }
 
 function App() {
+  const [language, setLanguage] = useState(() => {
+    const stored = String(localStorage.getItem(LANGUAGE_STORAGE_KEY) || '').toLowerCase();
+    return stored === 'en' ? 'en' : 'de';
+  });
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', username: '', password: '', workspaceName: '' });
   const [loading, setLoading] = useState(false);
@@ -436,7 +441,81 @@ function App() {
   const roarAudioRef = useRef(null);
   const roarFadeTimerRef = useRef(null);
 
-  const title = useMemo(() => (mode === 'login' ? 'Anmelden' : 'Gruppe registrieren'), [mode]);
+  const text = useMemo(() => {
+    if (language === 'en') {
+      return {
+        appSubtitle: 'Simple group tip game with shared login and manual friend list.',
+        tickerLabel: 'RSS Live Ticker',
+        sessionTitle: 'ROOAR World Cup 2026',
+        sessionSubtitle: 'Select your team and hear the ROOAR.',
+        roarToggle: 'ROOAR',
+        gmailCalendar: 'Gmail Calendar',
+        switchTeam: 'Switch Team',
+        logout: 'Logout',
+        loginLabel: 'Login',
+        yourTeam: 'Your Team',
+        noTeamSelected: 'No team selected yet',
+        sharedLoginLoading: 'Shared friends login is loading...',
+        resetPassword: 'Reset password',
+        resetPasswordTitle: 'Generate a new password for the shared group login',
+        addFriendsTitle: 'Add friends',
+        friendNamePlaceholder: 'Name',
+        addFriend: 'Add friend',
+        modeLogin: 'Login',
+        modeRegister: 'Register',
+        registerTitle: 'Register group',
+        loginTitle: 'Login',
+        labelName: 'Name',
+        namePlaceholder: 'Your name',
+        labelGroupName: 'Group name',
+        groupPlaceholder: 'e.g. Team Friends',
+        labelUsername: 'Username',
+        usernamePlaceholder: 'e.g. wm2026%team-friends',
+        labelPassword: 'Password',
+        passwordPlaceholder: 'Password',
+        registerHint: 'After registration, a shared friends login is generated automatically: ',
+      };
+    }
+
+    return {
+      appSubtitle: 'Einfaches Gruppen-Tippspiel mit gemeinsamem Login und manueller Freundeliste.',
+      tickerLabel: 'RSS Live-Ticker',
+      sessionTitle: 'ROOAR World Cup 2026',
+      sessionSubtitle: 'Wahle dein Team und hore den Rooar.',
+      roarToggle: 'ROOAR',
+      gmailCalendar: 'Gmail Kalender',
+      switchTeam: 'Team wechseln',
+      logout: 'Abmelden',
+      loginLabel: 'Login',
+      yourTeam: 'Dein Team',
+      noTeamSelected: 'Noch kein Team ausgewahlt',
+      sharedLoginLoading: 'Freunde-Login wird geladen...',
+      resetPassword: 'Passwort zurücksetzen',
+      resetPasswordTitle: 'Neues Passwort fuer den gemeinsamen Gruppen-Login generieren',
+      addFriendsTitle: 'Freunde hinzufügen',
+      friendNamePlaceholder: 'Name',
+      addFriend: 'Freund hinzufügen',
+      modeLogin: 'Anmelden',
+      modeRegister: 'Registrieren',
+      registerTitle: 'Gruppe registrieren',
+      loginTitle: 'Anmelden',
+      labelName: 'Name',
+      namePlaceholder: 'Dein Name',
+      labelGroupName: 'Gruppenname',
+      groupPlaceholder: 'z. B. Team Freunde',
+      labelUsername: 'Benutzername',
+      usernamePlaceholder: 'z. B. wm2026%team-freunde',
+      labelPassword: 'Passwort',
+      passwordPlaceholder: 'Passwort',
+      registerHint: 'Nach der Registrierung wird automatisch ein gemeinsamer Login fuer deine Freunde erstellt: ',
+    };
+  }, [language]);
+
+  const title = useMemo(() => (mode === 'login' ? text.loginTitle : text.registerTitle), [mode, text]);
+
+  useEffect(() => {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  }, [language]);
 
   useEffect(() => {
     localStorage.setItem(ROAR_PANEL_STORAGE_KEY, String(showRoarPanel));
@@ -1932,11 +2011,24 @@ function App() {
       <div className="noise-layer" />
       <main className={user ? 'auth-card auth-card-wide' : 'auth-card'}>
         <div className="brand-row">
-          <span className="brand-pill">Grenzfall Multiuser</span>
+          <div className="brand-top-row">
+            <span className="brand-pill">Grenzfall Multiuser</span>
+            <div className="language-switch-wrap">
+              <select
+                className="language-select"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value === 'en' ? 'en' : 'de')}
+                aria-label="Language"
+              >
+                <option value="de">German</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+          </div>
           <h1>Tippspiel Workspace</h1>
-          <p>Einfaches Gruppen-Tippspiel mit gemeinsamem Login und manueller Freundeliste.</p>
+          <p>{text.appSubtitle}</p>
           <section className="ticker-wrap">
-            <div className="ticker-label">RSS Live-Ticker</div>
+            <div className="ticker-label">{text.tickerLabel}</div>
             <div className="ticker-track">
               <div className="ticker-content">{tickerText}</div>
             </div>
@@ -1948,15 +2040,15 @@ function App() {
           <section className="session-panel full-width">
             <div className="session-header">
               <div>
-                <h2>ROOAR World Cup 2026</h2>
-                <p>Wahle dein Team und hore den Rooar.</p>
+                <h2>{text.sessionTitle}</h2>
+                <p>{text.sessionSubtitle}</p>
               </div>
               <div className="session-header-actions">
                 {showGroupStage && selectedTeam ? (
                   <div className="title-actions session-title-actions">
                     {currentWorkspaceRole === 'owner' ? (
                       <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
-                        <span className="roar-toggle-label">ROOAR</span>
+                        <span className="roar-toggle-label">{text.roarToggle}</span>
                         <input
                           type="checkbox"
                           checked={showRoarPanel}
@@ -1983,23 +2075,23 @@ function App() {
                         window.open(buildGoogleCalendarUrl(selectedGroupFixtures[0], selectedTeam), '_blank', 'noopener,noreferrer');
                       }}
                     >
-                      Gmail Kalender
+                      {text.gmailCalendar}
                     </button>
                     <button className="outline-btn" type="button" onClick={() => setShowGroupStage(false)}>
-                      Team wechseln
+                      {text.switchTeam}
                     </button>
                   </div>
                 ) : null}
-                <button className="outline-btn" onClick={logout}>Abmelden</button>
+                <button className="outline-btn" onClick={logout}>{text.logout}</button>
               </div>
             </div>
 
             <div className="user-meta compact">
               <span>{user.name}</span>
-              <span>Login: {user.username}</span>
+              <span>{text.loginLabel}: {user.username}</span>
               {selectedTeam ? (
                 <span>
-                  Dein Team:{' '}
+                  {text.yourTeam}:{' '}
                   {getFlagImageSrc(selectedTeam) ? (
                     <img className="inline-flag-img" src={getFlagImageSrc(selectedTeam)} alt={`${selectedTeam.name} Flagge`} loading="lazy" />
                   ) : (
@@ -2007,39 +2099,39 @@ function App() {
                   )}
                   {' '}{selectedTeam.name}
                 </span>
-              ) : <span>Noch kein Team ausgewahlt</span>}
+              ) : <span>{text.noTeamSelected}</span>}
             </div>
 
             <div className="inline-note" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
               {workspaceLogin ? (
                 <span>Freunde-Login: <strong>{workspaceLogin.username}</strong> | Passwort: <strong>{workspaceLogin.password}</strong></span>
               ) : (
-                <span>Freunde-Login wird geladen...</span>
+                <span>{text.sharedLoginLoading}</span>
               )}
               <button
                 type="button"
                 className="outline-btn"
                 onClick={resetGroupPassword}
                 disabled={resetPasswordLoading}
-                title="Neues Passwort fuer den gemeinsamen Gruppen-Login generieren"
+                title={text.resetPasswordTitle}
               >
-                {resetPasswordLoading ? '...' : 'Passwort zurücksetzen'}
+                {resetPasswordLoading ? '...' : text.resetPassword}
               </button>
               {resetPasswordError ? <span className="inline-error">{resetPasswordError}</span> : null}
             </div>
 
             <section className="friends-admin friends-admin-inline">
-              <h5>Freunde hinzufügen</h5>
+              <h5>{text.addFriendsTitle}</h5>
               <form className="friend-form" onSubmit={addFriend}>
                 <input
                   type="text"
-                  placeholder="Name"
+                  placeholder={text.friendNamePlaceholder}
                   value={friendName}
                   onChange={(event) => setFriendName(event.target.value)}
                   required
                 />
                 <div className="friend-form-action">
-                  <button type="submit" className="outline-btn">Freund hinzufügen</button>
+                  <button type="submit" className="outline-btn">{text.addFriend}</button>
                 </div>
               </form>
             </section>
@@ -2648,14 +2740,14 @@ function App() {
                 onClick={() => setMode('login')}
                 type="button"
               >
-                Anmelden
+                {text.modeLogin}
               </button>
               <button
                 className={mode === 'register' ? 'tab active' : 'tab'}
                 onClick={() => setMode('register')}
                 type="button"
               >
-                Registrieren
+                {text.modeRegister}
               </button>
             </div>
 
@@ -2664,60 +2756,60 @@ function App() {
 
               {mode === 'register' && (
                 <label>
-                  Name
+                  {text.labelName}
                   <input
                     type="text"
                     value={form.name}
                     onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
                     required
-                    placeholder="Dein Name"
+                    placeholder={text.namePlaceholder}
                   />
                 </label>
               )}
 
               {mode === 'register' && (
                 <label>
-                  Gruppenname
+                  {text.labelGroupName}
                   <input
                     type="text"
                     value={form.workspaceName}
                     onChange={(event) => setForm((prev) => ({ ...prev, workspaceName: event.target.value }))}
                     required
-                    placeholder="z. B. Team Freunde"
+                    placeholder={text.groupPlaceholder}
                   />
                 </label>
               )}
 
               {mode === 'login' && (
                 <label>
-                  Benutzername
+                  {text.labelUsername}
                   <input
                     type="text"
                     value={form.username}
                     onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
                     required
-                    placeholder="z. B. wm2026%team-freunde"
+                    placeholder={text.usernamePlaceholder}
                   />
                 </label>
               )}
 
               {mode === 'login' && (
                 <label>
-                  Passwort
+                  {text.labelPassword}
                   <input
                     type="password"
                     value={form.password}
                     onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
                     required
                     minLength={6}
-                    placeholder="Passwort"
+                    placeholder={text.passwordPlaceholder}
                   />
                 </label>
               )}
 
               {mode === 'register' && (
                 <p className="inline-note">
-                  Nach der Registrierung wird automatisch ein gemeinsamer Login fuer deine Freunde erstellt: <strong>wm2026%gruppenname</strong> + generiertes Passwort.
+                  {text.registerHint}<strong>wm2026%gruppenname</strong> + generiertes Passwort.
                 </p>
               )}
 
