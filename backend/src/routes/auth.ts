@@ -356,4 +356,33 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
   });
 });
 
+router.post('/recovery/list-workspaces', async (req: Request, res: Response) => {
+  const configuredRecoveryToken = String(process.env.RECOVERY_RESET_TOKEN ?? '').trim();
+  if (!configuredRecoveryToken) {
+    res.status(503).json({ error: 'Recovery reset is not configured' });
+    return;
+  }
+
+  const providedRecoveryToken = String(req.body?.recoveryToken ?? '').trim();
+  if (!providedRecoveryToken || providedRecoveryToken !== configuredRecoveryToken) {
+    res.status(401).json({ error: 'Invalid recovery token' });
+    return;
+  }
+
+  const db = getDb();
+  const workspaces = db.tenants
+    .map((tenant) => ({
+      slug: tenant.slug,
+      name: tenant.name,
+      sharedLoginUsername: String(tenant.sharedLoginUsername || `wm2026%${tenant.slug}`).toLowerCase(),
+    }))
+    .sort((a, b) => a.slug.localeCompare(b.slug));
+
+  res.json({
+    ok: true,
+    count: workspaces.length,
+    workspaces,
+  });
+});
+
 export default router;
