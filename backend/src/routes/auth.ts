@@ -394,4 +394,103 @@ router.post('/recovery/list-workspaces', async (req: Request, res: Response) => 
   });
 });
 
+router.post('/recovery/migrate-shared-username', async (req: Request, res: Response) => {
+  const configuredRecoveryToken = String(process.env.RECOVERY_RESET_TOKEN ?? '').trim();
+  if (!configuredRecoveryToken) {
+    res.status(503).json({ error: 'Recovery reset is not configured' });
+    return;
+  }
+
+  const providedRecoveryToken = String(req.body?.recoveryToken ?? '').trim();
+  if (!providedRecoveryToken || providedRecoveryToken !== configuredRecoveryToken) {
+    res.status(401).json({ error: 'Invalid recovery token' });
+    return;
+  }
+
+  const requestedSlug = slugify(String(req.body?.workspaceSlug ?? ''));
+  const requestedGroupName = String(req.body?.groupName ?? '').trim().toLowerCase();
+  const requestedUsername = String(req.body?.username ?? '').trim().toLowerCase();
+  if (!requestedSlug && !requestedGroupName && !requestedUsername) {
+    res.status(400).json({ error: 'workspaceSlug, groupName, or username is required' });
+    return;
+  }
+
+  const requestedIdentity = requestedGroupName || requestedUsername;
+  const derivedSlugFromIdentity = requestedIdentity.includes('%')
+    ? slugify(requestedIdentity.split('%').slice(1).join('%'))
+    : '';
+
+  const db = getDb();
+  const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
+  const byDerivedSlug = derivedSlugFromIdentity ? findTenantBySlug(derivedSlugFromIdentity) : undefined;
+  const byGroupName = requestedGroupName
+    ? db.tenants.find(
+      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedGroupName
+    )
+    : undefined;
+  const bySharedUsername = requestedUsername
+    ? db.tenants.find(
+      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedUsername
+    )
+    : undefined;
+  const byUserMembership = requestedUsername
+    ? (() => {
+        const user = findUserByUsername(requestedUsername);
+        if (!user) {
+          return undefined;
+        }
+
+        const membership = listMembersByUserId(user.id)[0];
+        if (!membership) {
+          return undefined;
+        }
+
+        return db.tenants.find((tenant) => tenant.id === membership.tenantId);
+      })()
+    : undefined;
+
+  const targetTenant = bySlug ?? byDerivedSlug ?? byGroupName ?? bySharedUsername ?? byUserMembership;
+  if (!targetTenant) {
+    res.status(404).json({ error: 'Workspace not found' });
+    return;
+  }
+
+  const oldUsername = String(targetTenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(targetTenant.slug))
+    .trim()
+    .toLowerCase();
+  const normalizedUsername = buildSharedLoginUsernameFromSlug(targetTenant.slug).toLowerCase();
+
+  const conflictUser = findUserByUsername(normalizedUsername);
+  const currentSharedUser = findUserByUsername(oldUsername);
+  if (conflictUser && currentSharedUser && conflictUser.id !== currentSharedUser.id) {
+    res.status(409).json({ error: 'Normalized username already in use' });
+    return;
+  }
+
+  updateDb((state) => {
+    const mutableTenant = state.tenants.find((tenant) => tenant.id === targetTenant.id);
+    if (mutableTenant) {
+      mutableTenant.sharedLoginUsername = normalizedUsername;
+    }
+
+    const mutableSharedUser = state.users.find((user) => user.username.trim().toLowerCase() === oldUsername);
+    if (mutableSharedUser) {
+      mutableSharedUser.username = normalizedUsername;
+    }
+  });
+
+  const updatedTenant = findTenantBySlug(targetTenant.slug);
+
+  res.json({
+    ok: true,
+    workspaceSlug: targetTenant.slug,
+    migratedFrom: oldUsername,
+    migratedTo: normalizedUsername,
+    generatedCredentials: {
+      username: normalizedUsername,
+      password: String(updatedTenant?.sharedLoginPassword ?? ''),
+    },
+  });
+});
+
 export default router;
