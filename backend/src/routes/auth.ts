@@ -277,8 +277,14 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
     return;
   }
 
+  const requestedIdentity = requestedGroupName || requestedUsername;
+  const derivedSlugFromIdentity = requestedIdentity.includes('%')
+    ? slugify(requestedIdentity.split('%').slice(1).join('%'))
+    : '';
+
   const db = getDb();
   const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
+  const byDerivedSlug = derivedSlugFromIdentity ? findTenantBySlug(derivedSlugFromIdentity) : undefined;
   const byGroupName = requestedGroupName
     ? db.tenants.find(
       (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedGroupName
@@ -306,7 +312,7 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
       })()
     : undefined;
 
-  const targetTenant = bySlug ?? byGroupName ?? bySharedUsername ?? byUserMembership;
+  const targetTenant = bySlug ?? byDerivedSlug ?? byGroupName ?? bySharedUsername ?? byUserMembership;
 
   if (!targetTenant) {
     res.status(404).json({ error: 'Workspace not found' });
@@ -316,7 +322,6 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
   const canonicalUsername = String(targetTenant.sharedLoginUsername || `wm2026%${targetTenant.slug}`)
     .trim()
     .toLowerCase();
-  const requestedIdentity = requestedGroupName || requestedUsername;
   if (requestedIdentity && requestedIdentity !== canonicalUsername) {
     res.status(400).json({ error: 'Username does not match workspace' });
     return;
