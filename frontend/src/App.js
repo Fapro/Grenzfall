@@ -20,6 +20,7 @@ const ROAR_VOLUME_STORAGE_KEY = 'rooarVolume';
 const ROAR_TEAM_IDS_STORAGE_KEY = 'rooarTeamIds';
 const ROAR_PANEL_STORAGE_KEY = 'rooarPanelOpen';
 const TENANT_SLUG_STORAGE_KEY = 'currentTenantSlug';
+const FRIENDS_SCOPE_KEY = 'all-matches';
 const VENUE_PLACEHOLDER_PATH = `${process.env.PUBLIC_URL || ''}/assets/venue-placeholder.svg`;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 const HOST_VENUES = [
@@ -397,6 +398,7 @@ function App() {
   const [tips, setTips] = useState([]);
   const [friendName, setFriendName] = useState('');
   const [workspaceLogin, setWorkspaceLogin] = useState(null);
+  const [currentWorkspaceRole, setCurrentWorkspaceRole] = useState(null);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [resetPasswordError, setResetPasswordError] = useState('');
   const [rssItems, setRssItems] = useState([]);
@@ -593,6 +595,22 @@ function App() {
     return null;
   }
 
+  function resolveWorkspaceRoleFromPayload(payload, preferredSlug, currentUserId) {
+    const normalizedSlug = String(preferredSlug || resolveTenantSlugFromPayload(payload) || '').trim().toLowerCase();
+    if (!Array.isArray(payload?.memberships)) {
+      return null;
+    }
+
+    const membership = payload.memberships.find((entry) => {
+      const membershipSlug = String(entry?.tenant?.slug || '').trim().toLowerCase();
+      const slugMatches = normalizedSlug ? membershipSlug === normalizedSlug : Boolean(membershipSlug);
+      const userMatches = currentUserId ? String(entry?.userId || '') === String(currentUserId) : true;
+      return slugMatches && userMatches;
+    });
+
+    return membership?.role || null;
+  }
+
   function buildAuthHeaders(extraHeaders = {}) {
     return {
       ...extraHeaders,
@@ -676,11 +694,13 @@ function App() {
     const nextTenantSlug = tenantSlug || resolveTenantSlugFromPayload(data);
     persistTenantSlug(nextTenantSlug);
     setWorkspaceLogin(resolveWorkspaceLoginFromPayload(data, nextTenantSlug));
+    setCurrentWorkspaceRole(resolveWorkspaceRoleFromPayload(data, nextTenantSlug, data?.user?.id));
   }
 
   useEffect(() => {
     if (!token) {
       setUser(null);
+      setCurrentWorkspaceRole(null);
       setShowGroupStage(false);
       return;
     }
@@ -689,6 +709,7 @@ function App() {
       localStorage.removeItem('authToken');
       setToken('');
       setUser(null);
+      setCurrentWorkspaceRole(null);
     });
   }, [token]);
 
@@ -743,6 +764,7 @@ function App() {
     setToken('');
     setTenantSlug('');
     setUser(null);
+    setCurrentWorkspaceRole(null);
     setWorkspaceLogin(null);
   }
 
@@ -1699,7 +1721,7 @@ function App() {
         const activeRoarTeamIds = roarTeamIds.length > 0 ? roarTeamIds : [selectedTeam.id];
         const totalScore = selectedTeamsScoreFromFixtures(enriched, activeRoarTeamIds);
 
-        if (lastTeamScoreRef.current !== null && totalScore > lastTeamScoreRef.current) {
+        if (currentWorkspaceRole === 'owner' && lastTeamScoreRef.current !== null && totalScore > lastTeamScoreRef.current) {
           playRoar();
         }
         lastTeamScoreRef.current = totalScore;
@@ -1733,7 +1755,7 @@ function App() {
       }
 
       try {
-        const friendsRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+        const friendsRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}`, {
           headers: buildAuthHeaders()
         });
 
@@ -1798,7 +1820,7 @@ function App() {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [roarTeamIds, selectedTeam, showGroupStage, tenantSlug, token]);
+  }, [currentWorkspaceRole, roarTeamIds, selectedTeam, showGroupStage, tenantSlug, token]);
 
   async function addFriend(event) {
     event.preventDefault();
@@ -1813,11 +1835,7 @@ function App() {
         throw new Error('Workspace-Kontext fehlt. Bitte neu anmelden und einen Gruppen-Workspace auswaehlen.');
       }
 
-      if (!selectedTeam?.id) {
-        throw new Error('Bitte zuerst ein Team auswaehlen.');
-      }
-
-      const addFriendResponse = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}/manual`, {
+      const addFriendResponse = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}/manual`, {
         method: 'POST',
         headers: {
           ...buildAuthHeaders(),
@@ -1836,7 +1854,7 @@ function App() {
       setFriendName('');
       setFixturesError('');
 
-      const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+      const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}`, {
         headers: buildAuthHeaders()
       });
       const refreshJson = await parseJsonResponse(refreshRes);
@@ -1899,7 +1917,7 @@ function App() {
         away: String(draft.awayTip)
       };
 
-      const response = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+      const response = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}`, {
         method: 'POST',
         headers: {
           ...buildAuthHeaders(),
@@ -1913,7 +1931,7 @@ function App() {
         throw new Error(json.error || json.message || 'Tipp konnte nicht gespeichert werden.');
       }
 
-      const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+      const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}`, {
         headers: buildAuthHeaders()
       });
       const refreshJson = await refreshRes.json();
@@ -1954,23 +1972,25 @@ function App() {
               <div className="session-header-actions">
                 {showGroupStage && selectedTeam ? (
                   <div className="title-actions session-title-actions">
-                    <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
-                      <span className="roar-toggle-label">ROOAR</span>
-                      <input
-                        type="checkbox"
-                        checked={showRoarPanel}
-                        onChange={(event) => {
-                          setShowRoarPanel(event.target.checked);
-                          if (event.target.checked) {
-                            scheduleRoarPanelAutoClose();
-                          }
-                        }}
-                        aria-label="ROOAR umschalten"
-                      />
-                      <span className="roar-toggle-track" aria-hidden="true">
-                        <span className="roar-toggle-thumb" />
-                      </span>
-                    </label>
+                    {currentWorkspaceRole === 'owner' ? (
+                      <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
+                        <span className="roar-toggle-label">ROOAR</span>
+                        <input
+                          type="checkbox"
+                          checked={showRoarPanel}
+                          onChange={(event) => {
+                            setShowRoarPanel(event.target.checked);
+                            if (event.target.checked) {
+                              scheduleRoarPanelAutoClose();
+                            }
+                          }}
+                          aria-label="ROOAR umschalten"
+                        />
+                        <span className="roar-toggle-track" aria-hidden="true">
+                          <span className="roar-toggle-thumb" />
+                        </span>
+                      </label>
+                    ) : null}
                     <button className="outline-btn" type="button" onClick={() => downloadIcs(selectedGroupFixtures, selectedTeam)}>
                       .ics
                     </button>
@@ -2056,7 +2076,7 @@ function App() {
                     )}
                     {' '}{selectedTeam.name} · Group {selectedGroupLetter}
                   </h3>
-                  {showRoarPanel ? (
+                  {currentWorkspaceRole === 'owner' && showRoarPanel ? (
                     <div className="roar-settings-panel">
                       <div className="roar-settings-row">
                         <label className="roar-volume-row">
