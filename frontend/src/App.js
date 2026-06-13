@@ -440,6 +440,8 @@ function App() {
   const [matchesResultsData, setMatchesResultsData] = useState([]);
   const [tournamentStructureData, setTournamentStructureData] = useState([]);
   const [teamViewError, setTeamViewError] = useState('');
+  const [nextMatches, setNextMatches] = useState([]);
+  const [showNextMatchesPanel, setShowNextMatchesPanel] = useState(true);
   const lastTeamScoreRef = useRef(null);
   const roarVolumeRef = useRef(roarVolume);
   const roarAudioRef = useRef(null);
@@ -1657,6 +1659,33 @@ function App() {
     setTeamViewError('');
   }, [groupStandings, selectedGroupFixtures, selectedGroupLetter, selectedTeam, showGroupStage, teamFixtures]);
 
+  useEffect(() => {
+    if (!selectedTeam || !showGroupStage) {
+      setNextMatches([]);
+      return;
+    }
+
+    const nowMs = Date.now();
+    const allTeamFixtures = Array.isArray(teamFixtures) ? teamFixtures : [];
+    
+    const upcomingFixtures = allTeamFixtures
+      .filter((fixture) => {
+        const kickoffMs = parseFixtureKickoffMs(fixture);
+        return kickoffMs !== null && kickoffMs >= nowMs;
+      })
+      .sort((a, b) => {
+        const aKickoff = parseFixtureKickoffMs(a);
+        const bKickoff = parseFixtureKickoffMs(b);
+        if (aKickoff === null && bKickoff === null) return 0;
+        if (aKickoff === null) return 1;
+        if (bKickoff === null) return -1;
+        return aKickoff - bKickoff;
+      })
+      .slice(0, 5);
+
+    setNextMatches(upcomingFixtures);
+  }, [selectedTeam, showGroupStage, teamFixtures]);
+
   const tournamentBracketStages = useMemo(() => {
     const orderMap = {
       'Play-offs': 1,
@@ -2273,6 +2302,58 @@ function App() {
                               </div>
                             </>
                           ) : null}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="side-card">
+                      <button
+                        type="button"
+                        className="side-card-toggle"
+                        onClick={() => setShowNextMatchesPanel((prev) => !prev)}
+                        aria-expanded={showNextMatchesPanel}
+                      >
+                        <span>Naechste 5 Spiele</span>
+                        <span className="side-card-toggle-icon">{showNextMatchesPanel ? '−' : '+'}</span>
+                      </button>
+                      {showNextMatchesPanel ? (
+                        <div className="side-card-body">
+                          {nextMatches.length > 0 ? (
+                            <div className="next-matches-list-wrap">
+                              {nextMatches.map((fixture, idx) => (
+                                <div className="next-match-card" key={`next-match-${fixture.id || idx}`}>
+                                  <div className="next-match-date">
+                                    {formatClientKickoff(fixture.kickoffUtc)}
+                                  </div>
+                                  <div className="next-match-teams">
+                                    <div className="next-match-team home">
+                                      <span className="match-team-flag">
+                                        {getFlagImageSrc(fixture.homeTeam) ? (
+                                          <img className="inline-flag-img" src={getFlagImageSrc(fixture.homeTeam)} alt={`${fixture.homeTeam?.name || 'Home'} Flagge`} loading="lazy" />
+                                        ) : (
+                                          <span className="flag">{fixture.homeTeam?.flag || '🏳️'}</span>
+                                        )}
+                                      </span>
+                                      <span className="match-team-name">{fixture.homeTeam?.name || 'TBD'}</span>
+                                    </div>
+                                    <div className="next-match-separator">vs</div>
+                                    <div className="next-match-team away">
+                                      <span className="match-team-name">{fixture.awayTeam?.name || 'TBD'}</span>
+                                      <span className="match-team-flag">
+                                        {getFlagImageSrc(fixture.awayTeam) ? (
+                                          <img className="inline-flag-img" src={getFlagImageSrc(fixture.awayTeam)} alt={`${fixture.awayTeam?.name || 'Away'} Flagge`} loading="lazy" />
+                                        ) : (
+                                          <span className="flag">{fixture.awayTeam?.flag || '🏳️'}</span>
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="tips-empty">Keine anstehenden Spiele vorhanden.</p>
+                          )}
                         </div>
                       ) : null}
                     </section>
