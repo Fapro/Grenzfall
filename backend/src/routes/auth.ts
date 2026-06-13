@@ -224,7 +224,7 @@ router.post('/reset-group-password', requireAuth, async (req: Request, res: Resp
   }
 
   const membership = findTenantMember(ownedTenant.id, user.id);
-  if (!membership || membership.role !== 'owner') {
+  if (membership?.role !== 'owner') {
     res.status(403).json({ error: 'Only the group owner can reset the shared password' });
     return;
   }
@@ -278,20 +278,39 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
 
   const db = getDb();
   const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
-  const byUsername = requestedUsername
+  const bySharedUsername = requestedUsername
     ? db.tenants.find(
       (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedUsername
     )
     : undefined;
-  const targetTenant = bySlug ?? byUsername;
+
+  const byUserMembership = requestedUsername
+    ? (() => {
+        const user = findUserByUsername(requestedUsername);
+        if (!user) {
+          return undefined;
+        }
+
+        const membership = listMembersByUserId(user.id)[0];
+        if (!membership) {
+          return undefined;
+        }
+
+        return db.tenants.find((tenant) => tenant.id === membership.tenantId);
+      })()
+    : undefined;
+
+  const targetTenant = bySlug ?? bySharedUsername ?? byUserMembership;
 
   if (!targetTenant) {
     res.status(404).json({ error: 'Workspace not found' });
     return;
   }
 
-  const canonicalUsername = targetTenant.sharedLoginUsername || `wm2026%${targetTenant.slug}`;
-  if (requestedUsername && requestedUsername !== canonicalUsername.toLowerCase()) {
+  const canonicalUsername = String(targetTenant.sharedLoginUsername || `wm2026%${targetTenant.slug}`)
+    .trim()
+    .toLowerCase();
+  if (requestedUsername && requestedUsername !== canonicalUsername) {
     res.status(400).json({ error: 'Username does not match workspace' });
     return;
   }
