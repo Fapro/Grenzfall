@@ -79,6 +79,8 @@ async function handleSignup(req: Request, res: Response) {
     slug: slugResult.slug,
     name: workspaceNameRaw,
     ownerUserId: '',
+    sharedLoginUsername: generatedUsername,
+    sharedLoginPassword: generatedPassword,
     createdAt: new Date().toISOString(),
   };
   let tenantMembership = null;

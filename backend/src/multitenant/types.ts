@@ -12,6 +12,8 @@ export type Tenant = {
   slug: string;
   name: string;
   ownerUserId: string;
+  sharedLoginUsername?: string;
+  sharedLoginPassword?: string;
   createdAt: string;
 };
 

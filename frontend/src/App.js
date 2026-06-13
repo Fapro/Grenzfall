@@ -555,6 +555,42 @@ function App() {
     return '';
   }
 
+  function resolveWorkspaceLoginFromPayload(payload, preferredSlug) {
+    const normalizedSlug = String(preferredSlug || resolveTenantSlugFromPayload(payload) || '').trim().toLowerCase();
+
+    if (payload?.generatedCredentials?.username && payload?.generatedCredentials?.password) {
+      return payload.generatedCredentials;
+    }
+
+    if (Array.isArray(payload?.memberships)) {
+      const matchingMembership = payload.memberships.find((membership) => {
+        const membershipSlug = String(membership?.tenant?.slug || '').trim().toLowerCase();
+        return normalizedSlug ? membershipSlug === normalizedSlug : Boolean(membershipSlug);
+      });
+
+      const sharedUsername = matchingMembership?.tenant?.sharedLoginUsername;
+      const sharedPassword = matchingMembership?.tenant?.sharedLoginPassword;
+      if (sharedUsername && sharedPassword) {
+        return { username: sharedUsername, password: sharedPassword };
+      }
+    }
+
+    if (Array.isArray(payload?.tenants)) {
+      const matchingTenant = payload.tenants.find((tenant) => {
+        const tenantSlug = String(tenant?.slug || '').trim().toLowerCase();
+        return normalizedSlug ? tenantSlug === normalizedSlug : Boolean(tenantSlug);
+      });
+
+      const sharedUsername = matchingTenant?.sharedLoginUsername;
+      const sharedPassword = matchingTenant?.sharedLoginPassword;
+      if (sharedUsername && sharedPassword) {
+        return { username: sharedUsername, password: sharedPassword };
+      }
+    }
+
+    return null;
+  }
+
   function buildAuthHeaders(extraHeaders = {}) {
     return {
       ...extraHeaders,
@@ -635,7 +671,9 @@ function App() {
 
     const data = await response.json();
     setUser(data.user);
-    persistTenantSlug(tenantSlug || resolveTenantSlugFromPayload(data));
+    const nextTenantSlug = tenantSlug || resolveTenantSlugFromPayload(data);
+    persistTenantSlug(nextTenantSlug);
+    setWorkspaceLogin(resolveWorkspaceLoginFromPayload(data, nextTenantSlug));
   }
 
   useEffect(() => {
@@ -681,10 +719,9 @@ function App() {
       localStorage.setItem('authToken', data.token);
       setToken(data.token);
       setUser(data.user);
-      persistTenantSlug(resolveTenantSlugFromPayload(data));
-      if (mode === 'register' && data.generatedCredentials) {
-        setWorkspaceLogin(data.generatedCredentials);
-      }
+      const nextTenantSlug = resolveTenantSlugFromPayload(data);
+      persistTenantSlug(nextTenantSlug);
+      setWorkspaceLogin(resolveWorkspaceLoginFromPayload(data, nextTenantSlug));
       setForm({
         name: '',
         username: data?.generatedCredentials?.username || '',
@@ -704,6 +741,7 @@ function App() {
     setToken('');
     setTenantSlug('');
     setUser(null);
+    setWorkspaceLogin(null);
   }
 
   function playRoar() {
