@@ -444,6 +444,7 @@ function App() {
   const [nextMatchesLoading, setNextMatchesLoading] = useState(false);
   const [nextMatchesError, setNextMatchesError] = useState('');
   const [showNextMatchesPanel, setShowNextMatchesPanel] = useState(true);
+  const [selectedNextMatchId, setSelectedNextMatchId] = useState('');
   const [allGroupStageFixtures, setAllGroupStageFixtures] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -1645,6 +1646,7 @@ function App() {
       setNextMatches([]);
       setNextMatchesLoading(false);
       setNextMatchesError('');
+      setSelectedNextMatchId('');
       return;
     }
 
@@ -1702,6 +1704,25 @@ function App() {
       cancelled = true;
     };
   }, [showGroupStage, token, tenantSlug]);
+
+  const selectedNextMatch = useMemo(() => {
+    if (!selectedNextMatchId) {
+      return null;
+    }
+    return nextMatches.find((fixture) => String(fixture.id) === String(selectedNextMatchId)) || null;
+  }, [nextMatches, selectedNextMatchId]);
+
+  useEffect(() => {
+    if (nextMatches.length === 0) {
+      setSelectedNextMatchId('');
+      return;
+    }
+
+    const stillExists = nextMatches.some((fixture) => String(fixture.id) === String(selectedNextMatchId));
+    if (!stillExists) {
+      setSelectedNextMatchId(String(nextMatches[0].id || ''));
+    }
+  }, [nextMatches, selectedNextMatchId]);
 
   useEffect(() => {
     if (!showGroupStage || !token) {
@@ -2425,7 +2446,16 @@ function App() {
                           {!nextMatchesLoading && !nextMatchesError && nextMatches.length > 0 ? (
                             <div className="next-matches-list-wrap">
                               {nextMatches.map((fixture, idx) => (
-                                <div className="next-match-card" key={`next-match-${fixture.id || idx}`}>
+                                <button
+                                  type="button"
+                                  className={
+                                    String(fixture.id) === String(selectedNextMatchId)
+                                      ? 'next-match-card next-match-card-selected'
+                                      : 'next-match-card'
+                                  }
+                                  key={`next-match-${fixture.id || idx}`}
+                                  onClick={() => setSelectedNextMatchId(String(fixture.id || ''))}
+                                >
                                   <div className="next-match-date">
                                     {formatClientKickoff(fixture.kickoffUtc)}
                                   </div>
@@ -2452,12 +2482,60 @@ function App() {
                                       </span>
                                     </div>
                                   </div>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           ) : null}
                           {!nextMatchesLoading && !nextMatchesError && nextMatches.length === 0 ? (
                             <p className="tips-empty">Keine anstehenden Spiele vorhanden.</p>
+                          ) : null}
+                          {!nextMatchesLoading && !nextMatchesError && selectedNextMatch ? (
+                            <section className="tips-block next-match-tip-block">
+                              <div className="tips-headline">
+                                <h5>Tipp fur: {selectedNextMatch.homeTeam?.name || 'TBD'} vs {selectedNextMatch.awayTeam?.name || 'TBD'}</h5>
+                              </div>
+
+                              <div className="tips-list">
+                                {loadTipsForFixture(selectedNextMatch.id).length === 0 ? (
+                                  <p className="tips-empty">Noch keine Tipps fur dieses Spiel.</p>
+                                ) : (
+                                  loadTipsForFixture(selectedNextMatch.id).slice(0, 10).map((tip) => (
+                                    <div key={`next-tip-${tip.id}`} className="tip-item">
+                                      <span className="tip-name">{tip.friend_name}</span>
+                                      <strong className="tip-score">{tip.home_tip} : {tip.away_tip}</strong>
+                                      <span className="tip-points">{calculateTipPoints(tip, selectedNextMatch)} P</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+
+                              <form className="tip-form" onSubmit={(event) => saveTip(event, selectedNextMatch.id)}>
+                                <select
+                                  value={getTipDraft(selectedNextMatch.id).friendId}
+                                  onChange={(event) => setTipDraft(selectedNextMatch.id, { friendId: event.target.value })}
+                                >
+                                  <option value="">Freund wählen</option>
+                                  {friends.map((friend) => (
+                                    <option key={`next-friend-${friend.id}`} value={friend.id}>{friend.name}</option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Home"
+                                  value={getTipDraft(selectedNextMatch.id).homeTip}
+                                  onChange={(event) => setTipDraft(selectedNextMatch.id, { homeTip: event.target.value })}
+                                />
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Away"
+                                  value={getTipDraft(selectedNextMatch.id).awayTip}
+                                  onChange={(event) => setTipDraft(selectedNextMatch.id, { awayTip: event.target.value })}
+                                />
+                                <button type="submit" className="outline-btn">Tipp speichern</button>
+                              </form>
+                            </section>
                           ) : null}
                         </div>
                       ) : null}

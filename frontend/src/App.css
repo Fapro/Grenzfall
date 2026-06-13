@@ -1519,6 +1519,19 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.next-match-card-selected {
+  border-color: #7edb86;
+  box-shadow: 0 0 0 2px rgba(126, 219, 134, 0.22);
+}
+
+.next-match-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(126, 219, 134, 0.3);
 }
 
 .next-match-date {
@@ -1593,6 +1606,10 @@ body {
   letter-spacing: 0.04em;
   flex: 0 0 auto;
   margin: 0 4px;
+}
+
+.next-match-tip-block {
+  margin-top: 8px;
 }
 
 /* ── Group Chat ─────────────────────────────────────────── */
