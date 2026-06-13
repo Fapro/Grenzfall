@@ -707,6 +707,35 @@ export default function TeamScreen() {
     )}`;
   }, [deviceTimeZone, upcomingMatch]);
 
+  const pendingUpcomingTipMatches = useMemo(() => {
+    const now = Date.now();
+    return schedule
+      .filter((match) => new Date(match.kickoffUtc).getTime() > now)
+      .filter((match) => {
+        const tip = tipsByMatch[match.id];
+        return !tip || tip.home === '' || tip.away === '';
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime()
+      );
+  }, [schedule, tipsByMatch]);
+
+  const pendingUpcomingTipsText = useMemo(() => {
+    if (pendingUpcomingTipMatches.length === 0) {
+      return 'Coming games to tip: all set';
+    }
+
+    const preview = pendingUpcomingTipMatches
+      .slice(0, 2)
+      .map((match) => `${match.homeTeam.name} vs ${match.awayTeam.name}`)
+      .join(' • ');
+    const remaining = pendingUpcomingTipMatches.length - 2;
+    const moreSuffix = remaining > 0 ? ` +${remaining}` : '';
+
+    return `Coming games to tip: ${preview}${moreSuffix}`;
+  }, [pendingUpcomingTipMatches]);
+
   const friendLeaderboard = useMemo(() => {
     if (friends.length === 0 || schedule.length === 0) return [];
     const now = Date.now();
@@ -1384,7 +1413,12 @@ export default function TeamScreen() {
                     style={[styles.friendsHeaderButton, isSmallMobile ? styles.friendsHeaderButtonCompact : null]}
                     onPress={() => setFriendsModalVisible(true)}
                   >
-                    <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
+                    <View style={styles.friendsLabelRow}>
+                      <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
+                      <View style={styles.friendsPendingBadge}>
+                        <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 )}
                 <Pressable
@@ -1707,7 +1741,12 @@ export default function TeamScreen() {
               {!(isDesktopWeb || isUltraWideWeb) && (
                 <>
                   <TouchableOpacity style={styles.friendsMobileOpenBtn} onPress={() => setFriendsModalVisible(true)}>
-                    <Text style={styles.friendsMobileOpenBtnText}>Friends</Text>
+                    <View style={styles.friendsLabelRow}>
+                      <Text style={styles.friendsMobileOpenBtnText}>Friends</Text>
+                      <View style={styles.friendsPendingBadge}>
+                        <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                   <Modal
                     visible={friendsModalVisible}
@@ -1718,11 +1757,17 @@ export default function TeamScreen() {
                     <View style={styles.friendsModalBackdrop}>
                       <View style={styles.friendsModalPanel}>
                         <View style={styles.friendsModalHeader}>
-                          <Text style={styles.friendsPanelTitle}>Friends</Text>
+                          <View style={styles.friendsLabelRow}>
+                            <Text style={styles.friendsPanelTitle}>Friends</Text>
+                            <View style={styles.friendsPendingBadge}>
+                              <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
+                            </View>
+                          </View>
                           <TouchableOpacity onPress={() => setFriendsModalVisible(false)}>
                             <Text style={styles.friendRemoveBtnText}>x</Text>
                           </TouchableOpacity>
                         </View>
+                        <Text style={styles.friendsPendingHint}>{pendingUpcomingTipsText}</Text>
                         <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} members & friends</Text>
                         <View style={styles.friendsAddRow}>
                           <TextInput
@@ -2015,7 +2060,13 @@ export default function TeamScreen() {
                           />
                         </View>
                         <View style={[styles.friendsPanel, styles.friendsPanelDesktop]}>
-                          <Text style={styles.friendsPanelTitle}>Friends</Text>
+                          <View style={styles.friendsPanelHeaderRow}>
+                            <Text style={styles.friendsPanelTitle}>Friends</Text>
+                            <View style={styles.friendsPendingBadge}>
+                              <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.friendsPendingHint}>{pendingUpcomingTipsText}</Text>
                           <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} members & friends</Text>
                           <View style={styles.friendsAddRow}>
                             <TextInput
@@ -2808,6 +2859,27 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.3,
   },
+  friendsLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  friendsPendingBadge: {
+    minWidth: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#7edb86',
+    backgroundColor: 'rgba(126, 219, 134, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendsPendingBadgeText: {
+    color: '#d4f5d7',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   roarSwitchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3242,6 +3314,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
     marginBottom: 12,
+  },
+  friendsPanelHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  friendsPendingHint: {
+    color: '#b9e6bd',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: -4,
+    marginBottom: 8,
   },
   friendsAddRow: {
     flexDirection: 'row',
