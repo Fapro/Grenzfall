@@ -455,6 +455,9 @@ function App() {
   const roarVolumeRef = useRef(roarVolume);
   const roarAudioRef = useRef(null);
   const roarFadeTimerRef = useRef(null);
+  const nextMatchTipBlockRef = useRef(null);
+  const nextMatchFriendSelectRef = useRef(null);
+  const nextMatchFocusPendingRef = useRef(false);
 
   const text = useMemo(() => {
     if (language === 'en') {
@@ -1712,6 +1715,11 @@ function App() {
     return nextMatches.find((fixture) => String(fixture.id) === String(selectedNextMatchId)) || null;
   }, [nextMatches, selectedNextMatchId]);
 
+  function selectNextMatchForTip(fixtureId, focusTipForm = false) {
+    nextMatchFocusPendingRef.current = Boolean(focusTipForm);
+    setSelectedNextMatchId(String(fixtureId || ''));
+  }
+
   useEffect(() => {
     if (nextMatches.length === 0) {
       setSelectedNextMatchId('');
@@ -1720,9 +1728,27 @@ function App() {
 
     const stillExists = nextMatches.some((fixture) => String(fixture.id) === String(selectedNextMatchId));
     if (!stillExists) {
-      setSelectedNextMatchId(String(nextMatches[0].id || ''));
+      selectNextMatchForTip(nextMatches[0].id || '', false);
     }
   }, [nextMatches, selectedNextMatchId]);
+
+  useEffect(() => {
+    if (!selectedNextMatch || !nextMatchFocusPendingRef.current) {
+      return;
+    }
+
+    nextMatchFocusPendingRef.current = false;
+
+    if (nextMatchTipBlockRef.current) {
+      nextMatchTipBlockRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    window.setTimeout(() => {
+      if (nextMatchFriendSelectRef.current) {
+        nextMatchFriendSelectRef.current.focus({ preventScroll: true });
+      }
+    }, 180);
+  }, [selectedNextMatch]);
 
   useEffect(() => {
     if (!showGroupStage || !token) {
@@ -2454,7 +2480,7 @@ function App() {
                                       : 'next-match-card'
                                   }
                                   key={`next-match-${fixture.id || idx}`}
-                                  onClick={() => setSelectedNextMatchId(String(fixture.id || ''))}
+                                  onClick={() => selectNextMatchForTip(fixture.id || '', true)}
                                 >
                                   <div className="next-match-date">
                                     {formatClientKickoff(fixture.kickoffUtc)}
@@ -2490,7 +2516,7 @@ function App() {
                             <p className="tips-empty">Keine anstehenden Spiele vorhanden.</p>
                           ) : null}
                           {!nextMatchesLoading && !nextMatchesError && selectedNextMatch ? (
-                            <section className="tips-block next-match-tip-block">
+                            <section className="tips-block next-match-tip-block" ref={nextMatchTipBlockRef}>
                               <div className="tips-headline">
                                 <h5>Tipp fur: {selectedNextMatch.homeTeam?.name || 'TBD'} vs {selectedNextMatch.awayTeam?.name || 'TBD'}</h5>
                               </div>
@@ -2511,6 +2537,7 @@ function App() {
 
                               <form className="tip-form" onSubmit={(event) => saveTip(event, selectedNextMatch.id)}>
                                 <select
+                                  ref={nextMatchFriendSelectRef}
                                   value={getTipDraft(selectedNextMatch.id).friendId}
                                   onChange={(event) => setTipDraft(selectedNextMatch.id, { friendId: event.target.value })}
                                 >
