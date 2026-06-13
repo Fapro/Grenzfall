@@ -502,6 +502,11 @@ function App() {
     localStorage.setItem(ROAR_TEAM_IDS_STORAGE_KEY, JSON.stringify(roarTeamIds));
   }, [roarTeamIds]);
 
+  useEffect(() => {
+    // Reset score baseline when switching teams to avoid false ROOAR triggers.
+    lastTeamScoreRef.current = null;
+  }, [selectedTeamId]);
+
   const groupedTeams = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = !q
@@ -1718,13 +1723,17 @@ function App() {
         }
 
         const enriched = enrichFixtureTeams(json.data || []);
-        const activeRoarTeamIds = roarTeamIds.length > 0 ? roarTeamIds : [selectedTeam.id];
-        const totalScore = selectedTeamsScoreFromFixtures(enriched, activeRoarTeamIds);
+        const selectedTeamScore = selectedTeamsScoreFromFixtures(enriched, [selectedTeam.id]);
 
-        if (currentWorkspaceRole === 'owner' && lastTeamScoreRef.current !== null && totalScore > lastTeamScoreRef.current) {
+        if (
+          currentWorkspaceRole === 'owner' &&
+          showRoarPanel &&
+          lastTeamScoreRef.current !== null &&
+          selectedTeamScore > lastTeamScoreRef.current
+        ) {
           playRoar();
         }
-        lastTeamScoreRef.current = totalScore;
+        lastTeamScoreRef.current = selectedTeamScore;
 
         if (!cancelled) {
           setTeamFixtures(enriched);
@@ -1820,7 +1829,7 @@ function App() {
       cancelled = true;
       clearInterval(intervalId);
     };
-  }, [currentWorkspaceRole, roarTeamIds, selectedTeam, showGroupStage, tenantSlug, token]);
+  }, [currentWorkspaceRole, selectedTeam, showGroupStage, showRoarPanel, tenantSlug, token]);
 
   async function addFriend(event) {
     event.preventDefault();
@@ -2096,18 +2105,11 @@ function App() {
                         </label>
                       </div>
                       <div className="roar-team-list">
-                        <span className="roar-list-title">Teams mit Roar</span>
+                        <span className="roar-list-title">ROOAR folgt dem ausgewählten Team</span>
                         <div className="roar-team-grid">
-                          {selectedGroupTeams.map((team) => (
-                            <label key={team.id} className="roar-team-chip">
-                              <input
-                                type="checkbox"
-                                checked={roarTeamIds.includes(team.id)}
-                                onChange={() => toggleRoarTeam(team.id)}
-                              />
-                              <span>{team.name}</span>
-                            </label>
-                          ))}
+                          <span className="roar-team-chip" style={{ cursor: 'default' }}>
+                            {selectedTeam ? selectedTeam.name : 'Kein Team ausgewählt'}
+                          </span>
                         </div>
                       </div>
                     </div>
