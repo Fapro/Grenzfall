@@ -134,7 +134,10 @@ router.post('/login', async (req: Request, res: Response) => {
   const email = normalizeEmail(String(req.body?.email ?? ''));
   const password = String(req.body?.password ?? '');
 
-  const user = username ? findUserByUsername(username) : findUserByEmail(email);
+  // Backward-compatible login: older clients may send the username in the email field.
+  const user = username
+    ? findUserByUsername(username)
+    : (findUserByEmail(email) ?? findUserByUsername(email));
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
