@@ -444,6 +444,7 @@ function App() {
   const [nextMatchesLoading, setNextMatchesLoading] = useState(false);
   const [nextMatchesError, setNextMatchesError] = useState('');
   const [showNextMatchesPanel, setShowNextMatchesPanel] = useState(true);
+  const [allGroupStageFixtures, setAllGroupStageFixtures] = useState([]);
   const lastTeamScoreRef = useRef(null);
   const roarVolumeRef = useRef(roarVolume);
   const roarAudioRef = useRef(null);
@@ -1351,7 +1352,10 @@ function App() {
       return String(teamId || '').toLowerCase();
     };
 
-    const liveCandidates = [...teamFixtures]
+    // Prefer allGroupStageFixtures (all group matches) over teamFixtures (single team only)
+    const liveSource = allGroupStageFixtures.length > 0 ? allGroupStageFixtures : teamFixtures;
+
+    const liveCandidates = [...liveSource]
       .map((fixture) => {
         const homeId = normalizeFixtureTeamId(fixture.homeTeam?.id, fixture.homeTeam?.name);
         const awayId = normalizeFixtureTeamId(fixture.awayTeam?.id, fixture.awayTeam?.name);
@@ -1416,7 +1420,7 @@ function App() {
     }
 
     return localFallbackGroupFixtures;
-  }, [localFallbackGroupFixtures, selectedGroupLetter, teamFixtures]);
+  }, [allGroupStageFixtures, localFallbackGroupFixtures, selectedGroupLetter, teamFixtures]);
 
   const selectedGroupTeams = useMemo(() => {
     if (!selectedGroupLetter) {
@@ -1957,13 +1961,31 @@ function App() {
       }
     }
 
+    async function loadAllGroupStageFixtures() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/fixtures/group-stage/all`, {
+          headers: buildAuthHeaders()
+        });
+        const json = await response.json();
+        if (response.ok && Array.isArray(json.data) && json.data.length > 0) {
+          if (!cancelled) {
+            setAllGroupStageFixtures(enrichFixtureTeams(json.data));
+          }
+        }
+      } catch {
+        // silently ignore — teamFixtures remain as fallback
+      }
+    }
+
     loadTeamFixtures();
     loadFriendsAndTips();
     loadSquad();
+    loadAllGroupStageFixtures();
 
     const intervalId = setInterval(() => {
       loadTeamFixtures();
-    }, 25000);
+      loadAllGroupStageFixtures();
+    }, 60000);
 
     return () => {
       cancelled = true;
@@ -2351,7 +2373,7 @@ function App() {
                         onClick={() => setShowNextMatchesPanel((prev) => !prev)}
                         aria-expanded={showNextMatchesPanel}
                       >
-                        <span>Naechste 5 Spiele</span>
+                        <span>Naechste FIFA Spiele</span>
                         <span className="side-card-toggle-icon">{showNextMatchesPanel ? '−' : '+'}</span>
                       </button>
                       {showNextMatchesPanel ? (
