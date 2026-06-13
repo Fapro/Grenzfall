@@ -1374,54 +1374,24 @@ function App() {
 
     const fixtureByPairKey = new Map();
     liveCandidates.forEach((row) => {
-      const pairKey = [row.homeId, row.awayId].sort().join('::');
-      fixtureByPairKey.set(pairKey, row.fixture);
+      // no-op — needed for the filter above
     });
 
-    const mergedFixtures = localFallbackGroupFixtures.map((fixture) => {
-      const homeId = String(fixture.homeTeam?.id || '').toLowerCase();
-      const awayId = String(fixture.awayTeam?.id || '').toLowerCase();
-      const pairKey = [homeId, awayId].sort().join('::');
-      const liveFixture = fixtureByPairKey.get(pairKey);
-
-      if (!liveFixture) {
-        return {
-          ...fixture,
-          homeScore: Number(fixture.homeScore || 0),
-          awayScore: Number(fixture.awayScore || 0)
-        };
-      }
-
-      return {
-        ...fixture,
-        ...liveFixture,
-        stage: liveFixture.stage || fixture.stage,
-        kickoffUtc: liveFixture.kickoffUtc || fixture.kickoffUtc,
+    // If we have live fixtures for this group, return them directly with
+    // normalised app-IDs. This avoids pair-key mismatch between numeric
+    // SportMonks IDs (e.g. 18576) and local app IDs (e.g. "mex").
+    if (liveCandidates.length > 0) {
+      return liveCandidates.map((row) => ({
+        ...row.fixture,
         homeTeam: {
-          ...fixture.homeTeam,
-          ...liveFixture.homeTeam,
-          id: fixture.homeTeam?.id || liveFixture.homeTeam?.id || ''
+          ...row.fixture.homeTeam,
+          id: row.homeId,
         },
         awayTeam: {
-          ...fixture.awayTeam,
-          ...liveFixture.awayTeam,
-          id: fixture.awayTeam?.id || liveFixture.awayTeam?.id || ''
+          ...row.fixture.awayTeam,
+          id: row.awayId,
         },
-        venue: {
-          ...fixture.venue,
-          ...liveFixture.venue
-        },
-        homeScore: Number(liveFixture.homeScore || 0),
-        awayScore: Number(liveFixture.awayScore || 0)
-      };
-    });
-
-    if (mergedFixtures.length > 0) {
-      return mergedFixtures;
-    }
-
-    if (liveCandidates.length > 0) {
-      return liveCandidates.map((row) => row.fixture);
+      }));
     }
 
     return localFallbackGroupFixtures;
