@@ -72,6 +72,12 @@ body {
 .language-switch-wrap {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.language-flag {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .language-select {

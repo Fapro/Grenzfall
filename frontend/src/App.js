@@ -22,6 +22,10 @@ const ROAR_PANEL_STORAGE_KEY = 'rooarPanelOpen';
 const TENANT_SLUG_STORAGE_KEY = 'currentTenantSlug';
 const FRIENDS_SCOPE_KEY = 'all-matches';
 const LANGUAGE_STORAGE_KEY = 'uiLanguage';
+const LANGUAGE_FLAG = {
+  de: '🇩🇪',
+  en: '🇬🇧'
+};
 const VENUE_PLACEHOLDER_PATH = `${process.env.PUBLIC_URL || ''}/assets/venue-placeholder.svg`;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 const HOST_VENUES = [
@@ -474,6 +478,14 @@ function App() {
         labelPassword: 'Password',
         passwordPlaceholder: 'Password',
         registerHint: 'After registration, a shared friends login is generated automatically: ',
+        squadTitle: 'Team',
+        squadLoading: 'Loading team from Sportmonks...',
+        noSquadData: 'No team data found.',
+        noFormationData: 'No formation data available.',
+        pointsStatsTitle: 'Friends points stats',
+        pointsRules: '3 points for exact tip, 2 points for correct team.',
+        noPoints: 'No points yet.',
+        pointsCorrectTeam: 'Correct team',
       };
     }
 
@@ -508,6 +520,14 @@ function App() {
       labelPassword: 'Passwort',
       passwordPlaceholder: 'Passwort',
       registerHint: 'Nach der Registrierung wird automatisch ein gemeinsamer Login fuer deine Freunde erstellt: ',
+      squadTitle: 'Mannschaft',
+      squadLoading: 'Lade Mannschaft von Sportmonks...',
+      noSquadData: 'Keine Mannschaftsdaten gefunden.',
+      noFormationData: 'Keine Formation-Daten verfuegbar.',
+      pointsStatsTitle: 'Freunde Punkte-Statistik',
+      pointsRules: '3 Punkte fuer exakten Tipp, 2 Punkte fuer richtige Mannschaft.',
+      noPoints: 'Noch keine Punkte vorhanden.',
+      pointsCorrectTeam: 'Richtige Mannschaft',
     };
   }, [language]);
 
@@ -2014,6 +2034,7 @@ function App() {
           <div className="brand-top-row">
             <span className="brand-pill">Grenzfall Multiuser</span>
             <div className="language-switch-wrap">
+              <span className="language-flag" aria-hidden="true">{LANGUAGE_FLAG[language] || '🌐'}</span>
               <select
                 className="language-select"
                 value={language}
@@ -2199,12 +2220,12 @@ function App() {
                         onClick={() => setShowSquadPanel((prev) => !prev)}
                         aria-expanded={showSquadPanel}
                       >
-                        <span>Mannschaft</span>
+                        <span>{text.squadTitle}</span>
                         <span className="side-card-toggle-icon">{showSquadPanel ? '−' : '+'}</span>
                       </button>
                       {showSquadPanel ? (
                         <div className="side-card-body">
-                          {squadLoading ? <p className="inline-note">Lade Mannschaft von Sportmonks...</p> : null}
+                          {squadLoading ? <p className="inline-note">{text.squadLoading}</p> : null}
                           {squadError ? <p className="inline-error">{squadError}</p> : null}
                           {!squadLoading && !squadError ? (
                             <>
@@ -2224,7 +2245,7 @@ function App() {
                                     </div>
                                   ))
                                 ) : (
-                                  <p className="tips-empty">Keine Mannschaftsdaten gefunden.</p>
+                                  <p className="tips-empty">{text.noSquadData}</p>
                                 )}
                               </div>
 
@@ -2246,7 +2267,7 @@ function App() {
                                     </div>
                                   </div>
                                 ) : (
-                                  <p className="tips-empty">Keine Formation-Daten verfuegbar.</p>
+                                  <p className="tips-empty">{text.noFormationData}</p>
                                 )}
                               </div>
                             </>
@@ -2300,10 +2321,10 @@ function App() {
                     </section>
 
                     <section className="side-card points-table-card">
-                      <h4>Freunde Punkte-Statistik</h4>
-                      <p className="points-rules">3 Punkte fuer exakten Tipp, 2 Punkte fuer richtige Mannschaft.</p>
+                      <h4>{text.pointsStatsTitle}</h4>
+                      <p className="points-rules">{text.pointsRules}</p>
                       {friendPointsTable.length === 0 ? (
-                        <p className="tips-empty">Noch keine Punkte vorhanden.</p>
+                        <p className="tips-empty">{text.noPoints}</p>
                       ) : (
                         <div className="points-table-wrap">
                           <table className="points-table">
@@ -2313,7 +2334,7 @@ function App() {
                                 <th>Freund</th>
                                 <th>Tipps</th>
                                 <th>Exakt</th>
-                                <th>Richtige Mannschaft</th>
+                                <th>{text.pointsCorrectTeam}</th>
                                 <th>Punkte</th>
                                 <th aria-label="Aktion">X</th>
                               </tr>
