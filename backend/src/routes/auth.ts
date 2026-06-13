@@ -32,6 +32,15 @@ function sanitizeUser(user: { id: string; username: string; email: string; name:
   return { id: user.id, username: user.username, email: user.email, name: user.name };
 }
 
+function buildSharedLoginUsernameFromSlug(slug: string): string {
+  const normalizedSlug = slugify(slug);
+  const withoutPrefix = normalizedSlug.startsWith('wm2026-')
+    ? normalizedSlug.slice('wm2026-'.length)
+    : normalizedSlug;
+  const effectiveSlug = withoutPrefix || normalizedSlug;
+  return `wm2026%${effectiveSlug}`;
+}
+
 async function handleSignup(req: Request, res: Response) {
   const emailRaw = String(req.body?.email ?? '');
   const nameRaw = String(req.body?.name ?? '');
@@ -68,7 +77,7 @@ async function handleSignup(req: Request, res: Response) {
     return;
   }
 
-  const generatedUsername = `wm2026%${slugResult.slug}`;
+  const generatedUsername = buildSharedLoginUsernameFromSlug(slugResult.slug);
   if (findUserByUsername(generatedUsername)) {
     res.status(409).json({ error: 'Generated username already exists' });
     return;
@@ -230,7 +239,7 @@ router.post('/reset-group-password', requireAuth, async (req: Request, res: Resp
   }
 
   const newPassword = randomPassword(10);
-  const username = ownedTenant.sharedLoginUsername || `wm2026%${ownedTenant.slug}`;
+  const username = ownedTenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(ownedTenant.slug);
 
   // Update the shared user's password hash
   const sharedUser = findUserByUsername(username);
@@ -319,7 +328,7 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
     return;
   }
 
-  const canonicalUsername = String(targetTenant.sharedLoginUsername || `wm2026%${targetTenant.slug}`)
+  const canonicalUsername = String(targetTenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(targetTenant.slug))
     .trim()
     .toLowerCase();
   if (requestedIdentity && requestedIdentity !== canonicalUsername) {
@@ -374,7 +383,7 @@ router.post('/recovery/list-workspaces', async (req: Request, res: Response) => 
     .map((tenant) => ({
       slug: tenant.slug,
       name: tenant.name,
-      sharedLoginUsername: String(tenant.sharedLoginUsername || `wm2026%${tenant.slug}`).toLowerCase(),
+      sharedLoginUsername: String(tenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(tenant.slug)).toLowerCase(),
     }))
     .sort((a, b) => a.slug.localeCompare(b.slug));
 
