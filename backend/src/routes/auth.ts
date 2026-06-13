@@ -270,14 +270,20 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
   }
 
   const requestedSlug = slugify(String(req.body?.workspaceSlug ?? ''));
+  const requestedGroupName = String(req.body?.groupName ?? '').trim().toLowerCase();
   const requestedUsername = String(req.body?.username ?? '').trim().toLowerCase();
-  if (!requestedSlug && !requestedUsername) {
-    res.status(400).json({ error: 'workspaceSlug or username is required' });
+  if (!requestedSlug && !requestedGroupName && !requestedUsername) {
+    res.status(400).json({ error: 'workspaceSlug, groupName, or username is required' });
     return;
   }
 
   const db = getDb();
   const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
+  const byGroupName = requestedGroupName
+    ? db.tenants.find(
+      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedGroupName
+    )
+    : undefined;
   const bySharedUsername = requestedUsername
     ? db.tenants.find(
       (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedUsername
@@ -300,7 +306,7 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
       })()
     : undefined;
 
-  const targetTenant = bySlug ?? bySharedUsername ?? byUserMembership;
+  const targetTenant = bySlug ?? byGroupName ?? bySharedUsername ?? byUserMembership;
 
   if (!targetTenant) {
     res.status(404).json({ error: 'Workspace not found' });
@@ -310,7 +316,8 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
   const canonicalUsername = String(targetTenant.sharedLoginUsername || `wm2026%${targetTenant.slug}`)
     .trim()
     .toLowerCase();
-  if (requestedUsername && requestedUsername !== canonicalUsername) {
+  const requestedIdentity = requestedGroupName || requestedUsername;
+  if (requestedIdentity && requestedIdentity !== canonicalUsername) {
     res.status(400).json({ error: 'Username does not match workspace' });
     return;
   }
