@@ -150,4 +150,71 @@ router.post('/:teamId/manual', requireAuth, requireTenant, (req: Request, res: R
   res.status(201).json(nextEntry);
 });
 
+router.patch('/:teamId/manual/:friendId', requireAuth, requireTenant, (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId ?? '').trim();
+  const tenantId = req.currentTenant!.id;
+  const friendId = String(req.params.friendId ?? '').trim();
+  const name = String(req.body?.name ?? '').trim();
+
+  if (!friendId.startsWith('manual-')) {
+    res.status(400).json({ error: 'Only manual friends can be renamed' });
+    return;
+  }
+
+  if (!name) {
+    res.status(400).json({ error: 'Friend name is required' });
+    return;
+  }
+
+  if (name.length > 24) {
+    res.status(400).json({ error: 'Friend name is too long (max 24 chars)' });
+    return;
+  }
+
+  const friends = getTenantTeamFriends(tenantId, teamId);
+  const existingIndex = friends.findIndex((entry) => entry.id === friendId);
+  if (existingIndex < 0) {
+    res.status(404).json({ error: 'Friend not found' });
+    return;
+  }
+
+  const duplicate = friends.some(
+    (entry) => entry.id !== friendId && entry.name.trim().toLowerCase() === name.toLowerCase()
+  );
+  if (duplicate) {
+    res.status(409).json({ error: 'Friend already exists' });
+    return;
+  }
+
+  friends[existingIndex] = {
+    ...friends[existingIndex],
+    name,
+  };
+
+  setTenantTeamFriends(tenantId, teamId, friends);
+  res.json({ ok: true });
+});
+
+router.delete('/:teamId/manual/:friendId', requireAuth, requireTenant, (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId ?? '').trim();
+  const tenantId = req.currentTenant!.id;
+  const friendId = String(req.params.friendId ?? '').trim();
+
+  if (!friendId.startsWith('manual-')) {
+    res.status(400).json({ error: 'Only manual friends can be deleted' });
+    return;
+  }
+
+  const friends = getTenantTeamFriends(tenantId, teamId);
+  const next = friends.filter((entry) => entry.id !== friendId);
+
+  if (next.length === friends.length) {
+    res.status(404).json({ error: 'Friend not found' });
+    return;
+  }
+
+  setTenantTeamFriends(tenantId, teamId, next);
+  res.json({ ok: true });
+});
+
 export default router;
