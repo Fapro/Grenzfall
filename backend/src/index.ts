@@ -6,6 +6,7 @@ import friendsRouter from './routes/friends';
 import authRouter from './routes/auth';
 import workspacesRouter from './routes/workspaces';
 import chatRouter from './routes/chat';
+import { runSeed } from './seed';
 import {
   authSessionMiddleware,
   tenantResolutionMiddleware,
@@ -48,8 +49,15 @@ app.use('/api/workspaces', workspacesRouter);
 app.use('/api/chat', chatRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[roar-backend] listening on port ${PORT}`);
+runSeed().then(() => {
+  app.listen(PORT, () => {
+    console.log(`[roar-backend] listening on port ${PORT}`);
+  });
+}).catch((err) => {
+  console.error('[seed] Failed to run seed, starting anyway:', err);
+  app.listen(PORT, () => {
+    console.log(`[roar-backend] listening on port ${PORT}`);
+  });
 });
 
 export default app;
