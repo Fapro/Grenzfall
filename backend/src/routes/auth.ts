@@ -10,6 +10,7 @@ import {
   findTenantMember,
   listMembersByUserId,
   updateTenantSharedCredentials,
+  updateDb,
   getDb,
 } from '../multitenant/store';
 import {
@@ -144,7 +145,29 @@ router.post('/login', async (req: Request, res: Response) => {
   }
 
   const isValid = await verifyPassword(password, user.passwordHash);
+  let isValidViaSharedFallback = false;
+
   if (!isValid) {
+    const db = getDb();
+    const matchingTenant = db.tenants.find(
+      (tenant) =>
+        String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() ===
+        String(user.username ?? '').trim().toLowerCase()
+    );
+
+    if (matchingTenant?.sharedLoginPassword === password) {
+      isValidViaSharedFallback = true;
+      const repairedHash = await hashPassword(password);
+      updateDb((state) => {
+        const mutableUser = state.users.find((entry) => entry.id === user.id);
+        if (mutableUser) {
+          mutableUser.passwordHash = repairedHash;
+        }
+      });
+    }
+  }
+
+  if (!isValid && !isValidViaSharedFallback) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
