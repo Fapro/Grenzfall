@@ -5,6 +5,7 @@ import playersRouter from './routes/players';
 import friendsRouter from './routes/friends';
 import authRouter from './routes/auth';
 import workspacesRouter from './routes/workspaces';
+import chatRouter from './routes/chat';
 import {
   authSessionMiddleware,
   tenantResolutionMiddleware,
@@ -44,6 +45,7 @@ app.use('/api/players', playersRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/workspaces', workspacesRouter);
+app.use('/api/chat', chatRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   AppDb,
+  ChatMessage,
   FriendEntry,
   Session,
   Tenant,
@@ -20,6 +21,7 @@ const EMPTY_DB: AppDb = {
   sessions: [],
   invites: [],
   friendsByTenantTeam: {},
+  chatByTenant: {},
 };
 
 function cloneDb(input: AppDb): AppDb {
@@ -46,6 +48,7 @@ function readDbFromDisk(): AppDb {
       sessions: parsed.sessions ?? [],
       invites: parsed.invites ?? [],
       friendsByTenantTeam: parsed.friendsByTenantTeam ?? {},
+      chatByTenant: parsed.chatByTenant ?? {},
     };
   } catch (error) {
     console.error('[multitenant-store] Failed to read DB, using empty fallback:', error);

@@ -55,6 +55,15 @@ export type FriendEntry = {
   tips: Record<string, FriendTip>;
 };
 
+export type ChatMessage = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  userName: string;
+  text: string;
+  createdAt: string;
+};
+
 export type AppDb = {
   users: User[];
   tenants: Tenant[];
@@ -62,4 +71,5 @@ export type AppDb = {
   sessions: Session[];
   invites: WorkspaceInvite[];
   friendsByTenantTeam: Record<string, FriendEntry[]>;
+  chatByTenant: Record<string, ChatMessage[]>;
 };

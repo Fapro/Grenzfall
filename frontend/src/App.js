@@ -445,6 +445,11 @@ function App() {
   const [nextMatchesError, setNextMatchesError] = useState('');
   const [showNextMatchesPanel, setShowNextMatchesPanel] = useState(true);
   const [allGroupStageFixtures, setAllGroupStageFixtures] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(true);
+  const chatBottomRef = useRef(null);
   const lastTeamScoreRef = useRef(null);
   const roarVolumeRef = useRef(roarVolume);
   const roarAudioRef = useRef(null);
@@ -1728,6 +1733,73 @@ function App() {
     };
   }, [showGroupStage, token, tenantSlug]);
 
+  useEffect(() => {
+    if (!showGroupStage || !token) {
+      setChatMessages([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadChatMessages() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/chat`, {
+          headers: buildAuthHeaders()
+        });
+        if (response.ok) {
+          const json = await response.json();
+          if (!cancelled && Array.isArray(json.data)) {
+            setChatMessages(json.data);
+          }
+        }
+      } catch {
+        // silently ignore poll errors
+      }
+    }
+
+    loadChatMessages();
+    const chatInterval = setInterval(loadChatMessages, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(chatInterval);
+    };
+  }, [showGroupStage, token, tenantSlug]);
+
+  async function sendChatMessage(event) {
+    event.preventDefault();
+    const text = chatInput.trim();
+    if (!text || chatSending) {
+      return;
+    }
+
+    setChatSending(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: {
+          ...buildAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text })
+      });
+      if (response.ok) {
+        setChatInput('');
+        const json = await response.json();
+        if (json.data) {
+          setChatMessages((prev) => [...prev, json.data]);
+          setTimeout(() => {
+            chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 50);
+        }
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setChatSending(false);
+    }
+  }
+
   const tournamentBracketStages = useMemo(() => {
     const orderMap = {
       'Play-offs': 1,
@@ -2417,6 +2489,53 @@ function App() {
                           {!nextMatchesLoading && !nextMatchesError && nextMatches.length === 0 ? (
                             <p className="tips-empty">Keine anstehenden Spiele vorhanden.</p>
                           ) : null}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="side-card">
+                      <button
+                        type="button"
+                        className="side-card-toggle"
+                        onClick={() => setShowChatPanel((prev) => !prev)}
+                        aria-expanded={showChatPanel}
+                      >
+                        <span>Gruppen-Chat</span>
+                        <span className="side-card-toggle-icon">{showChatPanel ? '−' : '+'}</span>
+                      </button>
+                      {showChatPanel ? (
+                        <div className="side-card-body">
+                          <div className="chat-messages-wrap">
+                            {chatMessages.length === 0 ? (
+                              <p className="tips-empty">Noch keine Nachrichten. Schreib was!</p>
+                            ) : (
+                              chatMessages.map((msg) => {
+                                const isOwn = msg.userId === user?.id;
+                                return (
+                                  <div key={msg.id} className={isOwn ? 'chat-message chat-message-own' : 'chat-message'}>
+                                    <span className="chat-name">{isOwn ? 'Du' : msg.userName}</span>
+                                    <span className="chat-text">{msg.text}</span>
+                                    <span className="chat-time">{formatClientKickoff(msg.createdAt)}</span>
+                                  </div>
+                                );
+                              })
+                            )}
+                            <div ref={chatBottomRef} />
+                          </div>
+                          <form className="chat-form" onSubmit={sendChatMessage}>
+                            <input
+                              type="text"
+                              className="chat-input"
+                              placeholder="Nachricht schreiben..."
+                              value={chatInput}
+                              onChange={(event) => setChatInput(event.target.value)}
+                              maxLength={500}
+                              disabled={chatSending}
+                            />
+                            <button type="submit" className="outline-btn" disabled={chatSending || !chatInput.trim()}>
+                              {chatSending ? '...' : 'Senden'}
+                            </button>
+                          </form>
                         </div>
                       ) : null}
                     </section>
