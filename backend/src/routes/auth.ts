@@ -7,8 +7,10 @@ import {
   findTenantBySlug,
   findUserByEmail,
   findUserByUsername,
-  getDb,
+  findTenantMember,
   listMembersByUserId,
+  updateTenantSharedCredentials,
+  getDb,
 } from '../multitenant/store';
 import {
   hashPassword,
@@ -182,6 +184,50 @@ router.get('/me', requireAuth, (req: Request, res: Response) => {
 router.get('/slugify/:name', (req: Request, res: Response) => {
   const slug = slugify(String(req.params.name ?? ''));
   res.json({ slug });
+});
+
+router.post('/reset-group-password', requireAuth, async (req: Request, res: Response) => {
+  const user = req.currentUser!;
+  const db = getDb();
+
+  // Find the tenant where this user is owner
+  const ownedTenant = db.tenants.find((t) => t.ownerUserId === user.id);
+  if (!ownedTenant) {
+    res.status(403).json({ error: 'Only the group owner can reset the shared password' });
+    return;
+  }
+
+  const membership = findTenantMember(ownedTenant.id, user.id);
+  if (!membership || membership.role !== 'owner') {
+    res.status(403).json({ error: 'Only the group owner can reset the shared password' });
+    return;
+  }
+
+  const newPassword = randomPassword(10);
+  const username = ownedTenant.sharedLoginUsername || `wm2026%${ownedTenant.slug}`;
+
+  // Update the shared user's password hash
+  const sharedUser = findUserByUsername(username);
+  if (sharedUser) {
+    const newHash = await hashPassword(newPassword);
+    db.users.forEach((u) => {
+      if (u.id === sharedUser.id) {
+        u.passwordHash = newHash;
+      }
+    });
+    // persist via updateTenantSharedCredentials which calls persist()
+  }
+
+  const updatedTenant = updateTenantSharedCredentials(ownedTenant.id, username, newPassword);
+  if (!updatedTenant) {
+    res.status(500).json({ error: 'Failed to update shared credentials' });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    generatedCredentials: { username, password: newPassword },
+  });
 });
 
 export default router;

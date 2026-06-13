@@ -189,3 +189,21 @@ export function setTenantTeamFriends(
   });
   return friends;
 }
+
+export function updateTenantSharedCredentials(
+  tenantId: string,
+  username: string,
+  password: string
+): Tenant | undefined {
+  let updated: Tenant | undefined;
+  updateDb((state) => {
+    const tenant = state.tenants.find((t) => t.id === tenantId);
+    if (!tenant) {
+      return;
+    }
+    tenant.sharedLoginUsername = username;
+    tenant.sharedLoginPassword = password;
+    updated = { ...tenant };
+  });
+  return updated;
+}

@@ -397,6 +397,8 @@ function App() {
   const [tips, setTips] = useState([]);
   const [friendName, setFriendName] = useState('');
   const [workspaceLogin, setWorkspaceLogin] = useState(null);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState('');
   const [rssItems, setRssItems] = useState([]);
   const [rssError, setRssError] = useState('');
   const [tipDraftByFixture, setTipDraftByFixture] = useState({});
@@ -1852,6 +1854,28 @@ function App() {
     setFixturesError(`${friendName} wird im Workspace verwaltet und kann hier nicht entfernt werden.`);
   }
 
+  async function resetGroupPassword() {
+    setResetPasswordLoading(true);
+    setResetPasswordError('');
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-group-password`, {
+        method: 'POST',
+        headers: buildAuthHeaders(),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || json.message || 'Passwort konnte nicht zurueckgesetzt werden.');
+      }
+      if (json.generatedCredentials) {
+        setWorkspaceLogin(json.generatedCredentials);
+      }
+    } catch (resetError) {
+      setResetPasswordError(resetError instanceof Error ? resetError.message : 'Fehler beim Zuruecksetzen.');
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  }
+
   async function saveTip(event, fixtureId) {
     event.preventDefault();
     const draft = getTipDraft(fixtureId);
@@ -1987,11 +2011,23 @@ function App() {
               ) : <span>Noch kein Team ausgewahlt</span>}
             </div>
 
-            {workspaceLogin ? (
-              <div className="inline-note" style={{ marginBottom: 12 }}>
-                Freunde-Login: <strong>{workspaceLogin.username}</strong> | Passwort: <strong>{workspaceLogin.password}</strong>
-              </div>
-            ) : null}
+            <div className="inline-note" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+              {workspaceLogin ? (
+                <span>Freunde-Login: <strong>{workspaceLogin.username}</strong> | Passwort: <strong>{workspaceLogin.password}</strong></span>
+              ) : (
+                <span>Freunde-Login wird geladen...</span>
+              )}
+              <button
+                type="button"
+                className="outline-btn"
+                onClick={resetGroupPassword}
+                disabled={resetPasswordLoading}
+                title="Neues Passwort fuer den gemeinsamen Gruppen-Login generieren"
+              >
+                {resetPasswordLoading ? '...' : 'Passwort zurücksetzen'}
+              </button>
+              {resetPasswordError ? <span className="inline-error">{resetPasswordError}</span> : null}
+            </div>
 
             <section className="friends-admin friends-admin-inline">
               <h5>Freunde hinzufügen</h5>
