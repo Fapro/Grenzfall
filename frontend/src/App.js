@@ -2041,8 +2041,8 @@ function App() {
                 onChange={(event) => setLanguage(event.target.value === 'en' ? 'en' : 'de')}
                 aria-label="Language"
               >
-                <option value="de">🇩🇪 German</option>
-                <option value="en">🇬🇧 UK</option>
+                <option value="de">🇩🇪</option>
+                <option value="en">🇬🇧</option>
               </select>
             </div>
           </div>
