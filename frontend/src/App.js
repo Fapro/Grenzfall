@@ -1660,15 +1660,32 @@ function App() {
   }, [groupStandings, selectedGroupFixtures, selectedGroupLetter, selectedTeam, showGroupStage, teamFixtures]);
 
   useEffect(() => {
-    if (!selectedTeam || !showGroupStage) {
+    if (!showGroupStage) {
       setNextMatches([]);
       return;
     }
 
     const nowMs = Date.now();
-    const allTeamFixtures = Array.isArray(teamFixtures) ? teamFixtures : [];
     
-    const upcomingFixtures = allTeamFixtures
+    // Combine all fixtures: group fixtures + knockout/next phase fixtures
+    const allTournamentFixtures = [
+      ...(Array.isArray(selectedGroupFixtures) ? selectedGroupFixtures : []),
+      ...(Array.isArray(nextPhaseData) ? nextPhaseData : []),
+      ...(Array.isArray(tournamentStructureData) 
+        ? tournamentStructureData.flatMap((stage) => Array.isArray(stage.fixtures) ? stage.fixtures : [])
+        : [])
+    ];
+
+    // Remove duplicates by fixture ID
+    const seenIds = new Set();
+    const uniqueFixtures = allTournamentFixtures.filter((fixture) => {
+      if (!fixture.id) return true;
+      if (seenIds.has(fixture.id)) return false;
+      seenIds.add(fixture.id);
+      return true;
+    });
+    
+    const upcomingFixtures = uniqueFixtures
       .filter((fixture) => {
         const kickoffMs = parseFixtureKickoffMs(fixture);
         return kickoffMs !== null && kickoffMs >= nowMs;
@@ -1684,7 +1701,7 @@ function App() {
       .slice(0, 5);
 
     setNextMatches(upcomingFixtures);
-  }, [selectedTeam, showGroupStage, teamFixtures]);
+  }, [showGroupStage, selectedGroupFixtures, nextPhaseData, tournamentStructureData]);
 
   const tournamentBracketStages = useMemo(() => {
     const orderMap = {
