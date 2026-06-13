@@ -336,7 +336,13 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
     return;
   }
 
-  const newPassword = randomPassword(10);
+  const requestedPassword = String(req.body?.password ?? '').trim();
+  if (requestedPassword && requestedPassword.length < 6) {
+    res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    return;
+  }
+
+  const newPassword = requestedPassword || randomPassword(10);
   const newHash = await hashPassword(newPassword);
 
   const sharedUser = findUserByUsername(canonicalUsername);
