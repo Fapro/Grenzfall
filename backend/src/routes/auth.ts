@@ -340,14 +340,39 @@ router.post('/recovery/reset-shared-password', async (req: Request, res: Respons
   const newHash = await hashPassword(newPassword);
 
   const sharedUser = findUserByUsername(canonicalUsername);
-  if (sharedUser) {
-    updateDb((state) => {
-      const mutableUser = state.users.find((u) => u.id === sharedUser.id);
-      if (mutableUser) {
-        mutableUser.passwordHash = newHash;
+  updateDb((state) => {
+    const mutableSharedUser = sharedUser
+      ? state.users.find((u) => u.id === sharedUser.id)
+      : undefined;
+
+    if (mutableSharedUser) {
+      mutableSharedUser.passwordHash = newHash;
+      mutableSharedUser.username = canonicalUsername;
+      return;
+    }
+
+    const ownerUser = state.users.find((u) => u.id === targetTenant.ownerUserId);
+    if (ownerUser) {
+      ownerUser.username = canonicalUsername;
+      ownerUser.passwordHash = newHash;
+      if (!ownerUser.email) {
+        ownerUser.email = `${targetTenant.slug}@wm2026.local`;
       }
+      if (!ownerUser.name) {
+        ownerUser.name = targetTenant.name || 'Workspace Owner';
+      }
+      return;
+    }
+
+    state.users.push({
+      id: randomId('usr'),
+      username: canonicalUsername,
+      email: `${targetTenant.slug}@wm2026.local`,
+      name: targetTenant.name || 'Workspace Owner',
+      passwordHash: newHash,
+      createdAt: new Date().toISOString(),
     });
-  }
+  });
 
   const updatedTenant = updateTenantSharedCredentials(targetTenant.id, canonicalUsername, newPassword);
   if (!updatedTenant) {
