@@ -381,7 +381,7 @@ function getFlagImageSrc(team) {
 
 function App() {
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '', workspaceName: '' });
+  const [form, setForm] = useState({ name: '', username: '', password: '', workspaceName: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [token, setToken] = useState(localStorage.getItem('authToken') || '');
@@ -396,7 +396,7 @@ function App() {
   const [friends, setFriends] = useState([]);
   const [tips, setTips] = useState([]);
   const [friendName, setFriendName] = useState('');
-  const [friendEmail, setFriendEmail] = useState('');
+  const [workspaceLogin, setWorkspaceLogin] = useState(null);
   const [rssItems, setRssItems] = useState([]);
   const [rssError, setRssError] = useState('');
   const [tipDraftByFixture, setTipDraftByFixture] = useState({});
@@ -433,7 +433,7 @@ function App() {
   const roarFadeTimerRef = useRef(null);
   const roarPanelAutoCloseTimerRef = useRef(null);
 
-  const title = useMemo(() => (mode === 'login' ? 'Anmelden' : 'Konto erstellen'), [mode]);
+  const title = useMemo(() => (mode === 'login' ? 'Anmelden' : 'Gruppe registrieren'), [mode]);
 
   useEffect(() => {
     localStorage.setItem(ROAR_PANEL_STORAGE_KEY, String(showRoarPanel));
@@ -660,11 +660,9 @@ function App() {
     try {
       const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
       const payload = mode === 'login'
-        ? { email: form.email, password: form.password }
+        ? { username: form.username, password: form.password }
         : {
           name: form.name,
-          email: form.email,
-          password: form.password,
           workspaceName: form.workspaceName,
         };
 
@@ -684,7 +682,15 @@ function App() {
       setToken(data.token);
       setUser(data.user);
       persistTenantSlug(resolveTenantSlugFromPayload(data));
-      setForm({ name: '', email: '', password: '', workspaceName: '' });
+      if (mode === 'register' && data.generatedCredentials) {
+        setWorkspaceLogin(data.generatedCredentials);
+      }
+      setForm({
+        name: '',
+        username: data?.generatedCredentials?.username || '',
+        password: '',
+        workspaceName: '',
+      });
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -1754,7 +1760,6 @@ function App() {
   async function addFriend(event) {
     event.preventDefault();
     const trimmedName = friendName.trim();
-    const trimmedEmail = friendEmail.trim();
 
     if (!trimmedName) {
       return;
@@ -1765,43 +1770,37 @@ function App() {
         throw new Error('Workspace-Kontext fehlt. Bitte neu anmelden und einen Gruppen-Workspace auswaehlen.');
       }
 
-      if (!trimmedEmail) {
-        throw new Error('Bitte E-Mail eingeben, um einen Freund in den Workspace einzuladen.');
+      if (!selectedTeam?.id) {
+        throw new Error('Bitte zuerst ein Team auswaehlen.');
       }
 
-      const inviteResponse = await fetch(`${API_BASE_URL}/workspaces/current/invites`, {
+      const addFriendResponse = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}/manual`, {
         method: 'POST',
         headers: {
           ...buildAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          email: trimmedEmail,
-          role: 'member'
-        })
+        body: JSON.stringify({ name: trimmedName })
       });
 
-      const inviteJson = await parseJsonResponse(inviteResponse);
+      const addFriendJson = await parseJsonResponse(addFriendResponse);
 
-      if (!inviteResponse.ok) {
-        const inviteMessage = inviteJson.error || inviteJson.message || '';
-        throw new Error(inviteMessage || 'Freund konnte nicht hinzugefuegt werden.');
+      if (!addFriendResponse.ok) {
+        const addMessage = addFriendJson.error || addFriendJson.message || '';
+        throw new Error(addMessage || 'Freund konnte nicht hinzugefuegt werden.');
       }
 
       setFriendName('');
-      setFriendEmail('');
       setFixturesError('');
 
-      if (selectedTeam?.id) {
-        const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
-          headers: buildAuthHeaders()
-        });
-        const refreshJson = await parseJsonResponse(refreshRes);
-        if (refreshRes.ok) {
-          const friendRows = Array.isArray(refreshJson) ? refreshJson : [];
-          setFriends(friendRows);
-          setTips(flattenFriendTips(friendRows));
-        }
+      const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(selectedTeam.id)}`, {
+        headers: buildAuthHeaders()
+      });
+      const refreshJson = await parseJsonResponse(refreshRes);
+      if (refreshRes.ok) {
+        const friendRows = Array.isArray(refreshJson) ? refreshJson : [];
+        setFriends(friendRows);
+        setTips(flattenFriendTips(friendRows));
       }
     } catch (addError) {
       setFixturesError(addError instanceof Error ? addError.message : 'Freund konnte nicht hinzugefuegt werden.');
@@ -1828,13 +1827,8 @@ function App() {
       return;
     }
 
-    if (draft.friendId && user?.id && String(draft.friendId) !== String(user.id)) {
-      setFixturesError('Du kannst im Webclient derzeit nur deine eigenen Tipps speichern.');
-      return;
-    }
-
     try {
-      const nextTipsPayload = buildCurrentUserTipsPayload(tips, user?.id);
+      const nextTipsPayload = buildCurrentUserTipsPayload(tips, draft.friendId);
       nextTipsPayload[String(fixtureId)] = {
         home: String(draft.homeTip),
         away: String(draft.awayTip)
@@ -1846,7 +1840,7 @@ function App() {
           ...buildAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ tips: nextTipsPayload })
+        body: JSON.stringify({ friendId: draft.friendId, tips: nextTipsPayload })
       });
 
       const json = await response.json();
@@ -1931,7 +1925,7 @@ function App() {
 
             <div className="user-meta compact">
               <span>{user.name}</span>
-              <span>{user.email}</span>
+              <span>Login: {user.username}</span>
               {selectedTeam ? (
                 <span>
                   Dein Team:{' '}
@@ -1945,6 +1939,12 @@ function App() {
               ) : <span>Noch kein Team ausgewahlt</span>}
             </div>
 
+            {workspaceLogin ? (
+              <div className="inline-note" style={{ marginBottom: 12 }}>
+                Freunde-Login: <strong>{workspaceLogin.username}</strong> | Passwort: <strong>{workspaceLogin.password}</strong>
+              </div>
+            ) : null}
+
             <section className="friends-admin friends-admin-inline">
               <h5>Freunde hinzufügen</h5>
               <form className="friend-form" onSubmit={addFriend}>
@@ -1954,12 +1954,6 @@ function App() {
                   value={friendName}
                   onChange={(event) => setFriendName(event.target.value)}
                   required
-                />
-                <input
-                  type="email"
-                  placeholder="E-Mail (optional)"
-                  value={friendEmail}
-                  onChange={(event) => setFriendEmail(event.target.value)}
                 />
                 <div className="friend-form-action">
                   <button type="submit" className="outline-btn">Freund hinzufügen</button>
@@ -2625,28 +2619,38 @@ function App() {
                 </label>
               )}
 
-              <label>
-                E-Mail
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                  required
-                  placeholder="name@example.com"
-                />
-              </label>
+              {mode === 'login' && (
+                <label>
+                  Benutzername
+                  <input
+                    type="text"
+                    value={form.username}
+                    onChange={(event) => setForm((prev) => ({ ...prev, username: event.target.value }))}
+                    required
+                    placeholder="z. B. wm2026%team-freunde"
+                  />
+                </label>
+              )}
 
-              <label>
-                Passwort
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                  required
-                  minLength={6}
-                  placeholder="mindestens 6 Zeichen"
-                />
-              </label>
+              {mode === 'login' && (
+                <label>
+                  Passwort
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+                    required
+                    minLength={6}
+                    placeholder="Passwort"
+                  />
+                </label>
+              )}
+
+              {mode === 'register' && (
+                <p className="inline-note">
+                  Nach der Registrierung wird automatisch ein gemeinsamer Login fuer deine Freunde erstellt: <strong>wm2026%gruppenname</strong> + generiertes Passwort.
+                </p>
+              )}
 
               {error && <p className="error-message">{error}</p>}
 

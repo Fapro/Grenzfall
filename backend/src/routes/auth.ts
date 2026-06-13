@@ -6,6 +6,7 @@ import {
   createSession,
   findTenantBySlug,
   findUserByEmail,
+  findUserByUsername,
   getDb,
   listMembersByUserId,
 } from '../multitenant/store';
@@ -13,6 +14,7 @@ import {
   hashPassword,
   isValidEmail,
   normalizeEmail,
+  randomPassword,
   randomId,
   randomToken,
   slugify,
@@ -23,28 +25,19 @@ import { requireAuth } from '../middleware/tenant';
 
 const router = Router();
 
-function sanitizeUser(user: { id: string; email: string; name: string }) {
-  return { id: user.id, email: user.email, name: user.name };
+function sanitizeUser(user: { id: string; username: string; email: string; name: string }) {
+  return { id: user.id, username: user.username, email: user.email, name: user.name };
 }
 
 async function handleSignup(req: Request, res: Response) {
   const emailRaw = String(req.body?.email ?? '');
   const nameRaw = String(req.body?.name ?? '');
-  const password = String(req.body?.password ?? '');
   const workspaceNameRaw = String(req.body?.workspaceName ?? '').trim();
 
   const email = normalizeEmail(emailRaw);
   const name = nameRaw.trim();
-  if (!isValidEmail(email)) {
-    res.status(400).json({ error: 'Valid email is required' });
-    return;
-  }
   if (!name || name.length < 2) {
     res.status(400).json({ error: 'Name is required' });
-    return;
-  }
-  if (!password || password.length < 8) {
-    res.status(400).json({ error: 'Password must be at least 8 characters' });
     return;
   }
   if (!workspaceNameRaw) {
@@ -52,7 +45,12 @@ async function handleSignup(req: Request, res: Response) {
     return;
   }
 
-  if (findUserByEmail(email)) {
+  if (email && !isValidEmail(email)) {
+    res.status(400).json({ error: 'Email has invalid format' });
+    return;
+  }
+
+  if (email && findUserByEmail(email)) {
     res.status(409).json({ error: 'Email already registered' });
     return;
   }
@@ -67,6 +65,15 @@ async function handleSignup(req: Request, res: Response) {
     return;
   }
 
+  const generatedUsername = `wm2026%${slugResult.slug}`;
+  if (findUserByUsername(generatedUsername)) {
+    res.status(409).json({ error: 'Generated username already exists' });
+    return;
+  }
+
+  const generatedPassword = randomPassword(10);
+  const userEmail = email || `${slugResult.slug}@wm2026.local`;
+
   let createdTenant = {
     id: randomId('ten'),
     slug: slugResult.slug,
@@ -78,9 +85,10 @@ async function handleSignup(req: Request, res: Response) {
 
   const user = addUser({
     id: randomId('usr'),
-    email,
+    username: generatedUsername,
+    email: userEmail,
     name,
-    passwordHash: await hashPassword(password),
+    passwordHash: await hashPassword(generatedPassword),
     createdAt: new Date().toISOString(),
   });
 
@@ -107,6 +115,10 @@ async function handleSignup(req: Request, res: Response) {
     user: sanitizeUser(user),
     tenant: createdTenant,
     membership: tenantMembership,
+    generatedCredentials: {
+      username: generatedUsername,
+      password: generatedPassword,
+    },
   });
 }
 
@@ -114,10 +126,11 @@ router.post('/signup', handleSignup);
 router.post('/register', handleSignup);
 
 router.post('/login', async (req: Request, res: Response) => {
+  const username = String(req.body?.username ?? '').trim().toLowerCase();
   const email = normalizeEmail(String(req.body?.email ?? ''));
   const password = String(req.body?.password ?? '');
 
-  const user = findUserByEmail(email);
+  const user = username ? findUserByUsername(username) : findUserByEmail(email);
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;

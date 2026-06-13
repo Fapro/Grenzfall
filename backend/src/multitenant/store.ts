@@ -73,6 +73,11 @@ export function findUserByEmail(email: string): User | undefined {
   return db.users.find((u) => u.email === normalized);
 }
 
+export function findUserByUsername(username: string): User | undefined {
+  const normalized = username.trim().toLowerCase();
+  return db.users.find((u) => String(u.username ?? '').trim().toLowerCase() === normalized);
+}
+
 export function findUserById(userId: string): User | undefined {
   return db.users.find((u) => u.id === userId);
 }

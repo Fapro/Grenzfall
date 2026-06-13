@@ -7,6 +7,7 @@ import {
   findUserById,
 } from '../multitenant/store';
 import { FriendEntry } from '../multitenant/types';
+import { randomId } from '../multitenant/auth';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response)
   const allFriendsTips = getTenantTeamFriends(tenantId, teamId);
 
   // Build response with member names and their tips
-  const friends = members
+  const memberFriends = members
     .map((member) => {
       const user = findUserById(member.userId);
       const memberTips = allFriendsTips.find((f) => f.id === member.userId);
@@ -54,8 +55,18 @@ router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response)
         email: user?.email,
         tips: memberTips?.tips || {},
       };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+  const memberIds = new Set(members.map((m) => m.userId));
+  const manualFriends = allFriendsTips
+    .filter((entry) => !memberIds.has(entry.id))
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      tips: entry.tips || {},
+    }));
+
+  const friends = [...memberFriends, ...manualFriends].sort((a, b) => a.name.localeCompare(b.name));
 
   res.json(friends);
 });
@@ -65,6 +76,8 @@ router.post('/:teamId', requireAuth, requireTenant, (req: Request, res: Response
   const teamId = String(req.params.teamId ?? '').trim();
   const tenantId = req.currentTenant!.id;
   const userId = req.currentUser!.id;
+  const requestedFriendId = String(req.body?.friendId ?? '').trim();
+  const friendId = requestedFriendId || userId;
   const tips = req.body?.tips;
 
   if (!tips || typeof tips !== 'object') {
@@ -72,12 +85,22 @@ router.post('/:teamId', requireAuth, requireTenant, (req: Request, res: Response
     return;
   }
 
+  const members = listMembersByTenantId(tenantId);
+
   // Get current friends list
   let friends = getTenantTeamFriends(tenantId, teamId);
+  const existingFriendEntry = friends.find((f) => f.id === friendId);
+  const targetMember = members.find((member) => member.userId === friendId);
 
-  // Find or create entry for current user
-  const existingIndex = friends.findIndex((f) => f.id === userId);
-  const user = findUserById(userId);
+  if (!targetMember && !existingFriendEntry && friendId !== userId) {
+    res.status(404).json({ error: 'Friend is not a member of this workspace' });
+    return;
+  }
+
+  const targetUser = findUserById(friendId);
+
+  // Find or create entry for selected member
+  const existingIndex = friends.findIndex((f) => f.id === friendId);
 
   if (existingIndex >= 0) {
     // Update existing
@@ -85,14 +108,46 @@ router.post('/:teamId', requireAuth, requireTenant, (req: Request, res: Response
   } else {
     // Add new
     friends.push({
-      id: userId,
-      name: user?.name || 'Unknown',
+      id: friendId,
+      name: targetUser?.name || existingFriendEntry?.name || req.currentUser?.name || 'Unknown',
       tips,
     });
   }
 
   setTenantTeamFriends(tenantId, teamId, friends);
   res.json({ ok: true });
+});
+
+router.post('/:teamId/manual', requireAuth, requireTenant, (req: Request, res: Response) => {
+  const teamId = String(req.params.teamId ?? '').trim();
+  const tenantId = req.currentTenant!.id;
+  const name = String(req.body?.name ?? '').trim();
+
+  if (!name) {
+    res.status(400).json({ error: 'Friend name is required' });
+    return;
+  }
+
+  if (name.length > 24) {
+    res.status(400).json({ error: 'Friend name is too long (max 24 chars)' });
+    return;
+  }
+
+  const friends = getTenantTeamFriends(tenantId, teamId);
+  const alreadyExists = friends.some((entry) => entry.name.trim().toLowerCase() === name.toLowerCase());
+  if (alreadyExists) {
+    res.status(409).json({ error: 'Friend already exists' });
+    return;
+  }
+
+  const nextEntry: FriendEntry = {
+    id: randomId('manual'),
+    name,
+    tips: {},
+  };
+
+  setTenantTeamFriends(tenantId, teamId, [...friends, nextEntry]);
+  res.status(201).json(nextEntry);
 });
 
 export default router;

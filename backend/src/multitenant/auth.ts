@@ -32,6 +32,18 @@ export function randomToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
+export function randomPassword(length = 10): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = crypto.randomBytes(Math.max(8, length));
+  let value = '';
+
+  for (let i = 0; i < length; i += 1) {
+    value += alphabet[bytes[i] % alphabet.length];
+  }
+
+  return value;
+}
+
 export async function hashPassword(password: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const salt = crypto.randomBytes(16).toString('hex');
