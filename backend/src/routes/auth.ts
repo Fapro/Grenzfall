@@ -460,6 +460,21 @@ router.post('/recovery/migrate-shared-username', async (req: Request, res: Respo
     .toLowerCase();
   const normalizedUsername = buildSharedLoginUsernameFromSlug(targetTenant.slug).toLowerCase();
 
+  if (oldUsername === normalizedUsername) {
+    const existingTenant = findTenantBySlug(targetTenant.slug);
+    res.json({
+      ok: true,
+      workspaceSlug: targetTenant.slug,
+      migratedFrom: oldUsername,
+      migratedTo: normalizedUsername,
+      generatedCredentials: {
+        username: normalizedUsername,
+        password: String(existingTenant?.sharedLoginPassword ?? ''),
+      },
+    });
+    return;
+  }
+
   const conflictUser = findUserByUsername(normalizedUsername);
   const currentSharedUser = findUserByUsername(oldUsername);
   if (conflictUser && currentSharedUser && conflictUser.id !== currentSharedUser.id) {
@@ -473,7 +488,9 @@ router.post('/recovery/migrate-shared-username', async (req: Request, res: Respo
       mutableTenant.sharedLoginUsername = normalizedUsername;
     }
 
-    const mutableSharedUser = state.users.find((user) => user.username.trim().toLowerCase() === oldUsername);
+    const mutableSharedUser = state.users.find(
+      (user) => String(user.username ?? '').trim().toLowerCase() === oldUsername
+    );
     if (mutableSharedUser) {
       mutableSharedUser.username = normalizedUsername;
     }
