@@ -532,6 +532,7 @@ function App() {
   }, [language]);
 
   const title = useMemo(() => (mode === 'login' ? text.loginTitle : text.registerTitle), [mode, text]);
+  const languageSelectorValue = useMemo(() => (language === 'en' ? '🇬🇧' : '🇩🇪'), [language]);
 
   useEffect(() => {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
@@ -2037,12 +2038,12 @@ function App() {
               <span className="language-flag" aria-hidden="true">{LANGUAGE_FLAG[language] || '🌐'}</span>
               <select
                 className="language-select"
-                value={language}
-                onChange={(event) => setLanguage(event.target.value === 'en' ? 'en' : 'de')}
+                value={languageSelectorValue}
+                onChange={(event) => setLanguage(event.target.value === '🇬🇧' ? 'en' : 'de')}
                 aria-label="Language"
               >
-                <option value="de">🇩🇪</option>
-                <option value="en">🇬🇧</option>
+                <option value="🇩🇪">🇩🇪</option>
+                <option value="🇬🇧">🇬🇧</option>
               </select>
             </div>
           </div>
