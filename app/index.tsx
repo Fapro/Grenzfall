@@ -87,19 +87,21 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/signup';
-      const payload =
-        mode === 'login'
-          ? {
-              email,
-              password,
-            }
-          : {
-              email,
-              name,
-              password,
-              workspaceName,
-              workspaceSlug,
-            };
+      const identifier = email.trim();
+      let payload: Record<string, string>;
+      if (mode === 'login') {
+        payload = identifier.includes('@')
+          ? { email: identifier, password }
+          : { username: identifier, password };
+      } else {
+        payload = {
+          email,
+          name,
+          password,
+          workspaceName,
+          workspaceSlug,
+        };
+      }
 
       const response = await apiFetch(endpoint, {
         method: 'POST',
@@ -165,7 +167,7 @@ export default function HomeScreen() {
             style={styles.input}
             value={email}
             onChangeText={setEmail}
-            placeholder="E-mail address"
+            placeholder={mode === 'login' ? 'Username or e-mail' : 'E-mail address'}
             placeholderTextColor="#9bb59e"
             autoCapitalize="none"
             keyboardType="email-address"
