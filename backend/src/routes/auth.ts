@@ -256,4 +256,73 @@ router.post('/reset-group-password', requireAuth, async (req: Request, res: Resp
   });
 });
 
+router.post('/recovery/reset-shared-password', async (req: Request, res: Response) => {
+  const configuredRecoveryToken = String(process.env.RECOVERY_RESET_TOKEN ?? '').trim();
+  if (!configuredRecoveryToken) {
+    res.status(503).json({ error: 'Recovery reset is not configured' });
+    return;
+  }
+
+  const providedRecoveryToken = String(req.body?.recoveryToken ?? '').trim();
+  if (!providedRecoveryToken || providedRecoveryToken !== configuredRecoveryToken) {
+    res.status(401).json({ error: 'Invalid recovery token' });
+    return;
+  }
+
+  const requestedSlug = slugify(String(req.body?.workspaceSlug ?? ''));
+  const requestedUsername = String(req.body?.username ?? '').trim().toLowerCase();
+  if (!requestedSlug && !requestedUsername) {
+    res.status(400).json({ error: 'workspaceSlug or username is required' });
+    return;
+  }
+
+  const db = getDb();
+  const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
+  const byUsername = requestedUsername
+    ? db.tenants.find(
+      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedUsername
+    )
+    : undefined;
+  const targetTenant = bySlug ?? byUsername;
+
+  if (!targetTenant) {
+    res.status(404).json({ error: 'Workspace not found' });
+    return;
+  }
+
+  const canonicalUsername = targetTenant.sharedLoginUsername || `wm2026%${targetTenant.slug}`;
+  if (requestedUsername && requestedUsername !== canonicalUsername.toLowerCase()) {
+    res.status(400).json({ error: 'Username does not match workspace' });
+    return;
+  }
+
+  const newPassword = randomPassword(10);
+  const newHash = await hashPassword(newPassword);
+
+  const sharedUser = findUserByUsername(canonicalUsername);
+  if (sharedUser) {
+    updateDb((state) => {
+      const mutableUser = state.users.find((u) => u.id === sharedUser.id);
+      if (mutableUser) {
+        mutableUser.passwordHash = newHash;
+      }
+    });
+  }
+
+  const updatedTenant = updateTenantSharedCredentials(targetTenant.id, canonicalUsername, newPassword);
+  if (!updatedTenant) {
+    res.status(500).json({ error: 'Failed to update shared credentials' });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    workspaceSlug: targetTenant.slug,
+    generatedCredentials: {
+      username: canonicalUsername,
+      password: newPassword,
+    },
+  });
+});
+
 export default router;
