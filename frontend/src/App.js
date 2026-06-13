@@ -441,6 +441,8 @@ function App() {
   const [tournamentStructureData, setTournamentStructureData] = useState([]);
   const [teamViewError, setTeamViewError] = useState('');
   const [nextMatches, setNextMatches] = useState([]);
+  const [nextMatchesLoading, setNextMatchesLoading] = useState(false);
+  const [nextMatchesError, setNextMatchesError] = useState('');
   const [showNextMatchesPanel, setShowNextMatchesPanel] = useState(true);
   const lastTeamScoreRef = useRef(null);
   const roarVolumeRef = useRef(roarVolume);
@@ -1662,46 +1664,65 @@ function App() {
   useEffect(() => {
     if (!showGroupStage) {
       setNextMatches([]);
+      setNextMatchesLoading(false);
+      setNextMatchesError('');
       return;
     }
 
-    const nowMs = Date.now();
-    
-    // Combine all fixtures: group fixtures + knockout/next phase fixtures
-    const allTournamentFixtures = [
-      ...(Array.isArray(selectedGroupFixtures) ? selectedGroupFixtures : []),
-      ...(Array.isArray(nextPhaseData) ? nextPhaseData : []),
-      ...(Array.isArray(tournamentStructureData) 
-        ? tournamentStructureData.flatMap((stage) => Array.isArray(stage.fixtures) ? stage.fixtures : [])
-        : [])
-    ];
+    let cancelled = false;
 
-    // Remove duplicates by fixture ID
-    const seenIds = new Set();
-    const uniqueFixtures = allTournamentFixtures.filter((fixture) => {
-      if (!fixture.id) return true;
-      if (seenIds.has(fixture.id)) return false;
-      seenIds.add(fixture.id);
-      return true;
-    });
-    
-    const upcomingFixtures = uniqueFixtures
-      .filter((fixture) => {
-        const kickoffMs = parseFixtureKickoffMs(fixture);
-        return kickoffMs !== null && kickoffMs >= nowMs;
-      })
-      .sort((a, b) => {
-        const aKickoff = parseFixtureKickoffMs(a);
-        const bKickoff = parseFixtureKickoffMs(b);
-        if (aKickoff === null && bKickoff === null) return 0;
-        if (aKickoff === null) return 1;
-        if (bKickoff === null) return -1;
-        return aKickoff - bKickoff;
-      })
-      .slice(0, 5);
+    async function loadUpcomingTournamentFixtures() {
+      setNextMatchesLoading(true);
+      setNextMatchesError('');
 
-    setNextMatches(upcomingFixtures);
-  }, [showGroupStage, selectedGroupFixtures, nextPhaseData, tournamentStructureData]);
+      try {
+        const response = await fetch(`${API_BASE_URL}/fixtures/all`, {
+          headers: buildAuthHeaders()
+        });
+        const json = await response.json();
+
+        if (!response.ok) {
+          throw new Error(json.error || json.message || 'Turnier-Spielplan konnte nicht geladen werden.');
+        }
+
+        const nowMs = Date.now();
+        const fixtures = enrichFixtureTeams(Array.isArray(json.data) ? json.data : []);
+        const upcomingFixtures = fixtures
+          .filter((fixture) => {
+            const kickoffMs = parseFixtureKickoffMs(fixture);
+            return kickoffMs !== null && kickoffMs >= nowMs;
+          })
+          .sort((a, b) => {
+            const aKickoff = parseFixtureKickoffMs(a);
+            const bKickoff = parseFixtureKickoffMs(b);
+            if (aKickoff === null && bKickoff === null) return 0;
+            if (aKickoff === null) return 1;
+            if (bKickoff === null) return -1;
+            return aKickoff - bKickoff;
+          })
+          .slice(0, 5);
+
+        if (!cancelled) {
+          setNextMatches(upcomingFixtures);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setNextMatches([]);
+          setNextMatchesError(loadError instanceof Error ? loadError.message : 'Turnier-Spielplan konnte nicht geladen werden.');
+        }
+      } finally {
+        if (!cancelled) {
+          setNextMatchesLoading(false);
+        }
+      }
+    }
+
+    loadUpcomingTournamentFixtures();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showGroupStage, token, tenantSlug]);
 
   const tournamentBracketStages = useMemo(() => {
     const orderMap = {
@@ -2335,7 +2356,9 @@ function App() {
                       </button>
                       {showNextMatchesPanel ? (
                         <div className="side-card-body">
-                          {nextMatches.length > 0 ? (
+                          {nextMatchesLoading ? <p className="inline-note">Lade FIFA-Spielplan...</p> : null}
+                          {nextMatchesError ? <p className="inline-error">{nextMatchesError}</p> : null}
+                          {!nextMatchesLoading && !nextMatchesError && nextMatches.length > 0 ? (
                             <div className="next-matches-list-wrap">
                               {nextMatches.map((fixture, idx) => (
                                 <div className="next-match-card" key={`next-match-${fixture.id || idx}`}>
@@ -2368,9 +2391,10 @@ function App() {
                                 </div>
                               ))}
                             </div>
-                          ) : (
+                          ) : null}
+                          {!nextMatchesLoading && !nextMatchesError && nextMatches.length === 0 ? (
                             <p className="tips-empty">Keine anstehenden Spiele vorhanden.</p>
-                          )}
+                          ) : null}
                         </div>
                       ) : null}
                     </section>
