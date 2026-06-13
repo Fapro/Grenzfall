@@ -1300,6 +1300,7 @@ function App() {
           friendName: tip.friend_name,
           points: 0,
           exactHits: 0,
+          correctTeamHits: 0,
           tipsCount: 0
         };
 
@@ -1308,6 +1309,8 @@ function App() {
         prev.tipsCount += 1;
         if (points === 3) {
           prev.exactHits += 1;
+        } else if (points === 2) {
+          prev.correctTeamHits += 1;
         }
 
         pointsByFriend.set(key, prev);
@@ -1869,7 +1872,14 @@ function App() {
         <div className="brand-row">
           <span className="brand-pill">Grenzfall Multiuser</span>
           <h1>Tippspiel Workspace</h1>
-          <p>Login und Registrierung mit identischer UI-Richtung wie dein Grenzfall-Setup.</p>
+          <p>Einfaches Gruppen-Tippspiel mit gemeinsamem Login und manueller Freundeliste.</p>
+          <section className="ticker-wrap">
+            <div className="ticker-label">RSS Live-Ticker</div>
+            <div className="ticker-track">
+              <div className="ticker-content">{tickerText}</div>
+            </div>
+            {rssError ? <p className="inline-error">{rssError}</p> : null}
+          </section>
         </div>
 
         {user ? (
@@ -2010,14 +2020,6 @@ function App() {
                   ) : null}
                 </div>
 
-                <section className="ticker-wrap">
-                  <div className="ticker-label">RSS Live-Ticker</div>
-                  <div className="ticker-track">
-                    <div className="ticker-content">{tickerText}</div>
-                  </div>
-                  {rssError ? <p className="inline-error">{rssError}</p> : null}
-                </section>
-
                 <div className="group-team-strip">
                   {selectedGroupTeams.map((team) => (
                     <span key={team.id} className={team.id === selectedTeam.id ? 'group-team-chip active' : 'group-team-chip'}>
@@ -2142,7 +2144,7 @@ function App() {
 
                     <section className="side-card points-table-card">
                       <h4>Freunde Punkte-Statistik</h4>
-                      <p className="points-rules">3 Punkte fuer exakten Tipp, 1 Punkt fuer richtige Tendenz.</p>
+                      <p className="points-rules">3 Punkte fuer exakten Tipp, 2 Punkte fuer richtige Mannschaft.</p>
                       {friendPointsTable.length === 0 ? (
                         <p className="tips-empty">Noch keine Punkte vorhanden.</p>
                       ) : (
@@ -2154,6 +2156,7 @@ function App() {
                                 <th>Freund</th>
                                 <th>Tipps</th>
                                 <th>Exakt</th>
+                                <th>Richtige Mannschaft</th>
                                 <th>Punkte</th>
                                 <th aria-label="Aktion">X</th>
                               </tr>
@@ -2165,6 +2168,7 @@ function App() {
                                   <td>{row.friendName}</td>
                                   <td>{row.tipsCount}</td>
                                   <td>{row.exactHits}</td>
+                                  <td>{row.correctTeamHits}</td>
                                   <td><strong>{row.points}</strong></td>
                                   <td>
                                     {row.friendId ? (
