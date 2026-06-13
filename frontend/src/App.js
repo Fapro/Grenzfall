@@ -435,7 +435,6 @@ function App() {
   const roarVolumeRef = useRef(roarVolume);
   const roarAudioRef = useRef(null);
   const roarFadeTimerRef = useRef(null);
-  const roarPanelAutoCloseTimerRef = useRef(null);
 
   const title = useMemo(() => (mode === 'login' ? 'Anmelden' : 'Gruppe registrieren'), [mode]);
 
@@ -443,33 +442,8 @@ function App() {
     localStorage.setItem(ROAR_PANEL_STORAGE_KEY, String(showRoarPanel));
   }, [showRoarPanel]);
 
-  function scheduleRoarPanelAutoClose() {
-    if (roarPanelAutoCloseTimerRef.current) {
-      clearTimeout(roarPanelAutoCloseTimerRef.current);
-    }
-
-    roarPanelAutoCloseTimerRef.current = setTimeout(() => {
-      setShowRoarPanel(false);
-    }, 5000);
-  }
-
-  useEffect(() => {
-    if (showRoarPanel) {
-      scheduleRoarPanelAutoClose();
-      return;
-    }
-
-    if (roarPanelAutoCloseTimerRef.current) {
-      clearTimeout(roarPanelAutoCloseTimerRef.current);
-      roarPanelAutoCloseTimerRef.current = null;
-    }
-  }, [showRoarPanel]);
-
   useEffect(() => {
     return () => {
-      if (roarPanelAutoCloseTimerRef.current) {
-        clearTimeout(roarPanelAutoCloseTimerRef.current);
-      }
       if (roarFadeTimerRef.current) {
         clearInterval(roarFadeTimerRef.current);
       }
@@ -827,7 +801,6 @@ function App() {
   }
 
   function toggleRoarTeam(teamId) {
-    scheduleRoarPanelAutoClose();
     setRoarTeamIds((prev) => {
       const next = new Set(prev.filter(Boolean));
       if (next.has(teamId)) {
@@ -1989,9 +1962,6 @@ function App() {
                           checked={showRoarPanel}
                           onChange={(event) => {
                             setShowRoarPanel(event.target.checked);
-                            if (event.target.checked) {
-                              scheduleRoarPanelAutoClose();
-                            }
                           }}
                           aria-label="ROOAR umschalten"
                         />
@@ -2098,7 +2068,6 @@ function App() {
                             value={roarVolume}
                             onChange={(event) => {
                               setRoarVolume(Number(event.target.value));
-                              scheduleRoarPanelAutoClose();
                             }}
                           />
                           <span className="roar-volume-value">{Math.round(roarVolume * 100)}%</span>
