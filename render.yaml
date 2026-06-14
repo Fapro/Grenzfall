@@ -1,12 +1,18 @@
 services:
   - type: web
     name: wm2026-backend
-    env: node
+    runtime: node
     rootDir: backend
     buildCommand: npm ci
     startCommand: npm start
     plan: free
     autoDeploy: true
+    disk:
+      name: wm2026-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: DATA_DIR
+        value: /var/data/wm2026-backend
