@@ -15,7 +15,12 @@ const API_BASE_URL = (
         ? 'http://localhost:3001/api'
         : 'https://grenzfall.onrender.com/api'))
 ).replace(/\/$/, '');
-const TEAM_SOUND_PATH = `${process.env.PUBLIC_URL || ''}/assets/sounds/goal-crowd-roaring_F_minor.wav`;
+const TEAM_SOUND_FILE = 'goal-crowd-roaring_F_minor.wav';
+const TEAM_SOUND_PATHS = [
+  `${process.env.PUBLIC_URL || ''}/assets/sounds/${TEAM_SOUND_FILE}`,
+  `/assets/sounds/${TEAM_SOUND_FILE}`,
+  `assets/sounds/${TEAM_SOUND_FILE}`
+].filter(Boolean);
 const ROAR_VOLUME_STORAGE_KEY = 'rooarVolume';
 const ROAR_TEAM_IDS_STORAGE_KEY = 'rooarTeamIds';
 const ROAR_PANEL_STORAGE_KEY = 'rooarPanelOpen';
@@ -455,9 +460,19 @@ function App() {
   const roarVolumeRef = useRef(roarVolume);
   const roarAudioRef = useRef(null);
   const roarFadeTimerRef = useRef(null);
+  const roarAudioSrcIndexRef = useRef(0);
   const nextMatchTipBlockRef = useRef(null);
   const nextMatchFriendSelectRef = useRef(null);
   const nextMatchFocusPendingRef = useRef(false);
+
+  function createRoarAudio(srcIndex = 0) {
+    const safeIndex = Math.max(0, Math.min(srcIndex, TEAM_SOUND_PATHS.length - 1));
+    const audio = new Audio(TEAM_SOUND_PATHS[safeIndex]);
+    audio.preload = 'auto';
+    audio.playsInline = true;
+    audio.volume = Math.max(0, Math.min(1, Number(roarVolumeRef.current) || 0));
+    return audio;
+  }
 
   const text = useMemo(() => {
     if (language === 'en') {
@@ -573,9 +588,7 @@ function App() {
   }, [roarVolume]);
 
   useEffect(() => {
-    const audio = new Audio(TEAM_SOUND_PATH);
-    audio.preload = 'auto';
-    audio.volume = Math.max(0, Math.min(1, Number(roarVolumeRef.current) || 0));
+    const audio = createRoarAudio(roarAudioSrcIndexRef.current);
     roarAudioRef.current = audio;
 
     return () => {
@@ -862,7 +875,7 @@ function App() {
   }
 
   function playRoar() {
-    const audio = roarAudioRef.current || new Audio(TEAM_SOUND_PATH);
+    const audio = roarAudioRef.current || createRoarAudio(roarAudioSrcIndexRef.current);
     audio.volume = Math.max(0, Math.min(1, Number(roarVolumeRef.current) || 0));
     audio.currentTime = 0;
     roarAudioRef.current = audio;
@@ -873,7 +886,18 @@ function App() {
     }
 
     audio.play().catch(() => {
-      // Browser kann Audio blocken, wenn kein direkter User-Klick vorlag.
+      // Try alternate source paths once before giving up.
+      const nextIndex = roarAudioSrcIndexRef.current + 1;
+      if (nextIndex >= TEAM_SOUND_PATHS.length) {
+        return;
+      }
+      roarAudioSrcIndexRef.current = nextIndex;
+      const fallbackAudio = createRoarAudio(nextIndex);
+      fallbackAudio.currentTime = 0;
+      roarAudioRef.current = fallbackAudio;
+      fallbackAudio.play().catch(() => {
+        // Browser kann Audio blocken, wenn kein direkter User-Klick vorlag.
+      });
     });
 
     const fadeDurationMs = 1000;
