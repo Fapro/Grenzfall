@@ -2156,8 +2156,94 @@ function App() {
     }
   }
 
+  function isManualFriendId(friendId) {
+    return String(friendId || '').startsWith('manual-');
+  }
+
+  async function refreshFriendsAndTips() {
+    const refreshRes = await fetch(`${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}`, {
+      headers: buildAuthHeaders()
+    });
+    const refreshJson = await parseJsonResponse(refreshRes);
+    if (!refreshRes.ok) {
+      throw new Error(refreshJson.error || refreshJson.message || 'Freundesliste konnte nicht aktualisiert werden.');
+    }
+    const friendRows = Array.isArray(refreshJson) ? refreshJson : [];
+    setFriends(friendRows);
+    setTips(flattenFriendTips(friendRows));
+  }
+
+  async function renameFriend(friendId, currentName = 'Freund') {
+    if (!isManualFriendId(friendId)) {
+      setFixturesError(`${currentName} ist ein Workspace-Benutzer und kann hier nicht umbenannt werden.`);
+      return;
+    }
+
+    const nextNameRaw = globalThis.prompt('Neuen Namen eingeben', currentName);
+    if (nextNameRaw === null) {
+      return;
+    }
+
+    const nextName = String(nextNameRaw).trim().slice(0, 24);
+    if (!nextName) {
+      setFixturesError('Name darf nicht leer sein.');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}/manual/${encodeURIComponent(friendId)}`,
+        {
+          method: 'PATCH',
+          headers: {
+            ...buildAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: nextName })
+        }
+      );
+
+      const json = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(json.error || json.message || 'Name konnte nicht geaendert werden.');
+      }
+
+      await refreshFriendsAndTips();
+      setFixturesError('');
+    } catch (renameError) {
+      setFixturesError(renameError instanceof Error ? renameError.message : 'Name konnte nicht geaendert werden.');
+    }
+  }
+
   async function removeFriend(friendId, friendName = 'diesen Freund') {
-    setFixturesError(`${friendName} wird im Workspace verwaltet und kann hier nicht entfernt werden.`);
+    if (!isManualFriendId(friendId)) {
+      setFixturesError(`${friendName} ist ein Workspace-Benutzer und kann hier nicht entfernt werden.`);
+      return;
+    }
+
+    const confirmed = globalThis.confirm(`${friendName} wirklich entfernen?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/friends/${encodeURIComponent(FRIENDS_SCOPE_KEY)}/manual/${encodeURIComponent(friendId)}`,
+        {
+          method: 'DELETE',
+          headers: buildAuthHeaders()
+        }
+      );
+      const json = await parseJsonResponse(response);
+      if (!response.ok) {
+        throw new Error(json.error || json.message || 'Freund konnte nicht entfernt werden.');
+      }
+
+      await refreshFriendsAndTips();
+      setFixturesError('');
+    } catch (removeError) {
+      setFixturesError(removeError instanceof Error ? removeError.message : 'Freund konnte nicht entfernt werden.');
+    }
   }
 
   async function resetGroupPassword() {
@@ -2703,7 +2789,7 @@ function App() {
                                 <th>Exakt</th>
                                 <th>{text.pointsCorrectTeam}</th>
                                 <th>Punkte</th>
-                                <th aria-label="Aktion">X</th>
+                                <th aria-label="Aktion">Aktion</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2717,15 +2803,27 @@ function App() {
                                   <td><strong>{row.points}</strong></td>
                                   <td>
                                     {row.friendId ? (
-                                      <button
-                                        type="button"
-                                        className="friend-remove-btn friend-remove-btn-small"
-                                        onClick={() => removeFriend(row.friendId, row.friendName)}
-                                        aria-label={`${row.friendName} entfernen`}
-                                        title={`${row.friendName} entfernen`}
-                                      >
-                                        x
-                                      </button>
+                                      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                                        <button
+                                          type="button"
+                                          className="outline-btn"
+                                          onClick={() => renameFriend(row.friendId, row.friendName)}
+                                          aria-label={`${row.friendName} umbenennen`}
+                                          title={`${row.friendName} umbenennen`}
+                                          style={{ padding: '2px 8px', minWidth: 0 }}
+                                        >
+                                          ✎
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="friend-remove-btn friend-remove-btn-small"
+                                          onClick={() => removeFriend(row.friendId, row.friendName)}
+                                          aria-label={`${row.friendName} entfernen`}
+                                          title={`${row.friendName} entfernen`}
+                                        >
+                                          x
+                                        </button>
+                                      </div>
                                     ) : null}
                                   </td>
                                 </tr>
