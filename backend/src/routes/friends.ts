@@ -11,6 +11,10 @@ import { randomId } from '../multitenant/auth';
 
 const router = Router();
 
+function isManualFriendId(value: string): boolean {
+  return /^manual[-_]/.test(String(value || ''));
+}
+
 function isValidFriendEntry(value: unknown): value is FriendEntry {
   if (!value || typeof value !== 'object') {
     return false;
@@ -156,7 +160,7 @@ router.patch('/:teamId/manual/:friendId', requireAuth, requireTenant, (req: Requ
   const friendId = String(req.params.friendId ?? '').trim();
   const name = String(req.body?.name ?? '').trim();
 
-  if (!friendId.startsWith('manual-')) {
+  if (!isManualFriendId(friendId)) {
     res.status(400).json({ error: 'Only manual friends can be renamed' });
     return;
   }
@@ -200,7 +204,7 @@ router.delete('/:teamId/manual/:friendId', requireAuth, requireTenant, (req: Req
   const tenantId = req.currentTenant!.id;
   const friendId = String(req.params.friendId ?? '').trim();
 
-  if (!friendId.startsWith('manual-')) {
+  if (!isManualFriendId(friendId)) {
     res.status(400).json({ error: 'Only manual friends can be deleted' });
     return;
   }
