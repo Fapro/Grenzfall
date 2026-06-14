@@ -2576,7 +2576,7 @@ function App() {
                         onClick={() => setShowNextMatchesPanel((prev) => !prev)}
                         aria-expanded={showNextMatchesPanel}
                       >
-                        <span>Naechste FIFA Spiele</span>
+                        <span>Nächsten Spiele - Hier Tippen</span>
                         <span className="side-card-toggle-icon">{showNextMatchesPanel ? '−' : '+'}</span>
                       </button>
                       {showNextMatchesPanel ? (
@@ -2736,12 +2736,12 @@ function App() {
                         onClick={() => setShowNextPhasePanel((prev) => !prev)}
                         aria-expanded={showNextPhasePanel}
                       >
-                        <span>Naechste Phase (nach Gruppe)</span>
+                        <span>Nächste Phase (nach Gruppe)</span>
                         <span className="side-card-toggle-icon">{showNextPhasePanel ? '−' : '+'}</span>
                       </button>
                       {showNextPhasePanel ? (
                         <div className="side-card-body">
-                          {nextPhaseLoading ? <p className="inline-note">Lade naechste Phase von Sportmonks...</p> : null}
+                          {nextPhaseLoading ? <p className="inline-note">Lade nächste Phase von Sportmonks...</p> : null}
                           {nextPhaseError ? <p className="inline-error">{nextPhaseError}</p> : null}
                           {!nextPhaseLoading && !nextPhaseError ? (
                             nextPhaseData.length > 0 ? (
@@ -2957,7 +2957,7 @@ function App() {
                     </section>
 
                     <section className="side-card">
-                      <h4>Naechste Phase (Details)</h4>
+                      <h4>Nächste Phase (Details)</h4>
                       {tournamentBracketStages.length > 0 ? (
                         <div className="bracket-scroll">
                           <div className="bracket-board">
