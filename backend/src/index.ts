@@ -29,10 +29,12 @@ const NORMALIZED_ALLOWED_ORIGINS = ALLOWED_ORIGINS.map(normalizeOrigin);
 app.use((req, res, next) => {
   const origin = String(req.headers.origin ?? '');
   const normalizedOrigin = normalizeOrigin(origin);
+  const isNetlifyAppOrigin = /^https:\/\/[a-z0-9-]+\.netlify\.app$/i.test(normalizedOrigin);
   const allowed =
     !NORMALIZED_ALLOWED_ORIGINS.length ||
     NORMALIZED_ALLOWED_ORIGINS.includes('*') ||
-    NORMALIZED_ALLOWED_ORIGINS.includes(normalizedOrigin);
+    NORMALIZED_ALLOWED_ORIGINS.includes(normalizedOrigin) ||
+    isNetlifyAppOrigin;
 
   if (allowed) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
