@@ -897,23 +897,8 @@ export default function TeamScreen() {
     [router, team?.id, teamIdByNormalizedName]
   );
 
-  const setTipValue = useCallback(
-    (matchId: string, side: 'home' | 'away', value: string) => {
-      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
-      setTipsByMatch((prev) => ({
-        ...prev,
-        [matchId]: {
-          home: prev[matchId]?.home ?? '',
-          away: prev[matchId]?.away ?? '',
-          [side]: cleaned,
-        },
-      }));
-    },
-    []
-  );
-
   const saveFriendsToBackend = useCallback(
-    async () => {
+    async (tipsSnapshot: Record<string, MatchTip>) => {
       if (!team) {
         return;
       }
@@ -922,13 +907,33 @@ export default function TeamScreen() {
         await apiFetch(`/api/friends/${encodeURIComponent(team.id)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tips: tipsByMatch }),
+          body: JSON.stringify({ tips: tipsSnapshot }),
         });
       } catch (error) {
         console.warn('Failed to persist tips:', error);
       }
     },
-    [team, tipsByMatch]
+    [team]
+  );
+
+  const setTipValue = useCallback(
+    (matchId: string, side: 'home' | 'away', value: string) => {
+      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
+      setTipsByMatch((prev) => {
+        const next = {
+          ...prev,
+          [matchId]: {
+            home: prev[matchId]?.home ?? '',
+            away: prev[matchId]?.away ?? '',
+            [side]: cleaned,
+          },
+        };
+
+        void saveFriendsToBackend(next);
+        return next;
+      });
+    },
+    [saveFriendsToBackend]
   );
 
   const loadFriendsFromWorkspace = useCallback(async () => {
@@ -978,7 +983,7 @@ export default function TeamScreen() {
           },
         };
 
-        void saveFriendsToBackend();
+        void saveFriendsToBackend(next);
         return next;
       });
     },
