@@ -1415,11 +1415,36 @@ function App() {
     return rssItems.map((item) => item.title).join('   •   ');
   }, [rssError, rssItems]);
 
+  const fixturesForFriendPoints = useMemo(() => {
+    const fixtureById = new Map();
+
+    [...selectedGroupFixtures, ...nextMatches].forEach((fixture) => {
+      const fixtureId = String(fixture?.id || '').trim();
+      if (!fixtureId) {
+        return;
+      }
+      if (!fixtureById.has(fixtureId)) {
+        fixtureById.set(fixtureId, fixture);
+      }
+    });
+
+    return Array.from(fixtureById.values());
+  }, [nextMatches, selectedGroupFixtures]);
+
   const friendPointsTable = useMemo(() => {
     const pointsByFriend = new Map();
 
-    selectedGroupFixtures.forEach((fixture) => {
+    fixturesForFriendPoints.forEach((fixture) => {
       const fixtureTips = loadTipsForFixture(fixture.id);
+      const status = String(fixture.status || '').trim().toLowerCase();
+      const hasResultStatus =
+        status && !/(not started|upcoming|scheduled|to be announced|postponed|canceled|cancelled)/i.test(status);
+      const homeGoals = Number(fixture.homeScore || 0);
+      const awayGoals = Number(fixture.awayScore || 0);
+      const hasNumericResult =
+        Number.isFinite(homeGoals) && Number.isFinite(awayGoals) && (homeGoals > 0 || awayGoals > 0);
+      const isPlayed = hasResultStatus || hasNumericResult;
+
       fixtureTips.forEach((tip) => {
         const key = String(tip.friend_id || tip.friend_name);
         const prev = pointsByFriend.get(key) || {
@@ -1431,13 +1456,16 @@ function App() {
           tipsCount: 0
         };
 
-        const points = calculateTipPoints(tip, fixture);
-        prev.points += points;
         prev.tipsCount += 1;
-        if (points === 3) {
-          prev.exactHits += 1;
-        } else if (points === 2) {
-          prev.correctTeamHits += 1;
+
+        if (isPlayed) {
+          const points = calculateTipPoints(tip, fixture);
+          prev.points += points;
+          if (points === 3) {
+            prev.exactHits += 1;
+          } else if (points === 2) {
+            prev.correctTeamHits += 1;
+          }
         }
 
         pointsByFriend.set(key, prev);
@@ -1453,7 +1481,7 @@ function App() {
       }
       return String(a.friendName).localeCompare(String(b.friendName));
     });
-  }, [selectedGroupFixtures, tips]);
+  }, [fixturesForFriendPoints, tips]);
 
   const groupStandings = useMemo(() => {
     const table = new Map();
