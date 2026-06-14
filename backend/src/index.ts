@@ -19,16 +19,25 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '')
   .map((o: string) => o.trim())
   .filter(Boolean);
 
+function normalizeOrigin(value: string): string {
+  return value.trim().toLowerCase().replace(/\/+$/, '');
+}
+
+const NORMALIZED_ALLOWED_ORIGINS = ALLOWED_ORIGINS.map(normalizeOrigin);
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
-  const origin = req.headers.origin ?? '';
+  const origin = String(req.headers.origin ?? '');
+  const normalizedOrigin = normalizeOrigin(origin);
   const allowed =
-    !ALLOWED_ORIGINS.length ||
-    ALLOWED_ORIGINS.includes(origin);
+    !NORMALIZED_ALLOWED_ORIGINS.length ||
+    NORMALIZED_ALLOWED_ORIGINS.includes('*') ||
+    NORMALIZED_ALLOWED_ORIGINS.includes(normalizedOrigin);
 
   if (allowed) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
+  res.setHeader('Vary', 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Tenant-Slug');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
