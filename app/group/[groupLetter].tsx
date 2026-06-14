@@ -31,13 +31,35 @@ export default function GroupStatsPage() {
   };
 
   useEffect(() => {
-    fetchAllGroupStageMatches().then((matches) => {
-      setGroupMatches(matches.filter((m) => {
-        const letter = (m.stage.match(/([A-L])/i) || [])[1];
-        return letter && letter.toUpperCase() === groupLetter?.toUpperCase();
-      }));
-      setLoading(false);
-    });
+    let cancelled = false;
+
+    const loadMatches = async () => {
+      try {
+        const matches = await fetchAllGroupStageMatches();
+        if (cancelled) {
+          return;
+        }
+
+        setGroupMatches(
+          matches.filter((m) => {
+            const letter = (m.stage.match(/([A-L])/i) || [])[1];
+            return letter && letter.toUpperCase() === groupLetter?.toUpperCase();
+          })
+        );
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadMatches();
+    const intervalId = setInterval(loadMatches, 25000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, [groupLetter]);
 
   const teams = getTeamsForGroup(normalizedGroupLetter);

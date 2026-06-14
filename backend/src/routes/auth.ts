@@ -6,18 +6,13 @@ import {
   createSession,
   findTenantBySlug,
   findUserByEmail,
-  findUserByUsername,
-  findTenantMember,
-  listMembersByUserId,
-  updateTenantSharedCredentials,
-  updateDb,
   getDb,
+  listMembersByUserId,
 } from '../multitenant/store';
 import {
   hashPassword,
   isValidEmail,
   normalizeEmail,
-  randomPassword,
   randomId,
   randomToken,
   slugify,
@@ -28,93 +23,79 @@ import { requireAuth } from '../middleware/tenant';
 
 const router = Router();
 
-function sanitizeUser(user: { id: string; username: string; email: string; name: string }) {
-  return { id: user.id, username: user.username, email: user.email, name: user.name };
+function sanitizeUser(user: { id: string; email: string; name: string }) {
+  return { id: user.id, email: user.email, name: user.name };
 }
 
-function buildSharedLoginUsernameFromSlug(slug: string): string {
-  const normalizedSlug = slugify(slug);
-  const withoutPrefix = normalizedSlug.startsWith('wm2026-')
-    ? normalizedSlug.slice('wm2026-'.length)
-    : normalizedSlug;
-  const effectiveSlug = withoutPrefix || normalizedSlug;
-  return `wm2026%${effectiveSlug}`;
-}
-
-async function handleSignup(req: Request, res: Response) {
+router.post('/signup', async (req: Request, res: Response) => {
   const emailRaw = String(req.body?.email ?? '');
   const nameRaw = String(req.body?.name ?? '');
+  const password = String(req.body?.password ?? '');
   const workspaceNameRaw = String(req.body?.workspaceName ?? '').trim();
+  const workspaceSlugInput = String(req.body?.workspaceSlug ?? workspaceNameRaw);
 
   const email = normalizeEmail(emailRaw);
   const name = nameRaw.trim();
+  if (!isValidEmail(email)) {
+    res.status(400).json({ error: 'Valid email is required' });
+    return;
+  }
   if (!name || name.length < 2) {
     res.status(400).json({ error: 'Name is required' });
     return;
   }
-  if (!workspaceNameRaw) {
-    res.status(400).json({ error: 'Workspace name is required' });
+  if (!password || password.length < 8) {
+    res.status(400).json({ error: 'Password must be at least 8 characters' });
     return;
   }
 
-  if (email && !isValidEmail(email)) {
-    res.status(400).json({ error: 'Email has invalid format' });
-    return;
-  }
-
-  if (email && findUserByEmail(email)) {
+  if (findUserByEmail(email)) {
     res.status(409).json({ error: 'Email already registered' });
     return;
   }
 
-  const slugResult = validateWorkspaceSlug(workspaceNameRaw);
-  if (!slugResult.ok) {
-    res.status(400).json({ error: slugResult.error });
-    return;
-  }
-  if (findTenantBySlug(slugResult.slug)) {
-    res.status(409).json({ error: 'Workspace slug is already taken' });
-    return;
-  }
-
-  const generatedUsername = buildSharedLoginUsernameFromSlug(slugResult.slug);
-  if (findUserByUsername(generatedUsername)) {
-    res.status(409).json({ error: 'Generated username already exists' });
-    return;
-  }
-
-  const generatedPassword = randomPassword(10);
-  const userEmail = email || `${slugResult.slug}@wm2026.local`;
-
-  let createdTenant = {
-    id: randomId('ten'),
-    slug: slugResult.slug,
-    name: workspaceNameRaw,
-    ownerUserId: '',
-    sharedLoginUsername: generatedUsername,
-    sharedLoginPassword: generatedPassword,
-    createdAt: new Date().toISOString(),
-  };
+  let createdTenant = null;
   let tenantMembership = null;
+
+  if (workspaceNameRaw) {
+    const slugResult = validateWorkspaceSlug(workspaceSlugInput);
+    if (!slugResult.ok) {
+      res.status(400).json({ error: slugResult.error });
+      return;
+    }
+    if (findTenantBySlug(slugResult.slug)) {
+      res.status(409).json({ error: 'Workspace slug is already taken' });
+      return;
+    }
+
+    createdTenant = {
+      id: randomId('ten'),
+      slug: slugResult.slug,
+      name: workspaceNameRaw,
+      ownerUserId: '',
+      createdAt: new Date().toISOString(),
+    };
+  }
 
   const user = addUser({
     id: randomId('usr'),
-    username: generatedUsername,
-    email: userEmail,
+    email,
     name,
-    passwordHash: await hashPassword(generatedPassword),
+    passwordHash: await hashPassword(password),
     createdAt: new Date().toISOString(),
   });
 
-  createdTenant.ownerUserId = user.id;
-  addTenant(createdTenant);
-  tenantMembership = addTenantMember({
-    id: randomId('mem'),
-    tenantId: createdTenant.id,
-    userId: user.id,
-    role: 'owner',
-    createdAt: new Date().toISOString(),
-  });
+  if (createdTenant) {
+    createdTenant.ownerUserId = user.id;
+    addTenant(createdTenant);
+    tenantMembership = addTenantMember({
+      id: randomId('mem'),
+      tenantId: createdTenant.id,
+      userId: user.id,
+      role: 'owner',
+      createdAt: new Date().toISOString(),
+    });
+  }
 
   const token = randomToken();
   createSession({
@@ -129,54 +110,21 @@ async function handleSignup(req: Request, res: Response) {
     user: sanitizeUser(user),
     tenant: createdTenant,
     membership: tenantMembership,
-    generatedCredentials: {
-      username: generatedUsername,
-      password: generatedPassword,
-    },
   });
-}
-
-router.post('/signup', handleSignup);
-router.post('/register', handleSignup);
+});
 
 router.post('/login', async (req: Request, res: Response) => {
-  const username = String(req.body?.username ?? '').trim().toLowerCase();
   const email = normalizeEmail(String(req.body?.email ?? ''));
   const password = String(req.body?.password ?? '');
 
-  // Backward-compatible login: older clients may send the username in the email field.
-  const user = username
-    ? findUserByUsername(username)
-    : (findUserByEmail(email) ?? findUserByUsername(email));
+  const user = findUserByEmail(email);
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
 
   const isValid = await verifyPassword(password, user.passwordHash);
-  let isValidViaSharedFallback = false;
-
   if (!isValid) {
-    const db = getDb();
-    const matchingTenant = db.tenants.find(
-      (tenant) =>
-        String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() ===
-        String(user.username ?? '').trim().toLowerCase()
-    );
-
-    if (matchingTenant?.sharedLoginPassword === password) {
-      isValidViaSharedFallback = true;
-      const repairedHash = await hashPassword(password);
-      updateDb((state) => {
-        const mutableUser = state.users.find((entry) => entry.id === user.id);
-        if (mutableUser) {
-          mutableUser.passwordHash = repairedHash;
-        }
-      });
-    }
-  }
-
-  if (!isValid && !isValidViaSharedFallback) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
@@ -219,326 +167,6 @@ router.get('/me', requireAuth, (req: Request, res: Response) => {
 router.get('/slugify/:name', (req: Request, res: Response) => {
   const slug = slugify(String(req.params.name ?? ''));
   res.json({ slug });
-});
-
-router.post('/reset-group-password', requireAuth, async (req: Request, res: Response) => {
-  const user = req.currentUser!;
-  const db = getDb();
-
-  // Find the tenant where this user is owner
-  const ownedTenant = db.tenants.find((t) => t.ownerUserId === user.id);
-  if (!ownedTenant) {
-    res.status(403).json({ error: 'Only the group owner can reset the shared password' });
-    return;
-  }
-
-  const membership = findTenantMember(ownedTenant.id, user.id);
-  if (membership?.role !== 'owner') {
-    res.status(403).json({ error: 'Only the group owner can reset the shared password' });
-    return;
-  }
-
-  const newPassword = randomPassword(10);
-  const username = ownedTenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(ownedTenant.slug);
-
-  // Update the shared user's password hash
-  const sharedUser = findUserByUsername(username);
-  if (sharedUser) {
-    const newHash = await hashPassword(newPassword);
-    db.users.forEach((u) => {
-      if (u.id === sharedUser.id) {
-        u.passwordHash = newHash;
-      }
-    });
-    // persist via updateTenantSharedCredentials which calls persist()
-  }
-
-  const updatedTenant = updateTenantSharedCredentials(ownedTenant.id, username, newPassword);
-  if (!updatedTenant) {
-    res.status(500).json({ error: 'Failed to update shared credentials' });
-    return;
-  }
-
-  res.json({
-    ok: true,
-    generatedCredentials: { username, password: newPassword },
-  });
-});
-
-router.post('/recovery/reset-shared-password', async (req: Request, res: Response) => {
-  const configuredRecoveryToken = String(process.env.RECOVERY_RESET_TOKEN ?? '').trim();
-  if (!configuredRecoveryToken) {
-    res.status(503).json({ error: 'Recovery reset is not configured' });
-    return;
-  }
-
-  const providedRecoveryToken = String(req.body?.recoveryToken ?? '').trim();
-  if (!providedRecoveryToken || providedRecoveryToken !== configuredRecoveryToken) {
-    res.status(401).json({ error: 'Invalid recovery token' });
-    return;
-  }
-
-  const requestedSlug = slugify(String(req.body?.workspaceSlug ?? ''));
-  const requestedGroupName = String(req.body?.groupName ?? '').trim().toLowerCase();
-  const requestedUsername = String(req.body?.username ?? '').trim().toLowerCase();
-  if (!requestedSlug && !requestedGroupName && !requestedUsername) {
-    res.status(400).json({ error: 'workspaceSlug, groupName, or username is required' });
-    return;
-  }
-
-  const requestedIdentity = requestedGroupName || requestedUsername;
-  const derivedSlugFromIdentity = requestedIdentity.includes('%')
-    ? slugify(requestedIdentity.split('%').slice(1).join('%'))
-    : '';
-
-  const db = getDb();
-  const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
-  const byDerivedSlug = derivedSlugFromIdentity ? findTenantBySlug(derivedSlugFromIdentity) : undefined;
-  const byGroupName = requestedGroupName
-    ? db.tenants.find(
-      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedGroupName
-    )
-    : undefined;
-  const bySharedUsername = requestedUsername
-    ? db.tenants.find(
-      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedUsername
-    )
-    : undefined;
-
-  const byUserMembership = requestedUsername
-    ? (() => {
-        const user = findUserByUsername(requestedUsername);
-        if (!user) {
-          return undefined;
-        }
-
-        const membership = listMembersByUserId(user.id)[0];
-        if (!membership) {
-          return undefined;
-        }
-
-        return db.tenants.find((tenant) => tenant.id === membership.tenantId);
-      })()
-    : undefined;
-
-  const targetTenant = bySlug ?? byDerivedSlug ?? byGroupName ?? bySharedUsername ?? byUserMembership;
-
-  if (!targetTenant) {
-    res.status(404).json({ error: 'Workspace not found' });
-    return;
-  }
-
-  const canonicalUsername = String(targetTenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(targetTenant.slug))
-    .trim()
-    .toLowerCase();
-  if (requestedIdentity && requestedIdentity !== canonicalUsername) {
-    res.status(400).json({ error: 'Username does not match workspace' });
-    return;
-  }
-
-  const requestedPassword = String(req.body?.password ?? '').trim();
-  if (requestedPassword && requestedPassword.length < 6) {
-    res.status(400).json({ error: 'Password must be at least 6 characters long' });
-    return;
-  }
-
-  const newPassword = requestedPassword || randomPassword(10);
-  const newHash = await hashPassword(newPassword);
-
-  const sharedUser = findUserByUsername(canonicalUsername);
-  updateDb((state) => {
-    const mutableSharedUser = sharedUser
-      ? state.users.find((u) => u.id === sharedUser.id)
-      : undefined;
-
-    if (mutableSharedUser) {
-      mutableSharedUser.passwordHash = newHash;
-      mutableSharedUser.username = canonicalUsername;
-      return;
-    }
-
-    const ownerUser = state.users.find((u) => u.id === targetTenant.ownerUserId);
-    if (ownerUser) {
-      ownerUser.username = canonicalUsername;
-      ownerUser.passwordHash = newHash;
-      if (!ownerUser.email) {
-        ownerUser.email = `${targetTenant.slug}@wm2026.local`;
-      }
-      if (!ownerUser.name) {
-        ownerUser.name = targetTenant.name || 'Workspace Owner';
-      }
-      return;
-    }
-
-    state.users.push({
-      id: randomId('usr'),
-      username: canonicalUsername,
-      email: `${targetTenant.slug}@wm2026.local`,
-      name: targetTenant.name || 'Workspace Owner',
-      passwordHash: newHash,
-      createdAt: new Date().toISOString(),
-    });
-  });
-
-  const updatedTenant = updateTenantSharedCredentials(targetTenant.id, canonicalUsername, newPassword);
-  if (!updatedTenant) {
-    res.status(500).json({ error: 'Failed to update shared credentials' });
-    return;
-  }
-
-  res.json({
-    ok: true,
-    workspaceSlug: targetTenant.slug,
-    generatedCredentials: {
-      username: canonicalUsername,
-      password: newPassword,
-    },
-  });
-});
-
-router.post('/recovery/list-workspaces', async (req: Request, res: Response) => {
-  const configuredRecoveryToken = String(process.env.RECOVERY_RESET_TOKEN ?? '').trim();
-  if (!configuredRecoveryToken) {
-    res.status(503).json({ error: 'Recovery reset is not configured' });
-    return;
-  }
-
-  const providedRecoveryToken = String(req.body?.recoveryToken ?? '').trim();
-  if (!providedRecoveryToken || providedRecoveryToken !== configuredRecoveryToken) {
-    res.status(401).json({ error: 'Invalid recovery token' });
-    return;
-  }
-
-  const db = getDb();
-  const workspaces = db.tenants
-    .map((tenant) => ({
-      slug: tenant.slug,
-      name: tenant.name,
-      sharedLoginUsername: String(tenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(tenant.slug)).toLowerCase(),
-    }))
-    .sort((a, b) => a.slug.localeCompare(b.slug));
-
-  res.json({
-    ok: true,
-    count: workspaces.length,
-    workspaces,
-  });
-});
-
-router.post('/recovery/migrate-shared-username', async (req: Request, res: Response) => {
-  const configuredRecoveryToken = String(process.env.RECOVERY_RESET_TOKEN ?? '').trim();
-  if (!configuredRecoveryToken) {
-    res.status(503).json({ error: 'Recovery reset is not configured' });
-    return;
-  }
-
-  const providedRecoveryToken = String(req.body?.recoveryToken ?? '').trim();
-  if (!providedRecoveryToken || providedRecoveryToken !== configuredRecoveryToken) {
-    res.status(401).json({ error: 'Invalid recovery token' });
-    return;
-  }
-
-  const requestedSlug = slugify(String(req.body?.workspaceSlug ?? ''));
-  const requestedGroupName = String(req.body?.groupName ?? '').trim().toLowerCase();
-  const requestedUsername = String(req.body?.username ?? '').trim().toLowerCase();
-  if (!requestedSlug && !requestedGroupName && !requestedUsername) {
-    res.status(400).json({ error: 'workspaceSlug, groupName, or username is required' });
-    return;
-  }
-
-  const requestedIdentity = requestedGroupName || requestedUsername;
-  const derivedSlugFromIdentity = requestedIdentity.includes('%')
-    ? slugify(requestedIdentity.split('%').slice(1).join('%'))
-    : '';
-
-  const db = getDb();
-  const bySlug = requestedSlug ? findTenantBySlug(requestedSlug) : undefined;
-  const byDerivedSlug = derivedSlugFromIdentity ? findTenantBySlug(derivedSlugFromIdentity) : undefined;
-  const byGroupName = requestedGroupName
-    ? db.tenants.find(
-      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedGroupName
-    )
-    : undefined;
-  const bySharedUsername = requestedUsername
-    ? db.tenants.find(
-      (tenant) => String(tenant.sharedLoginUsername ?? '').trim().toLowerCase() === requestedUsername
-    )
-    : undefined;
-  const byUserMembership = requestedUsername
-    ? (() => {
-        const user = findUserByUsername(requestedUsername);
-        if (!user) {
-          return undefined;
-        }
-
-        const membership = listMembersByUserId(user.id)[0];
-        if (!membership) {
-          return undefined;
-        }
-
-        return db.tenants.find((tenant) => tenant.id === membership.tenantId);
-      })()
-    : undefined;
-
-  const targetTenant = bySlug ?? byDerivedSlug ?? byGroupName ?? bySharedUsername ?? byUserMembership;
-  if (!targetTenant) {
-    res.status(404).json({ error: 'Workspace not found' });
-    return;
-  }
-
-  const oldUsername = String(targetTenant.sharedLoginUsername || buildSharedLoginUsernameFromSlug(targetTenant.slug))
-    .trim()
-    .toLowerCase();
-  const normalizedUsername = buildSharedLoginUsernameFromSlug(targetTenant.slug).toLowerCase();
-
-  if (oldUsername === normalizedUsername) {
-    const existingTenant = findTenantBySlug(targetTenant.slug);
-    res.json({
-      ok: true,
-      workspaceSlug: targetTenant.slug,
-      migratedFrom: oldUsername,
-      migratedTo: normalizedUsername,
-      generatedCredentials: {
-        username: normalizedUsername,
-        password: String(existingTenant?.sharedLoginPassword ?? ''),
-      },
-    });
-    return;
-  }
-
-  const conflictUser = findUserByUsername(normalizedUsername);
-  const currentSharedUser = findUserByUsername(oldUsername);
-  if (conflictUser && currentSharedUser && conflictUser.id !== currentSharedUser.id) {
-    res.status(409).json({ error: 'Normalized username already in use' });
-    return;
-  }
-
-  updateDb((state) => {
-    const mutableTenant = state.tenants.find((tenant) => tenant.id === targetTenant.id);
-    if (mutableTenant) {
-      mutableTenant.sharedLoginUsername = normalizedUsername;
-    }
-
-    const mutableSharedUser = state.users.find(
-      (user) => String(user.username ?? '').trim().toLowerCase() === oldUsername
-    );
-    if (mutableSharedUser) {
-      mutableSharedUser.username = normalizedUsername;
-    }
-  });
-
-  const updatedTenant = findTenantBySlug(targetTenant.slug);
-
-  res.json({
-    ok: true,
-    workspaceSlug: targetTenant.slug,
-    migratedFrom: oldUsername,
-    migratedTo: normalizedUsername,
-    generatedCredentials: {
-      username: normalizedUsername,
-      password: String(updatedTenant?.sharedLoginPassword ?? ''),
-    },
-  });
 });
 
 export default router;

@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import {
   AppDb,
-  ChatMessage,
   FriendEntry,
   Session,
   Tenant,
@@ -11,14 +10,8 @@ import {
   WorkspaceInvite,
 } from './types';
 
-const DATA_ROOT =
-  String(process.env.DATA_DIR ?? '').trim() ||
-  String(process.env.RENDER_DISK_PATH ?? '').trim() ||
-  path.resolve(process.cwd(), '.data');
-
-const DB_DIR = path.resolve(DATA_ROOT);
+const DB_DIR = path.resolve(process.cwd(), '.data');
 const DB_FILE = path.join(DB_DIR, 'multitenant.json');
-const DB_BACKUP_FILE = path.join(DB_DIR, 'multitenant.backup.json');
 
 const EMPTY_DB: AppDb = {
   users: [],
@@ -27,72 +20,35 @@ const EMPTY_DB: AppDb = {
   sessions: [],
   invites: [],
   friendsByTenantTeam: {},
-  chatByTenant: {},
 };
 
 function cloneDb(input: AppDb): AppDb {
   return JSON.parse(JSON.stringify(input)) as AppDb;
 }
 
-function ensureDbDir(): void {
-  if (!fs.existsSync(DB_DIR)) {
-    fs.mkdirSync(DB_DIR, { recursive: true });
-  }
-}
-
-function parseDb(raw: string): AppDb {
-  const parsed = JSON.parse(raw) as Partial<AppDb>;
-  return {
-    users: parsed.users ?? [],
-    tenants: parsed.tenants ?? [],
-    members: parsed.members ?? [],
-    sessions: parsed.sessions ?? [],
-    invites: parsed.invites ?? [],
-    friendsByTenantTeam: parsed.friendsByTenantTeam ?? {},
-    chatByTenant: parsed.chatByTenant ?? {},
-  };
-}
-
-function persistSnapshot(snapshot: AppDb): void {
-  ensureDbDir();
-  const serialized = JSON.stringify(snapshot, null, 2);
-  const tempFile = `${DB_FILE}.tmp`;
-
-  if (fs.existsSync(DB_FILE)) {
-    fs.copyFileSync(DB_FILE, DB_BACKUP_FILE);
-  }
-
-  fs.writeFileSync(tempFile, serialized, 'utf8');
-  fs.renameSync(tempFile, DB_FILE);
-}
-
 function readDbFromDisk(): AppDb {
   try {
-    ensureDbDir();
+    if (!fs.existsSync(DB_DIR)) {
+      fs.mkdirSync(DB_DIR, { recursive: true });
+    }
 
     if (!fs.existsSync(DB_FILE)) {
-      persistSnapshot(EMPTY_DB);
+      fs.writeFileSync(DB_FILE, JSON.stringify(EMPTY_DB, null, 2), 'utf8');
       return cloneDb(EMPTY_DB);
     }
 
     const raw = fs.readFileSync(DB_FILE, 'utf8');
-    return parseDb(raw);
+    const parsed = JSON.parse(raw) as Partial<AppDb>;
+    return {
+      users: parsed.users ?? [],
+      tenants: parsed.tenants ?? [],
+      members: parsed.members ?? [],
+      sessions: parsed.sessions ?? [],
+      invites: parsed.invites ?? [],
+      friendsByTenantTeam: parsed.friendsByTenantTeam ?? {},
+    };
   } catch (error) {
-    console.error('[multitenant-store] Failed to read main DB file:', error);
-    try {
-      if (fs.existsSync(DB_BACKUP_FILE)) {
-        const rawBackup = fs.readFileSync(DB_BACKUP_FILE, 'utf8');
-        const restored = parseDb(rawBackup);
-        persistSnapshot(restored);
-        console.warn('[multitenant-store] Restored DB from backup file.');
-        return restored;
-      }
-    } catch (backupError) {
-      console.error('[multitenant-store] Failed to restore DB from backup:', backupError);
-    }
-
-    console.error('[multitenant-store] Falling back to empty DB.');
-    persistSnapshot(EMPTY_DB);
+    console.error('[multitenant-store] Failed to read DB, using empty fallback:', error);
     return cloneDb(EMPTY_DB);
   }
 }
@@ -100,7 +56,7 @@ function readDbFromDisk(): AppDb {
 let db = readDbFromDisk();
 
 function persist(): void {
-  persistSnapshot(db);
+  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
 }
 
 export function getDb(): AppDb {
@@ -115,11 +71,6 @@ export function updateDb(mutator: (state: AppDb) => void): void {
 export function findUserByEmail(email: string): User | undefined {
   const normalized = email.trim().toLowerCase();
   return db.users.find((u) => u.email === normalized);
-}
-
-export function findUserByUsername(username: string): User | undefined {
-  const normalized = username.trim().toLowerCase();
-  return db.users.find((u) => String(u.username ?? '').trim().toLowerCase() === normalized);
 }
 
 export function findUserById(userId: string): User | undefined {
@@ -232,22 +183,4 @@ export function setTenantTeamFriends(
     state.friendsByTenantTeam[friendsKey(tenantId, teamId)] = friends;
   });
   return friends;
-}
-
-export function updateTenantSharedCredentials(
-  tenantId: string,
-  username: string,
-  password: string
-): Tenant | undefined {
-  let updated: Tenant | undefined;
-  updateDb((state) => {
-    const tenant = state.tenants.find((t) => t.id === tenantId);
-    if (!tenant) {
-      return;
-    }
-    tenant.sharedLoginUsername = username;
-    tenant.sharedLoginPassword = password;
-    updated = { ...tenant };
-  });
-  return updated;
 }

@@ -6,6 +6,11 @@ export function get<T>(key: string): T | undefined {
   return cache.get<T>(key);
 }
 
-export function set<T>(key: string, value: T): void {
+export function set<T>(key: string, value: T, ttlSeconds?: number): void {
+  if (typeof ttlSeconds === 'number' && Number.isFinite(ttlSeconds) && ttlSeconds > 0) {
+    cache.set(key, value, ttlSeconds);
+    return;
+  }
+
   cache.set(key, value);
 }

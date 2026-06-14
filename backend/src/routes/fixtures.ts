@@ -9,10 +9,9 @@ const BASE = 'https://api.sportmonks.com/v3/football';
 const INCLUDES =
   'fixtures;fixtures.participants;fixtures.scores;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
 const RUNTIME_TEAM_ID_BY_APP_ID: Record<string, number> = {};
-
-function getSportMonksApiKey(): string {
-  return String(process.env.SPORTMONKS_API_KEY || process.env.SPORTMONKS_API_TOKEN || '').trim();
-}
+const LIVE_FIXTURES_CACHE_TTL_SECONDS = 20;
+const MATCH_CACHE_TTL_SECONDS = 20;
+const VENUE_IMAGE_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 /** Canonical World Cup 2026 grouping (must mirror home page TEAM_GROUP_BY_ID). */
 const APP_TEAM_GROUP_BY_ID: Record<string, string> = {
@@ -285,7 +284,7 @@ async function resolveVenueImage(
     try {
       const image = await fetchWikipediaImageForQuery(query);
       if (image) {
-        cache.set(imageCacheKey, image);
+        cache.set(imageCacheKey, image, VENUE_IMAGE_CACHE_TTL_SECONDS);
         return image;
       }
     } catch {
@@ -293,7 +292,7 @@ async function resolveVenueImage(
     }
   }
 
-  cache.set(imageCacheKey, '');
+  cache.set(imageCacheKey, '', VENUE_IMAGE_CACHE_TTL_SECONDS);
   return '';
 }
 
@@ -343,10 +342,9 @@ router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) =>
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = getSportMonksApiKey();
+  const apiKey = process.env.SPORTMONKS_API_KEY;
   if (!apiKey) {
-    console.warn(`[fixtures] missing SPORTMONKS_API_KEY, returning empty fallback for sport team ${sportTeamId}`);
-    return res.json({ data: [], source: 'fallback', warning: 'API key not configured' });
+    return res.status(500).json({ error: 'API key not configured' });
   }
 
   try {
@@ -368,67 +366,11 @@ router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) =>
       })
     );
     if (fixtures.length) {
-      cache.set(cacheKey, fixtures);
+      cache.set(cacheKey, fixtures, LIVE_FIXTURES_CACHE_TTL_SECONDS);
     }
     return res.json({ data: fixtures, source: 'api' });
   } catch (err) {
     console.error('[fixtures by-sportmonks]', err);
-
-    if (isDnsResolutionError(err)) {
-      return res.status(503).json({
-        error:
-          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
-      });
-    }
-
-    return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
-  }
-});
-
-/**
- * GET /api/fixtures/all
- * Returns all fixtures for the 2026 World Cup season.
- */
-router.get('/all', async (req: Request, res: Response) => {
-  const seasonId = process.env.SPORTMONKS_SEASON_ID;
-  const cacheKey = `fixtures:season:${seasonId ?? 'all'}`;
-
-  const cached = cache.get<AppFixture[]>(cacheKey);
-  if (cached) {
-    return res.json({ data: cached, source: 'cache' });
-  }
-
-  const apiKey = getSportMonksApiKey();
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
-
-  try {
-    const seasonIdNum = seasonId ? Number(seasonId) : 26618;
-    const url =
-      `${BASE}/seasons/${seasonIdNum}` +
-      `?api_token=${apiKey}` +
-      `&include=${encodeURIComponent(INCLUDES)}`;
-
-    const body = (await fetchFromSportMonks(url)) as {
-      data?: { fixtures?: SportMonksFixture[] };
-    };
-
-    const allFixtures = body.data?.fixtures ?? [];
-    const fixtures = await attachVenueImages(
-      allFixtures.map((raw) => {
-        const groupLetter = deriveGroupLetterFromFixture(raw);
-        return normaliseFixture(raw, 'all', groupLetter);
-      })
-    );
-
-    if (fixtures.length) {
-      cache.set(cacheKey, fixtures);
-    }
-
-    return res.json({ data: fixtures, source: 'api' });
-  } catch (err) {
-    console.error('[fixtures all]', err);
 
     if (isDnsResolutionError(err)) {
       return res.status(503).json({
@@ -460,10 +402,9 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
     return res.status(404).json({ error: `Unknown team id: ${appTeamId}` });
   }
 
-  const apiKey = getSportMonksApiKey();
+  const apiKey = process.env.SPORTMONKS_API_KEY;
   if (!apiKey) {
-    console.warn(`[fixtures] missing SPORTMONKS_API_KEY, returning empty fallback for ${appTeamId}`);
-    return res.json({ data: [], source: 'fallback', warning: 'API key not configured' });
+    return res.status(500).json({ error: 'API key not configured' });
   }
 
   try {
@@ -507,15 +448,20 @@ router.get('/:appTeamId', async (req: Request, res: Response) => {
       })
     );
     if (fixtures.length) {
-      cache.set(cacheKey, fixtures);
+      cache.set(cacheKey, fixtures, LIVE_FIXTURES_CACHE_TTL_SECONDS);
     }
     return res.json({ data: fixtures, source: 'api' });
   } catch (err) {
     console.error('[fixtures]', err);
-    const warning = isDnsResolutionError(err)
-      ? 'Could not resolve SportMonks host (api.sportmonks.com). Using empty fallback data.'
-      : 'Failed to fetch from SportMonks. Using empty fallback data.';
-    return res.json({ data: [], source: 'fallback', warning });
+
+    if (isDnsResolutionError(err)) {
+      return res.status(503).json({
+        error:
+          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
+      });
+    }
+
+    return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
   }
 });
 
@@ -533,7 +479,7 @@ router.get('/group-stage/all', async (req: Request, res: Response) => {
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = getSportMonksApiKey();
+  const apiKey = process.env.SPORTMONKS_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
@@ -565,7 +511,7 @@ router.get('/group-stage/all', async (req: Request, res: Response) => {
     );
 
     if (fixtures.length) {
-      cache.set(cacheKey, fixtures);
+      cache.set(cacheKey, fixtures, LIVE_FIXTURES_CACHE_TTL_SECONDS);
     }
     return res.json({ data: fixtures, source: 'api' });
   } catch (err) {
@@ -596,7 +542,7 @@ router.get('/match/:matchId', async (req: Request, res: Response) => {
     return res.json({ data: cached, source: 'cache' });
   }
 
-  const apiKey = getSportMonksApiKey();
+  const apiKey = process.env.SPORTMONKS_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
@@ -625,7 +571,7 @@ router.get('/match/:matchId', async (req: Request, res: Response) => {
     const fixture = normaliseFixture(match, 'match-detail', groupLetter);
     const withImage = (await attachVenueImages([fixture]))[0];
 
-    cache.set(cacheKey, withImage);
+    cache.set(cacheKey, withImage, MATCH_CACHE_TTL_SECONDS);
     return res.json({ data: withImage, source: 'api' });
   } catch (err) {
     console.error('[match detail]', err);

@@ -83,12 +83,6 @@ type Friend = {
   name: string;
 };
 
-type FriendPayload = {
-  id: string;
-  name: string;
-  tips: Record<string, MatchTip>;
-};
-
 const MAX_FRIENDS = 25;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'] as const;
 const TEAM_GROUP_BY_ID: Record<string, string> = {
@@ -327,8 +321,6 @@ export default function TeamScreen() {
   const [friendNameInput, setFriendNameInput] = useState('');
   const [friendsModalVisible, setFriendsModalVisible] = useState(false);
   const [expandedFriendIds, setExpandedFriendIds] = useState<Set<string>>(new Set());
-  const [editingFriendId, setEditingFriendId] = useState<string | null>(null);
-  const [editingFriendName, setEditingFriendName] = useState('');
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [trainerName, setTrainerName] = useState<string | null>(null);
@@ -709,35 +701,6 @@ export default function TeamScreen() {
     )}`;
   }, [deviceTimeZone, upcomingMatch]);
 
-  const pendingUpcomingTipMatches = useMemo(() => {
-    const now = Date.now();
-    return schedule
-      .filter((match) => new Date(match.kickoffUtc).getTime() > now)
-      .filter((match) => {
-        const tip = tipsByMatch[match.id];
-        return !tip || tip.home === '' || tip.away === '';
-      })
-      .sort(
-        (a, b) =>
-          new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime()
-      );
-  }, [schedule, tipsByMatch]);
-
-  const pendingUpcomingTipsText = useMemo(() => {
-    if (pendingUpcomingTipMatches.length === 0) {
-      return 'Coming games to tip: all set';
-    }
-
-    const preview = pendingUpcomingTipMatches
-      .slice(0, 2)
-      .map((match) => `${match.homeTeam.name} vs ${match.awayTeam.name}`)
-      .join(' • ');
-    const remaining = pendingUpcomingTipMatches.length - 2;
-    const moreSuffix = remaining > 0 ? ` +${remaining}` : '';
-
-    return `Coming games to tip: ${preview}${moreSuffix}`;
-  }, [pendingUpcomingTipMatches]);
-
   const friendLeaderboard = useMemo(() => {
     if (friends.length === 0 || schedule.length === 0) return [];
     const now = Date.now();
@@ -897,8 +860,23 @@ export default function TeamScreen() {
     [router, team?.id, teamIdByNormalizedName]
   );
 
+  const setTipValue = useCallback(
+    (matchId: string, side: 'home' | 'away', value: string) => {
+      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
+      setTipsByMatch((prev) => ({
+        ...prev,
+        [matchId]: {
+          home: prev[matchId]?.home ?? '',
+          away: prev[matchId]?.away ?? '',
+          [side]: cleaned,
+        },
+      }));
+    },
+    []
+  );
+
   const saveFriendsToBackend = useCallback(
-    async (tipsSnapshot: Record<string, MatchTip>) => {
+    async (nextTipsByMatch: Record<string, MatchTip> = tipsByMatch) => {
       if (!team) {
         return;
       }
@@ -907,33 +885,13 @@ export default function TeamScreen() {
         await apiFetch(`/api/friends/${encodeURIComponent(team.id)}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tips: tipsSnapshot }),
+          body: JSON.stringify({ tips: nextTipsByMatch }),
         });
       } catch (error) {
         console.warn('Failed to persist tips:', error);
       }
     },
-    [team]
-  );
-
-  const setTipValue = useCallback(
-    (matchId: string, side: 'home' | 'away', value: string) => {
-      const cleaned = value.replace(/[^0-9]/g, '').slice(0, 2);
-      setTipsByMatch((prev) => {
-        const next = {
-          ...prev,
-          [matchId]: {
-            home: prev[matchId]?.home ?? '',
-            away: prev[matchId]?.away ?? '',
-            [side]: cleaned,
-          },
-        };
-
-        void saveFriendsToBackend(next);
-        return next;
-      });
-    },
-    [saveFriendsToBackend]
+    [team, tipsByMatch]
   );
 
   const loadFriendsFromWorkspace = useCallback(async () => {
@@ -942,9 +900,19 @@ export default function TeamScreen() {
     }
 
     try {
-      const friendsData = await apiFetch(`/api/friends/${encodeURIComponent(team.id)}`, {
+      const response = await apiFetch(`/api/friends/${encodeURIComponent(team.id)}`, {
         method: 'GET',
       });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load friends: ${response.status}`);
+      }
+
+      const friendsData = (await response.json()) as Array<{
+        id: string;
+        name: string;
+        tips?: Record<string, MatchTip>;
+      }>;
 
       if (Array.isArray(friendsData)) {
         // Extract unique friends
@@ -968,6 +936,10 @@ export default function TeamScreen() {
       console.warn('Failed to load friends from workspace:', error);
     }
   }, [team]);
+
+  const isManualFriendId = useCallback((friendId: string) => {
+    return friendId.startsWith('manual-') || friendId.startsWith('manual_');
+  }, []);
 
   const setFriendTip = useCallback(
     (matchId: string, side: 'home' | 'away', value: string) => {
@@ -1007,11 +979,7 @@ export default function TeamScreen() {
       return;
     }
 
-    if (!team) {
-      return;
-    }
-
-    void (async () => {
+    const createManualFriend = async () => {
       try {
         const created = await apiFetch(`/api/friends/${encodeURIComponent(team.id)}/manual`, {
           method: 'POST',
@@ -1019,127 +987,53 @@ export default function TeamScreen() {
           body: JSON.stringify({ name }),
         });
 
-        const createdFriend: Friend = {
-          id: String(created?.id ?? ''),
-          name: String(created?.name ?? name),
-        };
-
-        if (!createdFriend.id) {
-          throw new Error('Invalid response while creating friend');
+        if (created && typeof created === 'object' && typeof created.id === 'string' && typeof created.name === 'string') {
+          setFriends((prev) => [...prev, { id: created.id, name: created.name }]);
+          setFriendTips((prev) => ({
+            ...prev,
+            [created.id]: (created as { tips?: Record<string, MatchTip> }).tips ?? {},
+          }));
+        } else {
+          void loadFriendsFromWorkspace();
         }
 
-        setFriends((prev) => [...prev, createdFriend].sort((a, b) => a.name.localeCompare(b.name)));
         setFriendNameInput('');
       } catch (error) {
-        console.warn('Failed to add manual friend:', error);
-        Alert.alert('Add failed', 'Could not add friend right now. Please try again.');
+        console.warn('Failed to add friend:', error);
+        Alert.alert('Add friend failed', 'Could not add friend right now.');
       }
-    })();
-  }, [friendNameInput, friends, team]);
+    };
 
-  const startEditingFriend = useCallback((friend: Friend) => {
-    setEditingFriendId(friend.id);
-    setEditingFriendName(friend.name);
-  }, []);
-
-  const cancelEditingFriend = useCallback(() => {
-    setEditingFriendId(null);
-    setEditingFriendName('');
-  }, []);
-
-  const saveFriendName = useCallback(async () => {
-    if (!team || !editingFriendId) {
-      return;
-    }
-
-    if (!editingFriendId.startsWith('manual-')) {
-      Alert.alert('Cannot edit', 'You cannot rename workspace members.');
-      return;
-    }
-
-    const nextName = editingFriendName.trim().slice(0, 24);
-    if (!nextName) {
-      Alert.alert('Invalid name', 'Please enter a friend name.');
-      return;
-    }
-
-    if (
-      friends.some(
-        (friend) =>
-          friend.id !== editingFriendId &&
-          friend.name.trim().toLowerCase() === nextName.toLowerCase()
-      )
-    ) {
-      Alert.alert('Friend exists', `You already have ${nextName} in your friends list.`);
-      return;
-    }
-
-    try {
-      await apiFetch(
-        `/api/friends/${encodeURIComponent(team.id)}/manual/${encodeURIComponent(editingFriendId)}`,
-        {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: nextName }),
-        }
-      );
-
-      setFriends((prev) =>
-        prev
-          .map((friend) => (friend.id === editingFriendId ? { ...friend, name: nextName } : friend))
-          .sort((a, b) => a.name.localeCompare(b.name))
-      );
-      setEditingFriendId(null);
-      setEditingFriendName('');
-    } catch (error) {
-      console.warn('Failed to rename friend:', error);
-      Alert.alert('Rename failed', 'Could not rename friend right now. Please try again.');
-    }
-  }, [editingFriendId, editingFriendName, friends, team]);
+    void createManualFriend();
+  }, [friendNameInput, friends, loadFriendsFromWorkspace, team]);
 
   const removeFriend = useCallback((friendId: string) => {
     // Can only remove manually-added friends (those with id starting with 'manual-')
-    if (!friendId.startsWith('manual-')) {
+    if (!isManualFriendId(friendId)) {
       Alert.alert('Cannot remove', 'You cannot remove workspace members.');
       return;
     }
 
-    if (!team) {
-      return;
-    }
+    const deleteManualFriend = async () => {
+      try {
+        await apiFetch(`/api/friends/${encodeURIComponent(team.id)}/manual/${encodeURIComponent(friendId)}`, {
+          method: 'DELETE',
+        });
 
-    Alert.alert('Delete friend', 'Do you really want to delete this friend?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await apiFetch(
-                `/api/friends/${encodeURIComponent(team.id)}/manual/${encodeURIComponent(friendId)}`,
-                { method: 'DELETE' }
-              );
+        setFriends((prev) => prev.filter((friend) => friend.id !== friendId));
+        setFriendTips((prevTips) => {
+          const nextTips = { ...prevTips };
+          delete nextTips[friendId];
+          return nextTips;
+        });
+      } catch (error) {
+        console.warn('Failed to remove friend:', error);
+        Alert.alert('Remove friend failed', 'Could not remove friend right now.');
+      }
+    };
 
-              setFriends((prev) => prev.filter((friend) => friend.id !== friendId));
-              setFriendTips((prevTips) => {
-                const nextTips = { ...prevTips };
-                delete nextTips[friendId];
-                return nextTips;
-              });
-              if (editingFriendId === friendId) {
-                setEditingFriendId(null);
-                setEditingFriendName('');
-              }
-            } catch (error) {
-              console.warn('Failed to delete friend:', error);
-              Alert.alert('Delete failed', 'Could not delete friend right now. Please try again.');
-            }
-          })();
-        },
-      },
-    ]);
-  }, [editingFriendId, team]);
+    void deleteManualFriend();
+  }, [isManualFriendId, team]);
 
   const requestRoarToDevice = useCallback(() => {
     play();
@@ -1523,12 +1417,7 @@ export default function TeamScreen() {
                     style={[styles.friendsHeaderButton, isSmallMobile ? styles.friendsHeaderButtonCompact : null]}
                     onPress={() => setFriendsModalVisible(true)}
                   >
-                    <View style={styles.friendsLabelRow}>
-                      <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
-                      <View style={styles.friendsPendingBadge}>
-                        <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
-                      </View>
-                    </View>
+                    <Text style={[styles.friendsHeaderButtonText, isSmallMobile ? styles.friendsHeaderButtonTextCompact : null]}>Friends</Text>
                   </TouchableOpacity>
                 )}
                 <Pressable
@@ -1851,12 +1740,7 @@ export default function TeamScreen() {
               {!(isDesktopWeb || isUltraWideWeb) && (
                 <>
                   <TouchableOpacity style={styles.friendsMobileOpenBtn} onPress={() => setFriendsModalVisible(true)}>
-                    <View style={styles.friendsLabelRow}>
-                      <Text style={styles.friendsMobileOpenBtnText}>Friends</Text>
-                      <View style={styles.friendsPendingBadge}>
-                        <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
-                      </View>
-                    </View>
+                    <Text style={styles.friendsMobileOpenBtnText}>Friends</Text>
                   </TouchableOpacity>
                   <Modal
                     visible={friendsModalVisible}
@@ -1867,17 +1751,11 @@ export default function TeamScreen() {
                     <View style={styles.friendsModalBackdrop}>
                       <View style={styles.friendsModalPanel}>
                         <View style={styles.friendsModalHeader}>
-                          <View style={styles.friendsLabelRow}>
-                            <Text style={styles.friendsPanelTitle}>Friends</Text>
-                            <View style={styles.friendsPendingBadge}>
-                              <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
-                            </View>
-                          </View>
+                          <Text style={styles.friendsPanelTitle}>Friends</Text>
                           <TouchableOpacity onPress={() => setFriendsModalVisible(false)}>
                             <Text style={styles.friendRemoveBtnText}>x</Text>
                           </TouchableOpacity>
                         </View>
-                        <Text style={styles.friendsPendingHint}>{pendingUpcomingTipsText}</Text>
                         <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} members & friends</Text>
                         <View style={styles.friendsAddRow}>
                           <TextInput
@@ -1926,58 +1804,22 @@ export default function TeamScreen() {
                           {friends.map((friend) => {
                             const isExpanded = expandedFriendIds.has(friend.id);
                             const friendTipsForUser = friendTips[friend.id] || {};
-                            const isManualFriend = friend.id.startsWith('manual-');
-                            const isEditingFriend = editingFriendId === friend.id;
                             return (
                               <View key={friend.id} style={styles.friendCard}>
-                                <View style={styles.friendCardHeader}>
-                                  <TouchableOpacity
-                                    onPress={() => {
-                                      if (!isEditingFriend) {
-                                        toggleFriendExpanded(friend.id);
-                                      }
-                                    }}
-                                    style={styles.friendCardHeaderButton}
-                                  >
+                                <TouchableOpacity
+                                  onPress={() => toggleFriendExpanded(friend.id)}
+                                  style={styles.friendCardHeaderButton}
+                                >
+                                  <View style={styles.friendCardHeader}>
                                     <View style={styles.friendNameWithChevron}>
                                       <Text style={styles.friendNameChevron}>{isExpanded ? '▼' : '▶'}</Text>
-                                      {isEditingFriend ? (
-                                        <TextInput
-                                          style={styles.friendNameEditInput}
-                                          value={editingFriendName}
-                                          onChangeText={setEditingFriendName}
-                                          maxLength={24}
-                                          autoFocus
-                                        />
-                                      ) : (
-                                        <Text style={styles.friendName}>{friend.name}</Text>
-                                      )}
+                                      <Text style={styles.friendName}>{friend.name}</Text>
                                     </View>
-                                  </TouchableOpacity>
-                                  {isManualFriend ? (
-                                    <View style={styles.friendActionsRow}>
-                                      {isEditingFriend ? (
-                                        <>
-                                          <TouchableOpacity style={styles.friendSaveBtn} onPress={() => void saveFriendName()}>
-                                            <Text style={styles.friendActionBtnText}>Save</Text>
-                                          </TouchableOpacity>
-                                          <TouchableOpacity style={styles.friendCancelBtn} onPress={cancelEditingFriend}>
-                                            <Text style={styles.friendActionBtnText}>Cancel</Text>
-                                          </TouchableOpacity>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <TouchableOpacity style={styles.friendEditBtn} onPress={() => startEditingFriend(friend)}>
-                                            <Text style={styles.friendActionBtnText}>Edit</Text>
-                                          </TouchableOpacity>
-                                          <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
-                                            <Text style={styles.friendActionBtnText}>Delete</Text>
-                                          </TouchableOpacity>
-                                        </>
-                                      )}
-                                    </View>
-                                  ) : null}
-                                </View>
+                                    <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
+                                      <Text style={styles.friendRemoveBtnText}>x</Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </TouchableOpacity>
                                 {isExpanded && schedule.length > 0 && (
                                   <View style={styles.friendTipsExpandedContainer}>
                                     <View style={styles.friendTipsComparisonHeader}>
@@ -2205,14 +2047,12 @@ export default function TeamScreen() {
                             trainerName={trainerName}
                           />
                         </View>
-                        <View style={[styles.friendsPanel, styles.friendsPanelDesktop]}>
-                          <View style={styles.friendsPanelHeaderRow}>
-                            <Text style={styles.friendsPanelTitle}>Friends</Text>
-                            <View style={styles.friendsPendingBadge}>
-                              <Text style={styles.friendsPendingBadgeText}>{pendingUpcomingTipMatches.length}</Text>
-                            </View>
-                          </View>
-                          <Text style={styles.friendsPendingHint}>{pendingUpcomingTipsText}</Text>
+                        <ScrollView
+                          style={[styles.friendsPanel, styles.friendsPanelDesktop]}
+                          contentContainerStyle={styles.friendsPanelDesktopContent}
+                          showsVerticalScrollIndicator={false}
+                        >
+                          <Text style={styles.friendsPanelTitle}>Friends</Text>
                           <Text style={styles.friendsLimitText}>{friends.length}/{MAX_FRIENDS} members & friends</Text>
                           <View style={styles.friendsAddRow}>
                             <TextInput
@@ -2260,58 +2100,22 @@ export default function TeamScreen() {
                           {friends.map((friend) => {
                             const isExpanded = expandedFriendIds.has(friend.id);
                             const friendTipsForUser = friendTips[friend.id] || {};
-                            const isManualFriend = friend.id.startsWith('manual-');
-                            const isEditingFriend = editingFriendId === friend.id;
                             return (
                               <View key={friend.id} style={styles.friendCard}>
-                                <View style={styles.friendCardHeader}>
-                                  <TouchableOpacity
-                                    onPress={() => {
-                                      if (!isEditingFriend) {
-                                        toggleFriendExpanded(friend.id);
-                                      }
-                                    }}
-                                    style={styles.friendCardHeaderButton}
-                                  >
+                                <TouchableOpacity
+                                  onPress={() => toggleFriendExpanded(friend.id)}
+                                  style={styles.friendCardHeaderButton}
+                                >
+                                  <View style={styles.friendCardHeader}>
                                     <View style={styles.friendNameWithChevron}>
                                       <Text style={styles.friendNameChevron}>{isExpanded ? '▼' : '▶'}</Text>
-                                      {isEditingFriend ? (
-                                        <TextInput
-                                          style={styles.friendNameEditInput}
-                                          value={editingFriendName}
-                                          onChangeText={setEditingFriendName}
-                                          maxLength={24}
-                                          autoFocus
-                                        />
-                                      ) : (
-                                        <Text style={styles.friendName}>{friend.name}</Text>
-                                      )}
+                                      <Text style={styles.friendName}>{friend.name}</Text>
                                     </View>
-                                  </TouchableOpacity>
-                                  {isManualFriend ? (
-                                    <View style={styles.friendActionsRow}>
-                                      {isEditingFriend ? (
-                                        <>
-                                          <TouchableOpacity style={styles.friendSaveBtn} onPress={() => void saveFriendName()}>
-                                            <Text style={styles.friendActionBtnText}>Save</Text>
-                                          </TouchableOpacity>
-                                          <TouchableOpacity style={styles.friendCancelBtn} onPress={cancelEditingFriend}>
-                                            <Text style={styles.friendActionBtnText}>Cancel</Text>
-                                          </TouchableOpacity>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <TouchableOpacity style={styles.friendEditBtn} onPress={() => startEditingFriend(friend)}>
-                                            <Text style={styles.friendActionBtnText}>Edit</Text>
-                                          </TouchableOpacity>
-                                          <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
-                                            <Text style={styles.friendActionBtnText}>Delete</Text>
-                                          </TouchableOpacity>
-                                        </>
-                                      )}
-                                    </View>
-                                  ) : null}
-                                </View>
+                                    <TouchableOpacity style={styles.friendRemoveBtn} onPress={() => removeFriend(friend.id)}>
+                                      <Text style={styles.friendRemoveBtnText}>x</Text>
+                                    </TouchableOpacity>
+                                  </View>
+                                </TouchableOpacity>
                                 {isExpanded && schedule.length > 0 && (
                                   <View style={styles.friendTipsExpandedContainer}>
                                     <View style={styles.friendTipsComparisonHeader}>
@@ -2374,7 +2178,7 @@ export default function TeamScreen() {
                               </View>
                             );
                           })}
-                        </View>
+                        </ScrollView>
                       </View>
                       <TournamentStages groupStageData={groupStageDiagramData} />
                     </View>
@@ -3041,27 +2845,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.3,
   },
-  friendsLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  friendsPendingBadge: {
-    minWidth: 22,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#7edb86',
-    backgroundColor: 'rgba(126, 219, 134, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  friendsPendingBadgeText: {
-    color: '#d4f5d7',
-    fontSize: 11,
-    fontWeight: '800',
-  },
   roarSwitchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3490,25 +3273,15 @@ const styles = StyleSheet.create({
     maxHeight: 500,
     alignSelf: 'stretch',
   },
+  friendsPanelDesktopContent: {
+    flexGrow: 1,
+  },
   friendsPanelTitle: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5,
     marginBottom: 12,
-  },
-  friendsPanelHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  friendsPendingHint: {
-    color: '#b9e6bd',
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: -4,
-    marginBottom: 8,
   },
   friendsAddRow: {
     flexDirection: 'row',
@@ -3561,15 +3334,12 @@ const styles = StyleSheet.create({
   },
   friendCardHeaderButton: {
     padding: 0,
-    flex: 1,
-    minWidth: 0,
   },
   friendCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 6,
-    gap: 8,
   },
   friendNameWithChevron: {
     flexDirection: 'row',
@@ -3589,49 +3359,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     minWidth: 0,
-  },
-  friendNameEditInput: {
-    flex: 1,
-    minWidth: 0,
-    height: 34,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#3a5040',
-    backgroundColor: '#111713',
-    color: '#fff',
-    paddingHorizontal: 8,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  friendActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginLeft: 6,
-  },
-  friendEditBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#296f8a',
-  },
-  friendSaveBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#2e7d32',
-  },
-  friendCancelBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: '#626b62',
-  },
-  friendActionBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 11,
-    lineHeight: 14,
   },
   friendTipsExpandedContainer: {
     borderTopWidth: 1,
@@ -3680,10 +3407,11 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   friendRemoveBtn: {
+    marginLeft: 8,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: '#8f2f2f',
+    backgroundColor: '#2e7d32',
   },
   friendRemoveBtnText: {
     color: '#fff',

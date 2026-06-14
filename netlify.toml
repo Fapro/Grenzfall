@@ -1,14 +1,10 @@
 [build]
-  base = "frontend"
-  command = "npm run build"
-  publish = "build"
-
-[build.environment]
-  REACT_APP_API_URL = "https://grenzfall.onrender.com/api"
+  command = "npm run build:web"
+  publish = "dist"
 
 [[redirects]]
   from = "/api/*"
-  to = "https://grenzfall.onrender.com/api/:splat"
+  to = "https://rooar-backend.onrender.com/api/:splat"
   status = 200
   force = true
 

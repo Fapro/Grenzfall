@@ -3,9 +3,6 @@
 # dependencies
 node_modules/
 
-# Frontend build output (Netlify builds this automatically)
-frontend/build/
-
 # Expo
 .expo/
 dist/
@@ -42,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# local backup of old repository metadata
+.git.grenzfall-backup/
