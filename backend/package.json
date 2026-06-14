@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
     "restart:clean": "bash ./scripts/restart-backend.sh",
+    "restart:port": "powershell -ExecutionPolicy Bypass -File ./restart-backend.ps1",
     "build": "tsc",
     "start": "node dist/index.js"
   },
