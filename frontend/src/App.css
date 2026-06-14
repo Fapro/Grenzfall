@@ -1695,9 +1695,26 @@ body {
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    place-items: start center;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
   .auth-card {
     padding: 18px;
     border-radius: 14px;
+  }
+
+  .auth-card.auth-card-wide {
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+  }
+
+  .session-panel.full-width {
+    height: auto;
+    overflow: visible;
   }
 
   .group-rail {
