@@ -13,7 +13,7 @@ const router = Router();
 
 const PRESET_FRIEND_NAMES = [
   'Miss Money Penny',
-  'Farsi',
+  'Fasi',
   'Farrukh',
   'Sabine',
   'Christines',

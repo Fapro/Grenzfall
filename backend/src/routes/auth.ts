@@ -11,7 +11,6 @@ import {
 } from '../multitenant/store';
 import {
   hashPassword,
-  isValidEmail,
   normalizeEmail,
   randomId,
   randomToken,
@@ -23,96 +22,113 @@ import { requireAuth } from '../middleware/tenant';
 
 const router = Router();
 
-function sanitizeUser(user: { id: string; email: string; name: string }) {
-  return { id: user.id, email: user.email, name: user.name };
+const SHARED_LOGIN_PREFIX = 'win2026%';
+
+function sanitizeUser(user: { id: string; email: string; name: string; username?: string }) {
+  return { id: user.id, email: user.email, name: user.name, username: user.username };
 }
 
-function resolveLoginEmail(rawIdentifier: string): string {
+function buildSharedLoginUsername(slug: string): string {
+  return `${SHARED_LOGIN_PREFIX}${slug}`;
+}
+
+function buildSharedLoginEmail(slug: string): string {
+  return `${slug}@win2026.local`;
+}
+
+function generateSharedPassword(length = 10): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = randomToken();
+  let password = '';
+  for (let i = 0; i < length; i += 1) {
+    const pair = bytes.slice(i * 2, i * 2 + 2);
+    const value = Number.parseInt(pair || '00', 16);
+    password += alphabet[value % alphabet.length];
+  }
+  return password;
+}
+
+function resolveLoginEmailCandidates(rawIdentifier: string): string[] {
   const normalized = normalizeEmail(rawIdentifier);
   if (!normalized) {
-    return '';
+    return [];
   }
 
-  // Support legacy shared-login usernames like "wm2026%bonnei-cup".
-  if (!normalized.includes('@')) {
-    const sharedMatch = /^wm2026%([a-z0-9-]+)$/.exec(normalized);
-    if (sharedMatch?.[1]) {
-      return `${sharedMatch[1]}@wm2026.local`;
-    }
+  if (normalized.includes('@')) {
+    return [normalized];
   }
 
-  return normalized;
+  // Support both current and legacy shared-login usernames.
+  const sharedMatch = /^(win2026|wm2026)%([a-z0-9-]+)$/.exec(normalized);
+  if (sharedMatch?.[2]) {
+    const slug = sharedMatch[2];
+    return [`${slug}@win2026.local`, `${slug}@wm2026.local`];
+  }
+
+  return [normalized];
 }
 
 router.post('/signup', async (req: Request, res: Response) => {
-  const emailRaw = String(req.body?.email ?? '');
   const nameRaw = String(req.body?.name ?? '');
-  const password = String(req.body?.password ?? '');
   const workspaceNameRaw = String(req.body?.workspaceName ?? '').trim();
   const workspaceSlugInput = String(req.body?.workspaceSlug ?? workspaceNameRaw);
 
-  const email = normalizeEmail(emailRaw);
   const name = nameRaw.trim();
-  if (!isValidEmail(email)) {
-    res.status(400).json({ error: 'Valid email is required' });
-    return;
-  }
   if (!name || name.length < 2) {
     res.status(400).json({ error: 'Name is required' });
     return;
   }
-  if (!password || password.length < 8) {
-    res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+  if (!workspaceNameRaw) {
+    res.status(400).json({ error: 'Workspace name is required' });
     return;
   }
 
-  if (findUserByEmail(email)) {
-    res.status(409).json({ error: 'Email already registered' });
+  const slugResult = validateWorkspaceSlug(workspaceSlugInput);
+  if (!slugResult.ok) {
+    res.status(400).json({ error: slugResult.error });
+    return;
+  }
+  if (findTenantBySlug(slugResult.slug)) {
+    res.status(409).json({ error: 'Workspace slug is already taken' });
     return;
   }
 
-  let createdTenant = null;
-  let tenantMembership = null;
+  const sharedLoginUsername = buildSharedLoginUsername(slugResult.slug);
+  const generatedPassword = generateSharedPassword();
+  const sharedLoginEmail = buildSharedLoginEmail(slugResult.slug);
 
-  if (workspaceNameRaw) {
-    const slugResult = validateWorkspaceSlug(workspaceSlugInput);
-    if (!slugResult.ok) {
-      res.status(400).json({ error: slugResult.error });
-      return;
-    }
-    if (findTenantBySlug(slugResult.slug)) {
-      res.status(409).json({ error: 'Workspace slug is already taken' });
-      return;
-    }
-
-    createdTenant = {
-      id: randomId('ten'),
-      slug: slugResult.slug,
-      name: workspaceNameRaw,
-      ownerUserId: '',
-      createdAt: new Date().toISOString(),
-    };
+  if (findUserByEmail(sharedLoginEmail)) {
+    res.status(409).json({ error: 'A shared login for this workspace already exists' });
+    return;
   }
 
   const user = addUser({
     id: randomId('usr'),
-    email,
+    username: sharedLoginUsername,
+    email: sharedLoginEmail,
     name,
-    passwordHash: await hashPassword(password),
+    passwordHash: await hashPassword(generatedPassword),
     createdAt: new Date().toISOString(),
   });
 
-  if (createdTenant) {
-    createdTenant.ownerUserId = user.id;
-    addTenant(createdTenant);
-    tenantMembership = addTenantMember({
-      id: randomId('mem'),
-      tenantId: createdTenant.id,
-      userId: user.id,
-      role: 'owner',
-      createdAt: new Date().toISOString(),
-    });
-  }
+  const createdTenant = addTenant({
+    id: randomId('ten'),
+    slug: slugResult.slug,
+    name: workspaceNameRaw,
+    ownerUserId: user.id,
+    sharedLoginUsername,
+    sharedLoginPassword: generatedPassword,
+    createdAt: new Date().toISOString(),
+  });
+
+  const tenantMembership = addTenantMember({
+    id: randomId('mem'),
+    tenantId: createdTenant.id,
+    userId: user.id,
+    role: 'owner',
+    createdAt: new Date().toISOString(),
+  });
 
   const token = randomToken();
   createSession({
@@ -127,14 +143,21 @@ router.post('/signup', async (req: Request, res: Response) => {
     user: sanitizeUser(user),
     tenant: createdTenant,
     membership: tenantMembership,
+    generatedCredentials: {
+      username: sharedLoginUsername,
+      password: generatedPassword,
+    },
   });
 });
 
 router.post('/login', async (req: Request, res: Response) => {
-  const email = resolveLoginEmail(String(req.body?.email ?? req.body?.username ?? ''));
+  const emailCandidates = resolveLoginEmailCandidates(String(req.body?.email ?? req.body?.username ?? ''));
   const password = String(req.body?.password ?? '');
 
-  const user = findUserByEmail(email);
+  const user = emailCandidates
+    .map((candidate) => findUserByEmail(candidate))
+    .find((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
+
   if (!user) {
     res.status(401).json({ error: 'Invalid credentials' });
     return;

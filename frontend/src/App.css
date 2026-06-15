@@ -1352,6 +1352,35 @@ body {
   letter-spacing: 0.04em;
 }
 
+.points-tip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.points-tip-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.points-tip-match {
+  color: #cfe6d1;
+  font-size: 0.75rem;
+}
+
+.points-tip-score {
+  color: #e7f4e8;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.points-tip-more {
+  color: #9fb9a2;
+  font-size: 0.73rem;
+}
+
 .tip-form {
   display: grid;
   grid-template-columns: 1.2fr 0.65fr 0.65fr auto;
@@ -1786,4 +1815,88 @@ body {
   .fixture-meta-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* FIFA World Cup 2026 Tournament Structure */
+.tournament-structure-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tournament-phases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.tournament-phase-box {
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.3), rgba(76, 175, 80, 0.1));
+  border: 2px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 14px 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.25s ease;
+  font-family: "Segoe UI", sans-serif;
+  color: var(--text-main);
+}
+
+.tournament-phase-box:hover {
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.5), rgba(76, 175, 80, 0.2));
+  border-color: var(--accent-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.phase-box-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.phase-box-teams {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.phase-box-matches {
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.tournament-info-box {
+  background: rgba(14, 23, 17, 0.6);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.info-section {
+  color: var(--text-main);
+}
+
+.info-section strong {
+  color: var(--accent-strong);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.info-section ul {
+  margin: 0;
+  padding-left: 16px;
+  list-style: none;
+}
+
+.info-section li {
+  margin: 4px 0;
+  color: var(--text-soft);
 }

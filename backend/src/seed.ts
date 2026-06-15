@@ -19,14 +19,12 @@ import {
   addTenant,
   addTenantMember,
   updateDb,
-  updateTenantSharedCredentials,
-  getDb,
 } from './multitenant/store';
 import { hashPassword, randomId } from './multitenant/auth';
 
 function buildSharedUsername(slug: string): string {
   const withoutPrefix = slug.startsWith('wm2026-') ? slug.slice('wm2026-'.length) : slug;
-  return `wm2026%${withoutPrefix || slug}`;
+  return `win2026%${withoutPrefix || slug}`;
 }
 
 export async function runSeed(): Promise<void> {
@@ -67,7 +65,7 @@ export async function runSeed(): Promise<void> {
             state.users.push({
               id: randomId('usr'),
               username: sharedUsername,
-              email: `${slug}@wm2026.local`,
+              email: `${slug}@win2026.local`,
               name,
               passwordHash: newHash,
               createdAt: new Date().toISOString(),
@@ -96,7 +94,7 @@ export async function runSeed(): Promise<void> {
   const user = addUser({
     id: userId,
     username: sharedUsername,
-    email: `${slug}@wm2026.local`,
+    email: `${slug}@win2026.local`,
     name,
     passwordHash,
     createdAt: new Date().toISOString(),

@@ -22,11 +22,16 @@ type AuthPayload = {
   user: {
     id: string;
     email: string;
+    username?: string;
     name: string;
   };
   tenant?: SessionTenant | null;
   membership?: SessionMembership | null;
   tenants?: SessionTenant[];
+  generatedCredentials?: {
+    username: string;
+    password: string;
+  };
 };
 
 type MePayload = {
@@ -43,7 +48,7 @@ export default function HomeScreen() {
   const [session, setLocalSession] = useState<AppSession | null>(getSession());
   const [mode, setMode] = useState<AuthMode>('login');
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [workspaceName, setWorkspaceName] = useState('');
@@ -90,13 +95,11 @@ export default function HomeScreen() {
       const payload =
         mode === 'login'
           ? {
-              email,
+              username,
               password,
             }
           : {
-              email,
               name,
-              password,
               workspaceName,
               workspaceSlug,
             };
@@ -115,6 +118,13 @@ export default function HomeScreen() {
 
       await setSessionFromAuth(json);
       setPassword('');
+
+      if (mode === 'signup' && json.generatedCredentials) {
+        Alert.alert(
+          'Workspace login created',
+          `Login: ${json.generatedCredentials.username}\nPassword: ${json.generatedCredentials.password}`
+        );
+      }
     } catch (error) {
       Alert.alert('Auth error', error instanceof Error ? error.message : 'Authentication failed');
     } finally {
@@ -145,6 +155,7 @@ export default function HomeScreen() {
         <ScrollView contentContainerStyle={styles.authWrap}>
           <Text style={styles.title}>ROOAR Workspace</Text>
           <Text style={styles.subtitle}>Create your own World Cup tipping league</Text>
+          <Text style={styles.inlineNote}>Shared login format: win2026%your-workspace</Text>
 
           <View style={styles.modeRow}>
             <TouchableOpacity
@@ -161,15 +172,16 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="E-mail address"
-            placeholderTextColor="#9bb59e"
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+          {mode === 'login' ? (
+            <TextInput
+              style={styles.input}
+              value={username}
+              onChangeText={setUsername}
+              placeholder="Login (e.g. win2026%bonnei-cup)"
+              placeholderTextColor="#9bb59e"
+              autoCapitalize="none"
+            />
+          ) : null}
           {mode === 'signup' ? (
             <TextInput
               style={styles.input}
@@ -179,14 +191,16 @@ export default function HomeScreen() {
               placeholderTextColor="#9bb59e"
             />
           ) : null}
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Password"
-            placeholderTextColor="#9bb59e"
-            secureTextEntry
-          />
+          {mode === 'login' ? (
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor="#9bb59e"
+              secureTextEntry
+            />
+          ) : null}
 
           {mode === 'signup' ? (
             <>
@@ -206,6 +220,10 @@ export default function HomeScreen() {
                 autoCapitalize="none"
               />
             </>
+          ) : null}
+
+          {mode === 'signup' ? (
+            <Text style={styles.inlineNote}>After creating the workspace, login and password are generated automatically.</Text>
           ) : null}
 
           <TouchableOpacity style={[styles.authButton, loading ? styles.authButtonDisabled : null]} onPress={runAuth} disabled={loading}>
@@ -273,6 +291,11 @@ const styles = StyleSheet.create({
     color: '#a9d7ae',
     fontSize: 14,
     marginBottom: 10,
+  },
+  inlineNote: {
+    color: '#9ec7a1',
+    fontSize: 12,
+    marginBottom: 6,
   },
   modeRow: {
     flexDirection: 'row',

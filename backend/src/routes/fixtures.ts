@@ -229,6 +229,57 @@ async function fetchTeamFixtures(teamId: number, apiKey: string): Promise<SportM
   return body.data?.fixtures ?? [];
 }
 
+function extractTeamFormation(raw: SportMonksFixture, sportMonksTeamId: number): string {
+  const participantFormation = raw.participants
+    ?.find((p) => Number(p.id) === Number(sportMonksTeamId))
+    ?.meta?.formation;
+  if (participantFormation) {
+    return String(participantFormation).trim();
+  }
+
+  const lineupFormation = raw.lineups
+    ?.find((entry) => {
+      const participantId = Number(entry?.participant_id ?? 0);
+      const teamId = Number(entry?.team_id ?? 0);
+      return participantId === Number(sportMonksTeamId) || teamId === Number(sportMonksTeamId);
+    })
+    ?.formation;
+
+  if (lineupFormation) {
+    return String(lineupFormation).trim();
+  }
+
+  const starters = (raw.lineups ?? []).filter((entry) => {
+    const participantId = Number(entry?.participant_id ?? 0);
+    const teamId = Number(entry?.team_id ?? 0);
+    return (participantId === Number(sportMonksTeamId) || teamId === Number(sportMonksTeamId))
+      && Number(entry?.type_id ?? 0) === 11;
+  });
+
+  if (starters.length >= 10) {
+    let defenders = starters.filter((entry) => Number(entry?.position_id ?? 0) === 25).length;
+    let midfielders = starters.filter((entry) => Number(entry?.position_id ?? 0) === 26).length;
+    let attackers = starters.filter((entry) => Number(entry?.position_id ?? 0) === 27).length;
+
+    if (defenders + midfielders + attackers < 8) {
+      defenders = 4;
+      midfielders = 3;
+      attackers = 3;
+    } else {
+      const outfieldKnown = defenders + midfielders + attackers;
+      const remaining = Math.max(0, 10 - outfieldKnown);
+      midfielders += remaining;
+      if (defenders <= 0) defenders = 4;
+      if (midfielders <= 0) midfielders = 3;
+      if (attackers <= 0) attackers = Math.max(1, 10 - defenders - midfielders);
+    }
+
+    return `${defenders}-${midfielders}-${attackers}`;
+  }
+
+  return '';
+}
+
 function normalizeVenueToken(value: string): string {
   return value
     .normalize('NFD')
@@ -439,6 +490,96 @@ router.get('/all', async (_req: Request, res: Response) => {
     }
 
     return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
+  }
+});
+
+/**
+ * GET /api/fixtures/formation/:appTeamId
+ * Returns latest known team formation for the selected national team.
+ */
+router.get('/formation/:appTeamId', async (req: Request, res: Response) => {
+  const appTeamId = String(req.params.appTeamId);
+  const seasonId = process.env.SPORTMONKS_SEASON_ID;
+  const cacheKey = `formation:${appTeamId}:${seasonId ?? 'all'}`;
+
+  const cached = cache.get<Array<{ fixtureId: string; formation: string; stage: string; round: string; kickoffUtc: string }>>(cacheKey);
+  if (cached) {
+    return res.json({ data: cached, source: 'cache' });
+  }
+
+  const appTeamName = APP_TEAM_NAME[appTeamId];
+  if (!appTeamName) {
+    return res.status(404).json({ error: `Unknown team id: ${appTeamId}` });
+  }
+
+  const apiKey = process.env.SPORTMONKS_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  try {
+    let sportMonksId =
+      RUNTIME_TEAM_ID_BY_APP_ID[appTeamId] ?? APP_TO_SPORTMONKS_TEAM_ID[appTeamId];
+
+    if (!sportMonksId) {
+      const resolvedId = await resolveTeamIdByName(appTeamName, apiKey);
+      if (!resolvedId) {
+        return res.status(404).json({ error: `No SportMonks team found for ${appTeamId}` });
+      }
+      sportMonksId = resolvedId;
+      RUNTIME_TEAM_ID_BY_APP_ID[appTeamId] = resolvedId;
+    }
+
+    let rawFixtures = await fetchTeamFixtures(sportMonksId, apiKey);
+
+    if (!rawFixtures.length) {
+      const resolvedId = await resolveTeamIdByName(appTeamName, apiKey);
+      if (resolvedId && resolvedId !== sportMonksId) {
+        sportMonksId = resolvedId;
+        RUNTIME_TEAM_ID_BY_APP_ID[appTeamId] = resolvedId;
+        rawFixtures = await fetchTeamFixtures(sportMonksId, apiKey);
+      }
+    }
+
+    const seasonIdNum = seasonId ? Number(seasonId) : null;
+    const filteredBySeason =
+      seasonIdNum && !Number.isNaN(seasonIdNum)
+        ? rawFixtures.filter((raw) => raw.season_id === seasonIdNum)
+        : rawFixtures;
+
+    const fixtures = (filteredBySeason.length ? filteredBySeason : rawFixtures)
+      .slice()
+      .sort((a, b) => new Date(b.starting_at).getTime() - new Date(a.starting_at).getTime());
+
+    const formationRows = fixtures
+      .map((raw) => {
+        const formation = extractTeamFormation(raw, sportMonksId);
+        if (!formation) {
+          return null;
+        }
+        return {
+          fixtureId: String(raw.id),
+          formation,
+          stage: String(raw.stage?.name ?? ''),
+          round: String(raw.round?.name ?? ''),
+          kickoffUtc: String(raw.starting_at ?? ''),
+        };
+      })
+      .filter((row): row is { fixtureId: string; formation: string; stage: string; round: string; kickoffUtc: string } => Boolean(row));
+
+    cache.set(cacheKey, formationRows, LIVE_FIXTURES_CACHE_TTL_SECONDS);
+    return res.json({ data: formationRows, source: 'api' });
+  } catch (err) {
+    console.error('[fixtures formation]', err);
+
+    if (isDnsResolutionError(err)) {
+      return res.status(503).json({
+        error:
+          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
+      });
+    }
+
+    return res.status(502).json({ error: 'Failed to fetch formation from SportMonks' });
   }
 });
 

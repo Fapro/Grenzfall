@@ -413,6 +413,7 @@ function App() {
   const [tips, setTips] = useState([]);
   const [friendName, setFriendName] = useState('');
   const [workspaceLogin, setWorkspaceLogin] = useState(null);
+  const [workspaceLoginCopied, setWorkspaceLoginCopied] = useState(false);
   const [currentWorkspaceRole, setCurrentWorkspaceRole] = useState(null);
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [resetPasswordError, setResetPasswordError] = useState('');
@@ -423,7 +424,9 @@ function App() {
   const [squadLoading, setSquadLoading] = useState(false);
   const [squadError, setSquadError] = useState('');
   const [showSquadPanel, setShowSquadPanel] = useState(false);
+    const [showTeamFormationPanel, setShowTeamFormationPanel] = useState(false);
   const [showNextPhasePanel, setShowNextPhasePanel] = useState(false);
+  const [showNextPhaseDetailsPanel, setShowNextPhaseDetailsPanel] = useState(false);
   const [showRoarPanel, setShowRoarPanel] = useState(() => localStorage.getItem(ROAR_PANEL_STORAGE_KEY) === 'true');
   const [roarVolume, setRoarVolume] = useState(() => {
     const stored = Number(localStorage.getItem(ROAR_VOLUME_STORAGE_KEY));
@@ -478,7 +481,7 @@ function App() {
   const text = useMemo(() => {
     if (language === 'en') {
       return {
-        appSubtitle: 'Simple group tip game with shared login and manual friend list.',
+        appSubtitle: 'Simple group tip game with shared login and manual members list.',
         tickerLabel: 'RSS Live Ticker',
         sessionTitle: 'ROOAR World Cup 2026',
         sessionSubtitle: 'Select your team and hear the ROOAR.',
@@ -489,7 +492,7 @@ function App() {
         loginLabel: 'Login',
         yourTeam: 'Your Team',
         noTeamSelected: 'No team selected yet',
-        sharedLoginLoading: 'Shared friends login is loading...',
+        sharedLoginLoading: 'Shared login is loading...',
         resetPassword: 'Reset password',
         resetPasswordTitle: 'Generate a new password for the shared group login',
         addFriendsTitle: 'Add friends',
@@ -504,10 +507,10 @@ function App() {
         labelGroupName: 'Group name',
         groupPlaceholder: 'e.g. Team Friends',
         labelUsername: 'Username',
-        usernamePlaceholder: 'e.g. wm2026%team-friends',
+        usernamePlaceholder: 'e.g. win2026%team-friends',
         labelPassword: 'Password',
         passwordPlaceholder: 'Password',
-        registerHint: 'After registration, a shared friends login is generated automatically: ',
+        registerHint: 'After registration, a shared login is generated automatically: ',
         squadTitle: 'Team',
         squadLoading: 'Loading team from Sportmonks...',
         noSquadData: 'No team data found.',
@@ -520,7 +523,7 @@ function App() {
     }
 
     return {
-      appSubtitle: 'Einfaches Gruppen-Tippspiel mit gemeinsamem Login und manueller Freundeliste.',
+      appSubtitle: 'Einfaches Gruppen-Tippspiel mit gemeinsamem Login und manueller Mitgliederliste.',
       tickerLabel: 'RSS Live-Ticker',
       sessionTitle: 'ROOAR World Cup 2026',
       sessionSubtitle: 'Wahle dein Team und hore den Rooar.',
@@ -531,9 +534,9 @@ function App() {
       loginLabel: 'Login',
       yourTeam: 'Dein Team',
       noTeamSelected: 'Noch kein Team ausgewahlt',
-      sharedLoginLoading: 'Freunde-Login wird geladen...',
+      sharedLoginLoading: 'Login wird geladen...',
       resetPassword: 'Passwort zurücksetzen',
-      resetPasswordTitle: 'Neues Passwort fuer den gemeinsamen Gruppen-Login generieren',
+      resetPasswordTitle: 'Neues Passwort fuer den gemeinsamen Login generieren',
       addFriendsTitle: 'Freunde hinzufügen',
       friendNamePlaceholder: 'Name',
       addFriend: 'Freund hinzufügen',
@@ -546,10 +549,10 @@ function App() {
       labelGroupName: 'Gruppenname',
       groupPlaceholder: 'z. B. Team Freunde',
       labelUsername: 'Benutzername',
-      usernamePlaceholder: 'z. B. wm2026%team-freunde',
+      usernamePlaceholder: 'z. B. win2026%team-freunde',
       labelPassword: 'Passwort',
       passwordPlaceholder: 'Passwort',
-      registerHint: 'Nach der Registrierung wird automatisch ein gemeinsamer Login fuer deine Freunde erstellt: ',
+      registerHint: 'Nach der Registrierung wird automatisch ein gemeinsamer Login erstellt: ',
       squadTitle: 'Mannschaft',
       squadLoading: 'Lade Mannschaft von Sportmonks...',
       noSquadData: 'Keine Mannschaftsdaten gefunden.',
@@ -1478,10 +1481,17 @@ function App() {
           points: 0,
           exactHits: 0,
           correctTeamHits: 0,
-          tipsCount: 0
+          tipsCount: 0,
+          tipDetails: []
         };
 
         prev.tipsCount += 1;
+        prev.tipDetails.push({
+          fixtureId: String(fixture.id || ''),
+          matchLabel: `${fixture.homeTeam?.name || 'Home'} vs ${fixture.awayTeam?.name || 'Away'}`,
+          tipScore: `${tip.home_tip} : ${tip.away_tip}`,
+          kickoffMs: parseFixtureKickoffMs(fixture)
+        });
 
         if (isPlayed) {
           const points = calculateTipPoints(tip, fixture);
@@ -1497,15 +1507,27 @@ function App() {
       });
     });
 
-    return Array.from(pointsByFriend.values()).sort((a, b) => {
-      if (b.points !== a.points) {
-        return b.points - a.points;
-      }
-      if (b.exactHits !== a.exactHits) {
-        return b.exactHits - a.exactHits;
-      }
-      return String(a.friendName).localeCompare(String(b.friendName));
-    });
+    return Array.from(pointsByFriend.values())
+      .map((row) => ({
+        ...row,
+        tipDetails: row.tipDetails
+          .slice()
+          .sort((a, b) => {
+            if (a.kickoffMs === null && b.kickoffMs === null) return 0;
+            if (a.kickoffMs === null) return 1;
+            if (b.kickoffMs === null) return -1;
+            return a.kickoffMs - b.kickoffMs;
+          })
+      }))
+      .sort((a, b) => {
+        if (b.points !== a.points) {
+          return b.points - a.points;
+        }
+        if (b.exactHits !== a.exactHits) {
+          return b.exactHits - a.exactHits;
+        }
+        return String(a.friendName).localeCompare(String(b.friendName));
+      });
   }, [fixturesForFriendPoints, tips]);
 
   const groupStandings = useMemo(() => {
@@ -2119,14 +2141,37 @@ function App() {
       }
     }
 
+    async function loadTeamFormation() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/fixtures/formation/${selectedTeam.id}`, {
+          headers: buildAuthHeaders()
+        });
+        const json = await response.json();
+        if (response.ok && Array.isArray(json.data)) {
+          if (!cancelled) {
+            setFormationData(json.data);
+          }
+          return;
+        }
+      } catch {
+        // silently ignore and keep fallback behaviour
+      }
+
+      if (!cancelled) {
+        setFormationData([]);
+      }
+    }
+
     loadTeamFixtures();
     loadFriendsAndTips();
     loadSquad();
     loadAllGroupStageFixtures();
+    loadTeamFormation();
 
     const intervalId = setInterval(() => {
       loadTeamFixtures();
       loadAllGroupStageFixtures();
+      loadTeamFormation();
     }, 60000);
 
     return () => {
@@ -2293,6 +2338,28 @@ function App() {
     }
   }
 
+  async function copyWorkspaceLogin() {
+    if (!workspaceLogin?.username || !workspaceLogin?.password || !globalThis.navigator?.clipboard) {
+      return;
+    }
+
+    const groupName = tenantSlug || workspaceLogin.username;
+    const line = [
+      `Einladung zur Tippspiel-Gruppe ${groupName}`,
+      `Login: ${workspaceLogin.username}`,
+      `Passwort: ${workspaceLogin.password}`,
+      'Einfach mit diesen Daten einloggen und weitere Freunde einladen.'
+    ].join('\n');
+
+    try {
+      await globalThis.navigator.clipboard.writeText(line);
+      setWorkspaceLoginCopied(true);
+      globalThis.setTimeout(() => setWorkspaceLoginCopied(false), 1800);
+    } catch {
+      setWorkspaceLoginCopied(false);
+    }
+  }
+
   async function saveTip(event, fixtureId) {
     event.preventDefault();
     const draft = getTipDraft(fixtureId);
@@ -2364,7 +2431,42 @@ function App() {
               </select>
             </div>
           </div>
-          <h1>Tippspiel Workspace</h1>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <h1 style={{ margin: 0 }}>Tippspiel Workspace</h1>
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                {showGroupStage && selectedTeam ? (
+                  <>
+                    {currentWorkspaceRole === 'owner' ? (
+                      <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
+                        <span className="roar-toggle-label">{text.roarToggle}</span>
+                        <input
+                          type="checkbox"
+                          checked={showRoarPanel}
+                          onChange={(event) => { setShowRoarPanel(event.target.checked); }}
+                          aria-label="ROOAR umschalten"
+                        />
+                        <span className="roar-toggle-track" aria-hidden="true">
+                          <span className="roar-toggle-thumb" />
+                        </span>
+                      </label>
+                    ) : null}
+                    <button className="outline-btn" type="button" onClick={() => downloadIcs(selectedGroupFixtures, selectedTeam)}>.ics</button>
+                    <button
+                      className="outline-btn"
+                      type="button"
+                      onClick={() => {
+                        if (!selectedGroupFixtures.length) return;
+                        window.open(buildGoogleCalendarUrl(selectedGroupFixtures[0], selectedTeam), '_blank', 'noopener,noreferrer');
+                      }}
+                    >{text.gmailCalendar}</button>
+                    <button className="outline-btn" type="button" onClick={() => setShowGroupStage(false)}>{text.switchTeam}</button>
+                  </>
+                ) : null}
+                <button className="outline-btn" onClick={logout}>{text.logout}</button>
+              </div>
+            ) : null}
+          </div>
           <p>{text.appSubtitle}</p>
           <section className="ticker-wrap">
             <div className="ticker-label">{text.tickerLabel}</div>
@@ -2373,91 +2475,55 @@ function App() {
             </div>
             {rssError ? <p className="inline-error">{rssError}</p> : null}
           </section>
+                            <section className="side-card">
+                              <button
+                                type="button"
+                                className="side-card-toggle"
+                                onClick={() => setShowTeamFormationPanel((prev) => !prev)}
+                                aria-expanded={showTeamFormationPanel}
+                              >
+                                <span>Team Formation</span>
+                                <span className="side-card-toggle-icon">{showTeamFormationPanel ? '−' : '+'}</span>
+                              </button>
+                              {showTeamFormationPanel ? (
+                                <div className="side-card-body">
+                                  {formationRows.length > 0 ? (
+                                    <div className="formation-card">
+                                      <p className="formation-caption">TEAM FORMATION ({latestFormation || 'n/a'})</p>
+                                      <div className="formation-pitch">
+                                        {formationRows.map((row, rowIndex) => (
+                                          <div className="formation-line" key={`line-${rowIndex}`}>
+                                            {row.map((player) => (
+                                              <span className="formation-pill" key={`fp-${player.id || `${player.name}-${rowIndex}`}`}>
+                                                {shortPlayerName(player.name)}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <p className="tips-empty">Keine Formation vorhanden.</p>
+                                  )}
+                                </div>
+                              ) : null}
+                            </section>
         </div>
 
         {user ? (
           <section className="session-panel full-width">
-            <div className="session-header">
-              <div>
-                <h2>{text.sessionTitle}</h2>
-                <p>{text.sessionSubtitle}</p>
+            {workspaceLogin ? (
+              <div className="inline-note" style={{ marginBottom: 12 }}>
+                <button
+                  type="button"
+                  className="outline-btn"
+                  onClick={copyWorkspaceLogin}
+                  title="Einladung mit Login und Passwort kopieren"
+                >
+                  {workspaceLoginCopied ? 'Kopiert ✓' : 'Einladung kopieren'}
+                </button>
               </div>
-              <div className="session-header-actions">
-                {showGroupStage && selectedTeam ? (
-                  <div className="title-actions session-title-actions">
-                    {currentWorkspaceRole === 'owner' ? (
-                      <label className={showRoarPanel ? 'roar-toggle roar-toggle-active' : 'roar-toggle'}>
-                        <span className="roar-toggle-label">{text.roarToggle}</span>
-                        <input
-                          type="checkbox"
-                          checked={showRoarPanel}
-                          onChange={(event) => {
-                            setShowRoarPanel(event.target.checked);
-                          }}
-                          aria-label="ROOAR umschalten"
-                        />
-                        <span className="roar-toggle-track" aria-hidden="true">
-                          <span className="roar-toggle-thumb" />
-                        </span>
-                      </label>
-                    ) : null}
-                    <button className="outline-btn" type="button" onClick={() => downloadIcs(selectedGroupFixtures, selectedTeam)}>
-                      .ics
-                    </button>
-                    <button
-                      className="outline-btn"
-                      type="button"
-                      onClick={() => {
-                        if (!selectedGroupFixtures.length) {
-                          return;
-                        }
-                        window.open(buildGoogleCalendarUrl(selectedGroupFixtures[0], selectedTeam), '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      {text.gmailCalendar}
-                    </button>
-                    <button className="outline-btn" type="button" onClick={() => setShowGroupStage(false)}>
-                      {text.switchTeam}
-                    </button>
-                  </div>
-                ) : null}
-                <button className="outline-btn" onClick={logout}>{text.logout}</button>
-              </div>
-            </div>
-
-            <div className="user-meta compact">
-              <span>{user.name}</span>
-              <span>{text.loginLabel}: {user.username}</span>
-              {selectedTeam ? (
-                <span>
-                  {text.yourTeam}:{' '}
-                  {getFlagImageSrc(selectedTeam) ? (
-                    <img className="inline-flag-img" src={getFlagImageSrc(selectedTeam)} alt={`${selectedTeam.name} Flagge`} loading="lazy" />
-                  ) : (
-                    <span className="flag">{selectedTeam.flag}</span>
-                  )}
-                  {' '}{selectedTeam.name}
-                </span>
-              ) : <span>{text.noTeamSelected}</span>}
-            </div>
-
-            <div className="inline-note" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-              {workspaceLogin ? (
-                <span>Freunde-Login: <strong>{workspaceLogin.username}</strong> | Passwort: <strong>{workspaceLogin.password}</strong></span>
-              ) : (
-                <span>{text.sharedLoginLoading}</span>
-              )}
-              <button
-                type="button"
-                className="outline-btn"
-                onClick={resetGroupPassword}
-                disabled={resetPasswordLoading}
-                title={text.resetPasswordTitle}
-              >
-                {resetPasswordLoading ? '...' : text.resetPassword}
-              </button>
-              {resetPasswordError ? <span className="inline-error">{resetPasswordError}</span> : null}
-            </div>
+            ) : null}
 
             <section className="friends-admin friends-admin-inline">
               <h5>{text.addFriendsTitle}</h5>
@@ -2486,34 +2552,7 @@ function App() {
                     )}
                     {' '}{selectedTeam.name} · Group {selectedGroupLetter}
                   </h3>
-                  {currentWorkspaceRole === 'owner' && showRoarPanel ? (
-                    <div className="roar-settings-panel">
-                      <div className="roar-settings-row">
-                        <label className="roar-volume-row">
-                          <span className="roar-label-text">Rooar Lautstärke</span>
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={roarVolume}
-                            onChange={(event) => {
-                              setRoarVolume(Number(event.target.value));
-                            }}
-                          />
-                          <span className="roar-volume-value">{Math.round(roarVolume * 100)}%</span>
-                        </label>
-                      </div>
-                      <div className="roar-team-list">
-                        <span className="roar-list-title">ROOAR folgt dem ausgewählten Team</span>
-                        <div className="roar-team-grid">
-                          <span className="roar-team-chip" style={{ cursor: 'default' }}>
-                            {selectedTeam ? selectedTeam.name : 'Kein Team ausgewählt'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
+
                 </div>
 
                 <div className="group-team-strip">
@@ -2814,6 +2853,7 @@ function App() {
                                 <th>#</th>
                                 <th>Freund</th>
                                 <th>Tipps</th>
+                                <th>Tipps & Spiele</th>
                                 <th>Exakt</th>
                                 <th>{text.pointsCorrectTeam}</th>
                                 <th>Punkte</th>
@@ -2826,6 +2866,23 @@ function App() {
                                   <td>{index + 1}</td>
                                   <td>{row.friendName}</td>
                                   <td>{row.tipsCount}</td>
+                                  <td>
+                                    {row.tipDetails.length > 0 ? (
+                                      <div className="points-tip-list">
+                                        {row.tipDetails.slice(0, 6).map((entry) => (
+                                          <div key={`${row.friendId || row.friendName}-${entry.fixtureId}`} className="points-tip-item">
+                                            <span className="points-tip-match">{entry.matchLabel}</span>
+                                            <strong className="points-tip-score">{entry.tipScore}</strong>
+                                          </div>
+                                        ))}
+                                        {row.tipDetails.length > 6 ? (
+                                          <span className="points-tip-more">+{row.tipDetails.length - 6} weitere</span>
+                                        ) : null}
+                                      </div>
+                                    ) : (
+                                      <span className="tips-empty">Keine Tipps</span>
+                                    )}
+                                  </td>
                                   <td>{row.exactHits}</td>
                                   <td>{row.correctTeamHits}</td>
                                   <td><strong>{row.points}</strong></td>
@@ -2952,43 +3009,20 @@ function App() {
                     </section>
 
                     <section className="side-card">
-                      <h4>Tournament Structure</h4>
-                      {tournamentHierarchy.length > 0 ? (
-                        <div className="tournament-hierarchy-scroll">
-                          <div className="tournament-hierarchy" aria-label="Tournament hierarchy flow">
-                            {tournamentHierarchy.map((stage, index) => (
-                              <React.Fragment key={`ths-${stage.stage}-${index}`}>
-                                <button
-                                  type="button"
-                                  className="hierarchy-stage-node"
-                                  onClick={() => setSelectedDiagramStageName(stage.stage)}
-                                  title={`Diagramm fur ${stage.stage} anzeigen`}
-                                >
-                                  <span className="hierarchy-stage-title">{stage.stage}</span>
-                                  <span className="hierarchy-stage-meta">
-                                    {stage.fixtureCount} Spiele · {stage.teamsCount} Teams
-                                  </span>
-                                </button>
-                                {index < tournamentHierarchy.length - 1 ? (
-                                  <span className="hierarchy-stage-connector" aria-hidden="true">
-                                    →
-                                  </span>
-                                ) : null}
-                              </React.Fragment>
-                            ))}
-                          </div>
-                          <span className="stage-card-hint">Stage anklicken fur Match-Diagramm</span>
-                        </div>
-                      ) : (
-                        <p className="tips-empty">Noch keine Tournament-Structure-Daten vorhanden.</p>
-                      )}
-                    </section>
-
-                    <section className="side-card">
-                      <h4>Nächste Phase (Details)</h4>
-                      {tournamentBracketStages.length > 0 ? (
-                        <div className="bracket-scroll">
-                          <div className="bracket-board">
+                      <button
+                        type="button"
+                        className="side-card-toggle"
+                        onClick={() => setShowNextPhaseDetailsPanel((prev) => !prev)}
+                        aria-expanded={showNextPhaseDetailsPanel}
+                      >
+                        <span>Nächste Phase (Details)</span>
+                        <span className="side-card-toggle-icon">{showNextPhaseDetailsPanel ? '−' : '+'}</span>
+                      </button>
+                      {showNextPhaseDetailsPanel ? (
+                        <div className="side-card-body">
+                          {tournamentBracketStages.length > 0 ? (
+                            <div className="bracket-scroll">
+                              <div className="bracket-board">
                             {tournamentBracketStages.map((stage) => (
                               <div key={`tsd-${stage.stage}`} className="bracket-stage-col">
                                 <h5>{stage.stage}</h5>
@@ -3008,10 +3042,47 @@ function App() {
                                 </div>
                               </div>
                             ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="tips-empty">Noch keine Detaildaten vorhanden.</p>
+                          )}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="side-card">
+                      <h4>FIFA World Cup 2026</h4>
+                      {tournamentHierarchy.length > 0 ? (
+                        <div className="tournament-structure-container">
+                          <div className="tournament-phases-grid">
+                            {tournamentHierarchy.map((stage) => (
+                              <button
+                                key={`phase-${stage.stage}`}
+                                type="button"
+                                className="tournament-phase-box"
+                                onClick={() => setSelectedDiagramStageName(stage.stage)}
+                                title={`${stage.stage}: ${stage.teamsCount} Teams, ${stage.fixtureCount} Spiele`}
+                              >
+                                <div className="phase-box-title">{stage.stage}</div>
+                                <div className="phase-box-teams">{stage.teamsCount} Teams</div>
+                                <div className="phase-box-matches">{stage.fixtureCount} Spiele</div>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="tournament-info-box">
+                            <div className="info-section">
+                              <strong>2026 Format:</strong>
+                              <ul>
+                                <li>🏟️ 16 Stadien in USA, Kanada, Mexiko</li>
+                                <li>📅 Juni - Juli 2026</li>
+                                <li>⚽ 80 Gesamtspiele</li>
+                              </ul>
+                            </div>
                           </div>
                         </div>
                       ) : (
-                        <p className="tips-empty">Noch keine Detaildaten vorhanden.</p>
+                        <p className="tips-empty">Noch keine Tournament-Structure-Daten vorhanden.</p>
                       )}
                     </section>
                   </aside>
@@ -3323,7 +3394,7 @@ function App() {
 
               {mode === 'register' && (
                 <p className="inline-note">
-                  {text.registerHint}<strong>wm2026%gruppenname</strong> + generiertes Passwort.
+                  {text.registerHint}<strong>win2026%gruppenname</strong> + generiertes Passwort.
                 </p>
               )}
 

@@ -24,7 +24,16 @@ interface SportMonksParticipant {
   name: string;
   short_code: string;
   image_path: string;
-  meta: { location: 'home' | 'away' };
+  meta: { location: 'home' | 'away'; formation?: string };
+}
+
+interface SportMonksLineup {
+  participant_id?: number;
+  team_id?: number;
+  formation?: string;
+  type_id?: number;
+  position_id?: number | null;
+  formation_position?: number | null;
 }
 
 interface SportMonksVenue {
@@ -55,6 +64,7 @@ export interface SportMonksFixture {
   season_id: number;
   starting_at: string;          // UTC datetime string
   participants?: SportMonksParticipant[];
+  lineups?: SportMonksLineup[];
   scores?: SportMonksScore[];
   venue?: SportMonksVenue;
   round?: SportMonksRound;

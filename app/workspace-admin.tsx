@@ -5,7 +5,6 @@ import {
   StyleSheet,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -46,7 +45,6 @@ export default function WorkspaceAdminScreen() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
@@ -96,25 +94,18 @@ export default function WorkspaceAdminScreen() {
   }, [currentTenant, user?.id]);
 
   const handleCreateInvite = useCallback(async () => {
-    if (!inviteEmail.trim()) {
-      Alert.alert('Email required', 'Please enter an email address');
-      return;
-    }
-
     setInviteLoading(true);
     try {
       const res = await apiFetch('/api/workspaces/current/invites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: inviteEmail,
           role: inviteRole,
         }),
       });
 
       if (res.ok) {
         Alert.alert('Success', 'Invite created! Invite link generated.');
-        setInviteEmail('');
         setInviteRole('member');
         setShowInviteModal(false);
         await loadData();
@@ -128,12 +119,13 @@ export default function WorkspaceAdminScreen() {
     } finally {
       setInviteLoading(false);
     }
-  }, [inviteEmail, inviteRole, loadData]);
+  }, [inviteRole, loadData]);
 
   const handleCopyInviteLink = useCallback((token: string) => {
-    const link = `${window.location.origin}/?inviteToken=${token}`;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(link);
+    const origin = globalThis.location?.origin;
+    const link = `${origin ?? ''}/?inviteToken=${token}`;
+    if (globalThis.navigator?.clipboard) {
+      globalThis.navigator.clipboard.writeText(link);
       setCopiedToken(token);
       setTimeout(() => setCopiedToken(null), 2000);
     }
@@ -232,7 +224,7 @@ export default function WorkspaceAdminScreen() {
                   <View key={invite.id} style={styles.inviteCard}>
                     <View style={styles.inviteInfo}>
                       <Text style={styles.inviteEmail}>
-                        {invite.email || 'No email'}
+                        Open invite link
                       </Text>
                       <Text style={styles.inviteRole}>Role: {invite.role}</Text>
                       <Text style={styles.inviteExpires}>
@@ -272,18 +264,6 @@ export default function WorkspaceAdminScreen() {
                 >
                   <Text style={styles.closeButtonText}>✕</Text>
                 </TouchableOpacity>
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Email Address</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="user@example.com"
-                  value={inviteEmail}
-                  onChangeText={setInviteEmail}
-                  keyboardType="email-address"
-                  editable={!inviteLoading}
-                />
               </View>
 
               <View style={styles.formGroup}>
@@ -557,15 +537,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  input: {
-    backgroundColor: '#111713',
-    borderWidth: 1,
-    borderColor: '#3a5040',
-    borderRadius: 8,
-    color: '#ffffff',
-    padding: 12,
-    fontSize: 14,
   },
   roleSelector: {
     flexDirection: 'row',
