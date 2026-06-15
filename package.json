@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "powershell -ExecutionPolicy Bypass -File ./frontend/start-frontend.ps1",
+    "start:frontend": "powershell -ExecutionPolicy Bypass -File ./frontend/start-frontend.ps1",
+    "start:expo": "expo start",
     "start:tunnel": "expo start --tunnel",
     "start:stable": "bash ./scripts/start-expo-stable.sh lan",
     "start:stable:tunnel": "bash ./scripts/start-expo-stable.sh tunnel",

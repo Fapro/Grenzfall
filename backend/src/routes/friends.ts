@@ -11,6 +11,44 @@ import { randomId } from '../multitenant/auth';
 
 const router = Router();
 
+const PRESET_FRIEND_NAMES = [
+  'Miss Money Penny',
+  'Farsi',
+  'Farrukh',
+  'Sabine',
+  'Christines',
+];
+
+function normalizeFriendName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function ensurePresetFriends(friends: FriendEntry[]): { nextFriends: FriendEntry[]; changed: boolean } {
+  const existingKeys = new Set(friends.map((entry) => normalizeFriendName(entry.name)));
+  let changed = false;
+  const nextFriends = [...friends];
+
+  PRESET_FRIEND_NAMES.forEach((name) => {
+    const key = normalizeFriendName(name);
+    if (existingKeys.has(key)) {
+      return;
+    }
+
+    nextFriends.push({
+      id: randomId('manual'),
+      name,
+      tips: {},
+    });
+    existingKeys.add(key);
+    changed = true;
+  });
+
+  return { nextFriends, changed };
+}
+
 function isManualFriendId(friendId: string): boolean {
   return friendId.startsWith('manual-') || friendId.startsWith('manual_');
 }
@@ -47,12 +85,14 @@ router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response)
 
   // Get stored tips for all members
   const allFriendsTips = getTenantTeamFriends(tenantId, teamId);
+  const { nextFriends, changed } = ensurePresetFriends(allFriendsTips);
+  const friendsWithPreset = changed ? setTenantTeamFriends(tenantId, teamId, nextFriends) : allFriendsTips;
 
   // Build response with member names and their tips
   const memberFriends = members
     .map((member) => {
       const user = findUserById(member.userId);
-      const memberTips = allFriendsTips.find((f) => f.id === member.userId);
+      const memberTips = friendsWithPreset.find((f) => f.id === member.userId);
       return {
         id: member.userId,
         name: user?.name || 'Unknown',
@@ -62,7 +102,7 @@ router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response)
     });
 
   const memberIds = new Set(members.map((member) => member.userId));
-  const manualFriends = allFriendsTips
+  const manualFriends = friendsWithPreset
     .filter((entry) => !memberIds.has(entry.id))
     .map((entry) => ({
       id: entry.id,

@@ -27,6 +27,23 @@ function sanitizeUser(user: { id: string; email: string; name: string }) {
   return { id: user.id, email: user.email, name: user.name };
 }
 
+function resolveLoginEmail(rawIdentifier: string): string {
+  const normalized = normalizeEmail(rawIdentifier);
+  if (!normalized) {
+    return '';
+  }
+
+  // Support legacy shared-login usernames like "wm2026%bonnei-cup".
+  if (!normalized.includes('@')) {
+    const sharedMatch = /^wm2026%([a-z0-9-]+)$/.exec(normalized);
+    if (sharedMatch?.[1]) {
+      return `${sharedMatch[1]}@wm2026.local`;
+    }
+  }
+
+  return normalized;
+}
+
 router.post('/signup', async (req: Request, res: Response) => {
   const emailRaw = String(req.body?.email ?? '');
   const nameRaw = String(req.body?.name ?? '');
@@ -114,7 +131,7 @@ router.post('/signup', async (req: Request, res: Response) => {
 });
 
 router.post('/login', async (req: Request, res: Response) => {
-  const email = normalizeEmail(String(req.body?.email ?? ''));
+  const email = resolveLoginEmail(String(req.body?.email ?? req.body?.username ?? ''));
   const password = String(req.body?.password ?? '');
 
   const user = findUserByEmail(email);

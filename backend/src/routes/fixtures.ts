@@ -384,6 +384,65 @@ router.get('/by-sportmonks/:sportTeamId', async (req: Request, res: Response) =>
 });
 
 /**
+ * GET /api/fixtures/all
+ * Returns all fixtures for the configured World Cup season.
+ * Frontend uses this endpoint to derive upcoming matches.
+ */
+router.get('/all', async (_req: Request, res: Response) => {
+  const seasonId = process.env.SPORTMONKS_SEASON_ID;
+  const cacheKey = `fixtures:all:${seasonId ?? 'all'}`;
+
+  const cached = cache.get<AppFixture[]>(cacheKey);
+  if (cached) {
+    return res.json({ data: cached, source: 'cache' });
+  }
+
+  const apiKey = process.env.SPORTMONKS_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
+
+  try {
+    const seasonIdNum = seasonId ? Number(seasonId) : 26618;
+    const fixtureIncludes =
+      'fixtures;fixtures.participants;fixtures.scores;fixtures.venue;fixtures.venue.country;fixtures.round;fixtures.stage';
+    const url =
+      `${BASE}/seasons/${seasonIdNum}` +
+      `?api_token=${apiKey}` +
+      `&include=${encodeURIComponent(fixtureIncludes)}`;
+
+    const body = (await fetchFromSportMonks(url)) as {
+      data?: { fixtures?: SportMonksFixture[] };
+    };
+
+    const allFixtures = body.data?.fixtures ?? [];
+    const fixtures = await attachVenueImages(
+      allFixtures.map((raw) => {
+        const groupLetter = deriveGroupLetterFromFixture(raw);
+        return normaliseFixture(raw, 'all', groupLetter);
+      })
+    );
+
+    if (fixtures.length) {
+      cache.set(cacheKey, fixtures, LIVE_FIXTURES_CACHE_TTL_SECONDS);
+    }
+
+    return res.json({ data: fixtures, source: 'api' });
+  } catch (err) {
+    console.error('[fixtures all]', err);
+
+    if (isDnsResolutionError(err)) {
+      return res.status(503).json({
+        error:
+          'Could not resolve SportMonks host (api.sportmonks.com). Check DNS/network and retry.',
+      });
+    }
+
+    return res.status(502).json({ error: 'Failed to fetch from SportMonks' });
+  }
+});
+
+/**
  * GET /api/fixtures/:appTeamId
  * Returns all fixtures for the WC 2026 season for the given app team ID.
  */

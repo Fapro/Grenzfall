@@ -26,6 +26,7 @@ const ROAR_TEAM_IDS_STORAGE_KEY = 'rooarTeamIds';
 const ROAR_PANEL_STORAGE_KEY = 'rooarPanelOpen';
 const TENANT_SLUG_STORAGE_KEY = 'currentTenantSlug';
 const FRIENDS_SCOPE_KEY = 'all-matches';
+const NEXT_MATCHES_LIMIT = 6;
 const LANGUAGE_STORAGE_KEY = 'uiLanguage';
 const LANGUAGE_FLAG = {
   de: '🇩🇪',
@@ -1736,7 +1737,7 @@ function App() {
             if (bKickoff === null) return -1;
             return aKickoff - bKickoff;
           })
-          .slice(0, 5);
+          .slice(0, NEXT_MATCHES_LIMIT);
 
         if (!cancelled) {
           setNextMatches(upcomingFixtures);
@@ -2607,6 +2608,9 @@ function App() {
                         <div className="side-card-body">
                           {nextMatchesLoading ? <p className="inline-note">Lade FIFA-Spielplan...</p> : null}
                           {nextMatchesError ? <p className="inline-error">{nextMatchesError}</p> : null}
+                          {!nextMatchesLoading && !nextMatchesError ? (
+                            <p className="inline-note">Zeigt die nächsten {NEXT_MATCHES_LIMIT} Spiele. Spiel anklicken, Freund wählen, Tipp speichern.</p>
+                          ) : null}
                           {!nextMatchesLoading && !nextMatchesError && nextMatches.length > 0 ? (
                             <div className="next-matches-list-wrap">
                               {nextMatches.map((fixture, idx) => (

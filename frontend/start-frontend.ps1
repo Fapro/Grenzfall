@@ -25,6 +25,7 @@ Write-Host "Starte Frontend auf Port $Port..."
 Push-Location $PSScriptRoot
 try {
 	$env:PORT = "$Port"
+	$env:NODE_OPTIONS = "--max-old-space-size=4096"
 	npm start
 } finally {
 	Pop-Location

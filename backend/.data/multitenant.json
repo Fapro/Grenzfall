@@ -1,0 +1,97 @@
+{
+  "users": [
+    {
+      "id": "usr_fb607e676333440e87bb572e2da1e13d",
+      "email": "bonnei-cup@wm2026.local",
+      "name": "Bonn-Ei",
+      "passwordHash": "3216afce0e361523e167c3a041a119c2:031491cde6af9e165d66ebcc54a14eef6ddd121b77fa243292569dff0a9249e2e949e0a8533fc0503d1a5ef72eed4688883e00e7a354aeab8d7f7e7147984aaf",
+      "createdAt": "2026-06-14T21:19:29.176Z"
+    }
+  ],
+  "tenants": [
+    {
+      "id": "ten_c51164cbfdf643b8ba142a9554df6ff1",
+      "slug": "bonnei-cup",
+      "name": "Bonn-Ei",
+      "ownerUserId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T21:19:29.100Z"
+    }
+  ],
+  "members": [
+    {
+      "id": "mem_c41f03828846463bae69f22ee64767b7",
+      "tenantId": "ten_c51164cbfdf643b8ba142a9554df6ff1",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "role": "owner",
+      "createdAt": "2026-06-14T21:19:29.179Z"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "b238e6ef3daef328d49cee12aaf1804113cea79c99c7947434d8f921bf2af8c5",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T21:19:29.180Z",
+      "lastSeenAt": "2026-06-14T21:19:29.180Z"
+    },
+    {
+      "token": "df82c410eccdc916d123f720c9dc747f9fb25f3e91c06f0d67ac74690d7f7f08",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T21:19:32.329Z",
+      "lastSeenAt": "2026-06-14T21:19:32.329Z"
+    },
+    {
+      "token": "817ec9188dcdc3fadf1369a55bb749d29e1442577136a8f58a45f78897f280c5",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T21:21:30.964Z",
+      "lastSeenAt": "2026-06-14T23:43:14.031Z"
+    },
+    {
+      "token": "e72bff3991443301092d8dcb94ffd76d0aa54310ccb5c231f7bb7ddcc21b56ec",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T21:26:09.537Z",
+      "lastSeenAt": "2026-06-14T21:26:09.651Z"
+    },
+    {
+      "token": "1e0cfb3e973f1ab3cab6c43b198b0448b267bc45784dd78e3ff90b6281846e40",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T23:32:21.574Z",
+      "lastSeenAt": "2026-06-14T23:33:58.939Z"
+    },
+    {
+      "token": "f6992d206a89ae18848fda982e2a25af2acd3e1712b7603313e84f7418b52500",
+      "userId": "usr_fb607e676333440e87bb572e2da1e13d",
+      "createdAt": "2026-06-14T23:35:20.499Z",
+      "lastSeenAt": "2026-06-15T01:19:02.158Z"
+    }
+  ],
+  "invites": [],
+  "friendsByTenantTeam": {
+    "ten_c51164cbfdf643b8ba142a9554df6ff1:all-matches": [
+      {
+        "id": "manual_7ea9189870bc4250bb2eb3a47f42f6d4",
+        "name": "Miss Money Penny",
+        "tips": {}
+      },
+      {
+        "id": "manual_04acd682d1c94b7297cc96576c71e5f0",
+        "name": "Farsi",
+        "tips": {}
+      },
+      {
+        "id": "manual_bb0e25a55dc442c59c98d2585b333744",
+        "name": "Farrukh",
+        "tips": {}
+      },
+      {
+        "id": "manual_1c6013af2df845aca7a12b304d032d29",
+        "name": "Sabine",
+        "tips": {}
+      },
+      {
+        "id": "manual_056c9d70e7a246b39f9f9d0adc8cbbd3",
+        "name": "Christines",
+        "tips": {}
+      }
+    ]
+  }
+}
