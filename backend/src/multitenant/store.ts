@@ -10,7 +10,9 @@ import {
   WorkspaceInvite,
 } from './types';
 
-const DB_DIR = path.resolve(process.cwd(), '.data');
+const DB_DIR = process.env.DATA_DIR
+  ? path.resolve(process.env.DATA_DIR)
+  : path.resolve(process.cwd(), '.data');
 const DB_FILE = path.join(DB_DIR, 'multitenant.json');
 
 const EMPTY_DB: AppDb = {
