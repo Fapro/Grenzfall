@@ -3,6 +3,7 @@ import express from 'express';
 import fixturesRouter from './routes/fixtures';
 import playersRouter from './routes/players';
 import friendsRouter from './routes/friends';
+import chatRouter from './routes/chat';
 import authRouter from './routes/auth';
 import workspacesRouter from './routes/workspaces';
 import {
@@ -42,6 +43,7 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/api/fixtures', fixturesRouter);
 app.use('/api/players', playersRouter);
 app.use('/api/friends', friendsRouter);
+app.use('/api/chat', chatRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/workspaces', workspacesRouter);
 
