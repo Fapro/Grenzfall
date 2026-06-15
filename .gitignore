@@ -42,3 +42,6 @@ yarn-error.*
 
 # local backup of old repository metadata
 .git.grenzfall-backup/
+
+# Local Netlify folder
+.netlify
