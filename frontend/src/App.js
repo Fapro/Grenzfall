@@ -2063,7 +2063,7 @@ function App() {
     }
 
     async function loadFriendsAndTips() {
-      if (!tenantSlug) {
+      if (!token || !tenantSlug) {
         if (!cancelled) {
           setFriends([]);
           setTips([]);
