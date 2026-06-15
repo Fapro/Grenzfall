@@ -20,6 +20,7 @@ const EMPTY_DB: AppDb = {
   sessions: [],
   invites: [],
   friendsByTenantTeam: {},
+  chatByTenant: {},
 };
 
 function cloneDb(input: AppDb): AppDb {
@@ -46,6 +47,7 @@ function readDbFromDisk(): AppDb {
       sessions: parsed.sessions ?? [],
       invites: parsed.invites ?? [],
       friendsByTenantTeam: parsed.friendsByTenantTeam ?? {},
+      chatByTenant: parsed.chatByTenant ?? {},
     };
   } catch (error) {
     console.error('[multitenant-store] Failed to read DB, using empty fallback:', error);
@@ -73,6 +75,11 @@ export function findUserByEmail(email: string): User | undefined {
   return db.users.find((u) => u.email === normalized);
 }
 
+export function findUserByUsername(username: string): User | undefined {
+  const normalized = username.trim().toLowerCase();
+  return db.users.find((u) => (u.username ?? '').trim().toLowerCase() === normalized);
+}
+
 export function findUserById(userId: string): User | undefined {
   return db.users.find((u) => u.id === userId);
 }
@@ -97,6 +104,24 @@ export function addTenant(tenant: Tenant): Tenant {
     state.tenants.push(tenant);
   });
   return tenant;
+}
+
+export function updateTenantSharedCredentials(
+  tenantId: string,
+  sharedLoginUsername: string,
+  sharedLoginPassword: string
+): Tenant | undefined {
+  let updated: Tenant | undefined;
+  updateDb((state) => {
+    const tenant = state.tenants.find((t) => t.id === tenantId);
+    if (!tenant) {
+      return;
+    }
+    tenant.sharedLoginUsername = sharedLoginUsername;
+    tenant.sharedLoginPassword = sharedLoginPassword;
+    updated = { ...tenant };
+  });
+  return updated;
 }
 
 export function addTenantMember(member: TenantMember): TenantMember {
