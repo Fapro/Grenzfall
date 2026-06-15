@@ -9,11 +9,11 @@ const SHOULD_IGNORE_LOCALHOST_ENV =
 
 const API_BASE_URL = (
   SHOULD_IGNORE_LOCALHOST_ENV
-    ? 'https://grenzfall.onrender.com/api'
+    ? '/api'
     : (CONFIGURED_API_BASE_URL
       || (IS_LOCAL_RUNTIME
         ? 'http://localhost:3001/api'
-        : 'https://grenzfall.onrender.com/api'))
+        : '/api'))
 ).replace(/\/$/, '');
 const TEAM_SOUND_FILE = 'goal-crowd-roaring_F_minor.wav';
 const TEAM_SOUND_PATHS = [
