@@ -1357,6 +1357,22 @@ body {
   flex-direction: column;
   gap: 4px;
   min-width: 220px;
+  margin-top: 6px;
+}
+
+.points-tip-collapsible {
+  min-width: 180px;
+}
+
+.points-tip-summary {
+  cursor: pointer;
+  color: #b8e8be;
+  font-size: 0.75rem;
+  user-select: none;
+}
+
+.points-tip-summary:hover {
+  color: #e7f4e8;
 }
 
 .points-tip-item {

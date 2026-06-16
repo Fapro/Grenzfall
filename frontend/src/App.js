@@ -1443,68 +1443,80 @@ function App() {
     return rssItems.map((item) => item.title).join('   •   ');
   }, [rssError, rssItems]);
 
-  const fixturesForFriendPoints = useMemo(() => {
+  const fixtureCatalogById = useMemo(() => {
     const fixtureById = new Map();
+    const sourceCollections = [
+      selectedGroupFixtures,
+      nextMatches,
+      teamFixtures,
+      allGroupStageFixtures,
+      matchesResultsData,
+      nextPhaseData,
+      ...(Array.isArray(tournamentStructureData)
+        ? tournamentStructureData.map((stage) => (Array.isArray(stage?.fixtures) ? stage.fixtures : []))
+        : [])
+    ];
 
-    [...selectedGroupFixtures, ...nextMatches].forEach((fixture) => {
-      const fixtureId = String(fixture?.id || '').trim();
-      if (!fixtureId) {
-        return;
-      }
-      if (!fixtureById.has(fixtureId)) {
+    sourceCollections.forEach((collection) => {
+      (Array.isArray(collection) ? collection : []).forEach((fixture) => {
+        const fixtureId = String(fixture?.id || '').trim();
+        if (!fixtureId || fixtureById.has(fixtureId)) {
+          return;
+        }
         fixtureById.set(fixtureId, fixture);
-      }
+      });
     });
 
-    return Array.from(fixtureById.values());
-  }, [nextMatches, selectedGroupFixtures]);
+    return fixtureById;
+  }, [
+    allGroupStageFixtures,
+    matchesResultsData,
+    nextMatches,
+    nextPhaseData,
+    selectedGroupFixtures,
+    teamFixtures,
+    tournamentStructureData
+  ]);
 
   const friendPointsTable = useMemo(() => {
     const pointsByFriend = new Map();
 
-    fixturesForFriendPoints.forEach((fixture) => {
-      const fixtureTips = loadTipsForFixture(fixture.id);
-      const status = String(fixture.status || '').trim().toLowerCase();
-      const hasResultStatus =
-        status && !/(not started|upcoming|scheduled|to be announced|postponed|canceled|cancelled)/i.test(status);
-      const homeGoals = Number(fixture.homeScore || 0);
-      const awayGoals = Number(fixture.awayScore || 0);
-      const hasNumericResult =
-        Number.isFinite(homeGoals) && Number.isFinite(awayGoals) && (homeGoals > 0 || awayGoals > 0);
-      const isPlayed = hasResultStatus || hasNumericResult;
+    tips.forEach((tip) => {
+      const key = String(tip.friend_id || tip.friend_name);
+      const prev = pointsByFriend.get(key) || {
+        friendId: tip.friend_id,
+        friendName: tip.friend_name,
+        points: 0,
+        exactHits: 0,
+        correctTeamHits: 0,
+        tipsCount: 0,
+        tipDetails: []
+      };
 
-      fixtureTips.forEach((tip) => {
-        const key = String(tip.friend_id || tip.friend_name);
-        const prev = pointsByFriend.get(key) || {
-          friendId: tip.friend_id,
-          friendName: tip.friend_name,
-          points: 0,
-          exactHits: 0,
-          correctTeamHits: 0,
-          tipsCount: 0,
-          tipDetails: []
-        };
+      const fixtureId = String(tip.fixture_id || '').trim();
+      const fixture = fixtureCatalogById.get(fixtureId) || null;
 
-        prev.tipsCount += 1;
-        prev.tipDetails.push({
-          fixtureId: String(fixture.id || ''),
-          matchLabel: `${fixture.homeTeam?.name || 'Home'} vs ${fixture.awayTeam?.name || 'Away'}`,
-          tipScore: `${tip.home_tip} : ${tip.away_tip}`,
-          kickoffMs: parseFixtureKickoffMs(fixture)
-        });
-
-        if (isPlayed) {
-          const points = calculateTipPoints(tip, fixture);
-          prev.points += points;
-          if (points === 3) {
-            prev.exactHits += 1;
-          } else if (points === 2) {
-            prev.correctTeamHits += 1;
-          }
-        }
-
-        pointsByFriend.set(key, prev);
+      prev.tipsCount += 1;
+      prev.tipDetails.push({
+        fixtureId,
+        matchLabel: fixture
+          ? `${fixture.homeTeam?.name || 'Home'} vs ${fixture.awayTeam?.name || 'Away'}`
+          : `Match ${fixtureId || '-'}`,
+        tipScore: `${tip.home_tip} : ${tip.away_tip}`,
+        kickoffMs: fixture ? parseFixtureKickoffMs(fixture) : null
       });
+
+      if (fixture && isFixturePlayed(fixture)) {
+        const points = calculateTipPoints(tip, fixture);
+        prev.points += points;
+        if (points === 3) {
+          prev.exactHits += 1;
+        } else if (points === 2) {
+          prev.correctTeamHits += 1;
+        }
+      }
+
+      pointsByFriend.set(key, prev);
     });
 
     return Array.from(pointsByFriend.values())
@@ -1528,7 +1540,7 @@ function App() {
         }
         return String(a.friendName).localeCompare(String(b.friendName));
       });
-  }, [fixturesForFriendPoints, tips]);
+  }, [fixtureCatalogById, tips]);
 
   const groupStandings = useMemo(() => {
     const table = new Map();
@@ -2853,10 +2865,10 @@ function App() {
                                 <th>#</th>
                                 <th>Freund</th>
                                 <th>Tipps</th>
-                                <th>Tipps & Spiele</th>
                                 <th>Exakt</th>
                                 <th>{text.pointsCorrectTeam}</th>
                                 <th>Punkte</th>
+                                <th>Tipps & Spiele</th>
                                 <th aria-label="Aktion">Aktion</th>
                               </tr>
                             </thead>
@@ -2866,26 +2878,28 @@ function App() {
                                   <td>{index + 1}</td>
                                   <td>{row.friendName}</td>
                                   <td>{row.tipsCount}</td>
+                                  <td>{row.exactHits}</td>
+                                  <td>{row.correctTeamHits}</td>
+                                  <td><strong>{row.points}</strong></td>
                                   <td>
                                     {row.tipDetails.length > 0 ? (
-                                      <div className="points-tip-list">
-                                        {row.tipDetails.slice(0, 6).map((entry) => (
-                                          <div key={`${row.friendId || row.friendName}-${entry.fixtureId}`} className="points-tip-item">
-                                            <span className="points-tip-match">{entry.matchLabel}</span>
-                                            <strong className="points-tip-score">{entry.tipScore}</strong>
-                                          </div>
-                                        ))}
-                                        {row.tipDetails.length > 6 ? (
-                                          <span className="points-tip-more">+{row.tipDetails.length - 6} weitere</span>
-                                        ) : null}
-                                      </div>
+                                      <details className="points-tip-collapsible">
+                                        <summary className="points-tip-summary">
+                                          {row.tipDetails.length} Tipps anzeigen
+                                        </summary>
+                                        <div className="points-tip-list">
+                                          {row.tipDetails.map((entry) => (
+                                            <div key={`${row.friendId || row.friendName}-${entry.fixtureId}`} className="points-tip-item">
+                                              <span className="points-tip-match">{entry.matchLabel}</span>
+                                              <strong className="points-tip-score">{entry.tipScore}</strong>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </details>
                                     ) : (
                                       <span className="tips-empty">Keine Tipps</span>
                                     )}
                                   </td>
-                                  <td>{row.exactHits}</td>
-                                  <td>{row.correctTeamHits}</td>
-                                  <td><strong>{row.points}</strong></td>
                                   <td>
                                     {row.friendId ? (
                                       <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
