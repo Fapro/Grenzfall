@@ -13,6 +13,7 @@ import {
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3001);
+const HOST = process.env.HOST ?? '0.0.0.0';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '')
   .split(',')
   .map((o: string) => o.trim())
@@ -48,8 +49,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/workspaces', workspacesRouter);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[roar-backend] listening on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[roar-backend] listening on ${HOST}:${PORT}`);
 });
 
 export default app;

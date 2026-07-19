@@ -250,6 +250,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0c1210',
   },
+  content: {
+    paddingTop: 20,
+  },
   gradient: {
     flex: 1,
   },

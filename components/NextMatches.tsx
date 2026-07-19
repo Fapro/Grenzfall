@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { FlagCard } from './FlagCard';
-import type { Fixture } from '@/data/schedule';
+import type { TeamMatch } from '@/data/schedule';
 
 interface NextMatchesProps {
-  fixtures: Fixture[];
+  fixtures: TeamMatch[];
   selectedTeamId?: string;
   selectedTeamName?: string;
 }

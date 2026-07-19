@@ -15,6 +15,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" options={{ title: 'World Cup 2026', headerShown: false }} />
         <Stack.Screen name="[teamId]" options={{ title: '', headerTransparent: true }} />
+        <Stack.Screen name="qualification/[round]" options={{ title: '', headerTransparent: true }} />
       </Stack>
     </>
   );

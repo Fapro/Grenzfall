@@ -741,6 +741,51 @@ body {
   font-size: 0.74rem;
 }
 
+.phase-select-label {
+  font-size: 0.78rem;
+  color: #b8e8be;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.phase-select {
+  width: 100%;
+  border: 1px solid #2e4d33;
+  border-radius: 7px;
+  background: rgba(14, 23, 17, 0.95);
+  color: #e7f4e8;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+}
+
+.phase-tip-details {
+  width: 100%;
+}
+
+.phase-tip-details summary {
+  cursor: pointer;
+  color: #b8e8be;
+  font-size: 0.78rem;
+}
+
+.phase-tip-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.phase-tip-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.75rem;
+  border: 1px solid #243a28;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: rgba(76, 175, 80, 0.05);
+}
+
 .group-standings-table {
   font-size: 0.75rem;
 }
@@ -1081,6 +1126,22 @@ body {
 
 .phase-diagram-team-row strong {
   color: #ffffff;
+}
+
+.phase-diagram-tip-list {
+  margin-top: 8px;
+  border-top: 1px solid rgba(46, 125, 50, 0.34);
+  padding-top: 8px;
+  display: grid;
+  gap: 5px;
+}
+
+.phase-diagram-tip-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: var(--text-soft);
 }
 
 .fixture-list {
@@ -1864,6 +1925,12 @@ body {
   border-color: var(--accent-strong);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.tournament-phase-box-active {
+  border-color: var(--accent-strong);
+  box-shadow: 0 0 0 2px rgba(126, 219, 134, 0.28);
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.58), rgba(76, 175, 80, 0.26));
 }
 
 .phase-box-title {

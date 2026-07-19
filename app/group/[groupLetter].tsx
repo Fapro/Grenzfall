@@ -172,6 +172,13 @@ export default function GroupStatsPage() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    backgroundColor: '#0a0a0a',
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 24,
+  },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -9,6 +9,8 @@
     "start:tunnel": "expo start --tunnel",
     "start:stable": "bash ./scripts/start-expo-stable.sh lan",
     "start:stable:tunnel": "bash ./scripts/start-expo-stable.sh tunnel",
+    "start:mobile": "powershell -ExecutionPolicy Bypass -File ./scripts/start-expo-mobile-local.ps1",
+    "start:mobile:tunnel": "powershell -ExecutionPolicy Bypass -File ./scripts/start-expo-mobile-local.ps1 -Mode tunnel",
     "start:clear": "expo start -c",
     "android": "expo start --android",
     "android:tunnel": "expo start --tunnel --android",
@@ -17,7 +19,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "web:stable": "bash ./scripts/start-expo-stable.sh web",
-    "build:web": "npx expo export --platform web"
+    "build:web": "npx expo export --platform web",
+    "test": "npm run test:backend",
+    "test:backend": "npm --prefix backend run test"
   },
   "dependencies": {
     "expo": "^55.0.23",

@@ -34,6 +34,15 @@ const LANGUAGE_FLAG = {
 };
 const VENUE_PLACEHOLDER_PATH = `${process.env.PUBLIC_URL || ''}/assets/venue-placeholder.svg`;
 const GROUP_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+const WM_2026_PHASE_TEMPLATE = [
+  { stage: 'Group Stage', teamsCount: 48, fixtureCount: 72 },
+  { stage: 'Round of 32', teamsCount: 32, fixtureCount: 16 },
+  { stage: 'Round of 16', teamsCount: 16, fixtureCount: 8 },
+  { stage: 'Quarter-finals', teamsCount: 8, fixtureCount: 4 },
+  { stage: 'Semi-finals', teamsCount: 4, fixtureCount: 2 },
+  { stage: '3rd Place Final', teamsCount: 2, fixtureCount: 1 },
+  { stage: 'Final', teamsCount: 2, fixtureCount: 1 }
+];
 const HOST_VENUES = [
   { name: 'MetLife Stadium', city: 'New York', country: 'USA', timeZone: 'America/New_York' },
   { name: 'Gillette Stadium', city: 'Boston', country: 'USA', timeZone: 'America/New_York' },
@@ -391,6 +400,41 @@ function getFlagImageSrc(team) {
   return '';
 }
 
+function normalizeTournamentStageName(stageName) {
+  const raw = String(stageName || '').trim();
+  const lower = raw.toLowerCase();
+
+  if (!raw) {
+    return '';
+  }
+  if (/group/.test(lower)) {
+    return 'Group Stage';
+  }
+  if (lower === 'playoffs' || lower === 'play-offs' || lower === 'play offs') {
+    return 'Play-offs';
+  }
+  if (lower === 'round of 32' || lower === 'round 32') {
+    return 'Round of 32';
+  }
+  if (lower === 'round of 16' || lower === 'round 16') {
+    return 'Round of 16';
+  }
+  if (lower === 'quarter-finals' || lower === 'quarter finals' || lower === 'quarterfinals') {
+    return 'Quarter-finals';
+  }
+  if (lower === 'semi-finals' || lower === 'semi finals' || lower === 'semifinals') {
+    return 'Semi-finals';
+  }
+  if (lower === '3rd place final' || lower === 'third place final') {
+    return '3rd Place Final';
+  }
+  if (lower === 'final') {
+    return 'Final';
+  }
+
+  return raw;
+}
+
 function App() {
   const [language, setLanguage] = useState(() => {
     const stored = String(localStorage.getItem(LANGUAGE_STORAGE_KEY) || '').toLowerCase();
@@ -445,11 +489,13 @@ function App() {
   const [nextPhaseLoading, setNextPhaseLoading] = useState(false);
   const [nextPhaseError, setNextPhaseError] = useState('');
   const [selectedDiagramStageName, setSelectedDiagramStageName] = useState('');
+  const [isDiagramModalOpen, setIsDiagramModalOpen] = useState(false);
   const [formationData, setFormationData] = useState([]);
   const [matchesResultsData, setMatchesResultsData] = useState([]);
   const [tournamentStructureData, setTournamentStructureData] = useState([]);
   const [teamViewError, setTeamViewError] = useState('');
   const [nextMatches, setNextMatches] = useState([]);
+  const [allTournamentFixtures, setAllTournamentFixtures] = useState([]);
   const [nextMatchesLoading, setNextMatchesLoading] = useState(false);
   const [nextMatchesError, setNextMatchesError] = useState('');
   const [showNextMatchesPanel, setShowNextMatchesPanel] = useState(true);
@@ -1680,13 +1726,26 @@ function App() {
       return aKickoff - bKickoff;
     });
 
-    const playedFixtures = sortedTeamFixtures.filter((fixture) => isFixturePlayed(fixture));
+    const sortedTournamentFixtures = [...(
+      Array.isArray(allTournamentFixtures) && allTournamentFixtures.length > 0
+        ? allTournamentFixtures
+        : sortedTeamFixtures
+    )].sort((a, b) => {
+      const aKickoff = parseFixtureKickoffMs(a);
+      const bKickoff = parseFixtureKickoffMs(b);
+      if (aKickoff === null && bKickoff === null) return 0;
+      if (aKickoff === null) return 1;
+      if (bKickoff === null) return -1;
+      return aKickoff - bKickoff;
+    });
+
+    const playedFixtures = sortedTournamentFixtures.filter((fixture) => isFixturePlayed(fixture));
     const matchRows = playedFixtures.length > 0
       ? playedFixtures
-      : (sortedTeamFixtures.length > 0 ? sortedTeamFixtures : selectedGroupFixtures);
+      : (sortedTournamentFixtures.length > 0 ? sortedTournamentFixtures : selectedGroupFixtures);
     setMatchesResultsData(matchRows);
 
-    const knockoutFixtures = sortedTeamFixtures.filter((fixture) => !isGroupStageName(fixture.stage));
+    const knockoutFixtures = sortedTournamentFixtures.filter((fixture) => !isGroupStageName(fixture.stage));
     const nowMs = Date.now();
     const upcomingKnockout = knockoutFixtures.filter((fixture) => {
       const kickoffMs = parseFixtureKickoffMs(fixture);
@@ -1706,7 +1765,7 @@ function App() {
 
     const fixturesByStage = new Map();
     knockoutFixtures.forEach((fixture) => {
-      const stageName = String(fixture.stage || 'Knockout').trim() || 'Knockout';
+      const stageName = normalizeTournamentStageName(fixture.stage) || 'Knockout';
       const rows = fixturesByStage.get(stageName) || [];
       rows.push(fixture);
       fixturesByStage.set(stageName, rows);
@@ -1729,11 +1788,12 @@ function App() {
     setNextPhaseLoading(false);
     setNextPhaseError('');
     setTeamViewError('');
-  }, [groupStandings, selectedGroupFixtures, selectedGroupLetter, selectedTeam, showGroupStage, teamFixtures]);
+  }, [allTournamentFixtures, groupStandings, selectedGroupFixtures, selectedGroupLetter, selectedTeam, showGroupStage, teamFixtures]);
 
   useEffect(() => {
     if (!showGroupStage) {
       setNextMatches([]);
+      setAllTournamentFixtures([]);
       setNextMatchesLoading(false);
       setNextMatchesError('');
       setSelectedNextMatchId('');
@@ -1758,6 +1818,9 @@ function App() {
 
         const nowMs = Date.now();
         const fixtures = enrichFixtureTeams(Array.isArray(json.data) ? json.data : []);
+        if (!cancelled) {
+          setAllTournamentFixtures(fixtures);
+        }
         const upcomingFixtures = fixtures
           .filter((fixture) => {
             const kickoffMs = parseFixtureKickoffMs(fixture);
@@ -1779,6 +1842,7 @@ function App() {
       } catch (loadError) {
         if (!cancelled) {
           setNextMatches([]);
+          setAllTournamentFixtures([]);
           setNextMatchesError(loadError instanceof Error ? loadError.message : 'Turnier-Spielplan konnte nicht geladen werden.');
         }
       } finally {
@@ -1906,18 +1970,19 @@ function App() {
 
   const tournamentBracketStages = useMemo(() => {
     const orderMap = {
-      'Play-offs': 1,
-      'Round of 32': 2,
-      'Round of 16': 3,
-      'Quarter-finals': 4,
-      'Semi-finals': 5,
-      '3rd Place Final': 6,
-      'Final': 7
+      'Group Stage': 1,
+      'Play-offs': 2,
+      'Round of 32': 3,
+      'Round of 16': 4,
+      'Quarter-finals': 5,
+      'Semi-finals': 6,
+      '3rd Place Final': 7,
+      'Final': 8
     };
 
     return [...tournamentStructureData].sort((a, b) => {
-      const aName = String(a?.stage || '');
-      const bName = String(b?.stage || '');
+      const aName = normalizeTournamentStageName(a?.stage);
+      const bName = normalizeTournamentStageName(b?.stage);
       const aOrder = orderMap[aName] ?? 999;
       const bOrder = orderMap[bName] ?? 999;
       if (aOrder !== bOrder) {
@@ -1928,23 +1993,17 @@ function App() {
   }, [tournamentStructureData]);
 
   const tournamentHierarchy = useMemo(() => {
-    const hierarchyOrder = [
-      'Play-offs',
-      'Round of 32',
-      'Round of 16',
-      'Quarter-finals',
-      'Semi-finals',
-      '3rd Place Final',
-      'Final'
-    ];
-
     const stageMap = new Map(
-      tournamentBracketStages.map((stage) => [String(stage.stage || '').trim(), stage])
+      tournamentBracketStages.map((stage) => [normalizeTournamentStageName(stage.stage), {
+        ...stage,
+        stage: normalizeTournamentStageName(stage.stage)
+      }])
     );
 
+    const hierarchyOrder = WM_2026_PHASE_TEMPLATE.map((entry) => entry.stage);
     const orderedKnownStages = hierarchyOrder.filter((stageName) => stageMap.has(stageName));
     const unknownStages = tournamentBracketStages
-      .map((stage) => String(stage.stage || '').trim())
+      .map((stage) => normalizeTournamentStageName(stage.stage))
       .filter((stageName) => stageName && !hierarchyOrder.includes(stageName));
 
     const sequence = [...orderedKnownStages, ...unknownStages];
@@ -1952,34 +2011,64 @@ function App() {
     return sequence.map((stageName) => {
       const stage = stageMap.get(stageName) || { stage: stageName, fixtures: [] };
       const fixtureCount = Array.isArray(stage.fixtures) ? stage.fixtures.length : 0;
-      const teamsCount = fixtureCount > 0 ? fixtureCount * 2 : 0;
+      const templateMeta = WM_2026_PHASE_TEMPLATE.find((entry) => entry.stage === stageName);
+      const teamsCount = fixtureCount > 0 ? fixtureCount * 2 : (templateMeta?.teamsCount || 0);
       return {
         ...stage,
-        fixtureCount,
+        fixtureCount: fixtureCount > 0 ? fixtureCount : (templateMeta?.fixtureCount || 0),
         teamsCount
       };
     });
   }, [tournamentBracketStages]);
 
   const selectedDiagramStage = useMemo(
-    () => tournamentBracketStages.find((stage) => stage.stage === selectedDiagramStageName) || null,
-    [selectedDiagramStageName, tournamentBracketStages]
+    () => tournamentHierarchy.find((stage) => stage.stage === selectedDiagramStageName) || null,
+    [selectedDiagramStageName, tournamentHierarchy]
   );
 
+  const selectedDiagramStageRows = useMemo(() => {
+    if (!selectedDiagramStage || !Array.isArray(selectedDiagramStage.fixtures)) {
+      return [];
+    }
+
+    return selectedDiagramStage.fixtures.map((fixture) => ({
+      fixture,
+      tips: loadTipsForFixture(fixture.id)
+    }));
+  }, [selectedDiagramStage, tips]);
+
   useEffect(() => {
-    if (!selectedDiagramStage) {
+    if (tournamentHierarchy.length === 0) {
+      if (selectedDiagramStageName) {
+        setSelectedDiagramStageName('');
+      }
+      return;
+    }
+
+    const hasSelection = tournamentHierarchy.some((stage) => stage.stage === selectedDiagramStageName);
+    if (hasSelection) {
+      return;
+    }
+
+    const preferred = tournamentHierarchy.find((stage) => Array.isArray(stage.fixtures) && stage.fixtures.length > 0)
+      || tournamentHierarchy[0];
+    setSelectedDiagramStageName(preferred.stage);
+  }, [selectedDiagramStageName, tournamentHierarchy]);
+
+  useEffect(() => {
+    if (!isDiagramModalOpen || !selectedDiagramStage) {
       return;
     }
 
     function closeOnEscape(event) {
       if (event.key === 'Escape') {
-        setSelectedDiagramStageName('');
+        setIsDiagramModalOpen(false);
       }
     }
 
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [selectedDiagramStage]);
+  }, [isDiagramModalOpen, selectedDiagramStage]);
 
   const latestFormation = useMemo(() => {
     if (!formationData.length) {
@@ -2765,6 +2854,90 @@ function App() {
                       <button
                         type="button"
                         className="side-card-toggle"
+                        onClick={() => setShowNextPhasePanel((prev) => !prev)}
+                        aria-expanded={showNextPhasePanel}
+                      >
+                        <span>Select phase (WM 2026)</span>
+                        <span className="side-card-toggle-icon">{showNextPhasePanel ? '−' : '+'}</span>
+                      </button>
+                      {showNextPhasePanel ? (
+                        <div className="side-card-body">
+                          {nextPhaseLoading ? <p className="inline-note">Lade Phasen-Daten...</p> : null}
+                          {nextPhaseError ? <p className="inline-error">{nextPhaseError}</p> : null}
+                          {tournamentHierarchy.length > 0 ? (
+                            <>
+                              <label htmlFor="wm2026-phase-select" className="phase-select-label">Select phase</label>
+                              <select
+                                id="wm2026-phase-select"
+                                className="phase-select"
+                                value={selectedDiagramStageName}
+                                onChange={(event) => setSelectedDiagramStageName(event.target.value)}
+                              >
+                                {tournamentHierarchy.map((stage) => (
+                                  <option key={`wm-phase-${stage.stage}`} value={stage.stage}>
+                                    {stage.stage}
+                                  </option>
+                                ))}
+                              </select>
+
+                              {selectedDiagramStage ? (
+                                selectedDiagramStageRows.length > 0 ? (
+                                  <div className="next-phase-table-wrap">
+                                    <table className="next-phase-table">
+                                      <thead>
+                                        <tr>
+                                          <th>Match</th>
+                                          <th>Result</th>
+                                          <th>Friend tips</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {selectedDiagramStageRows.map(({ fixture, tips: fixtureTips }) => (
+                                          <tr key={`sel-phase-${selectedDiagramStage.stage}-${fixture.id}`}>
+                                            <td>{fixture.homeTeam?.name || 'TBD'} vs {fixture.awayTeam?.name || 'TBD'}</td>
+                                            <td>
+                                              {isFixturePlayed(fixture)
+                                                ? `${Number(fixture.homeScore || 0)} : ${Number(fixture.awayScore || 0)}`
+                                                : 'Noch offen'}
+                                            </td>
+                                            <td>
+                                              {fixtureTips.length > 0 ? (
+                                                <details className="phase-tip-details">
+                                                  <summary>{fixtureTips.length} Tipps</summary>
+                                                  <div className="phase-tip-list">
+                                                    {fixtureTips.map((tip) => (
+                                                      <div key={`phase-tip-${fixture.id}-${tip.id}`} className="phase-tip-item">
+                                                        <span>{tip.friend_name}</span>
+                                                        <strong>{tip.home_tip} : {tip.away_tip}</strong>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </details>
+                                              ) : (
+                                                <span className="tips-empty">Keine Friend-Tipps</span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                ) : (
+                                  <p className="tips-empty">Keine Spiele fur diese Phase vorhanden.</p>
+                                )
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="tips-empty">Noch keine Phasen-Daten vorhanden.</p>
+                          )}
+                        </div>
+                      ) : null}
+                    </section>
+
+                    <section className="side-card">
+                      <button
+                        type="button"
+                        className="side-card-toggle"
                         onClick={() => setShowChatPanel((prev) => !prev)}
                         aria-expanded={showChatPanel}
                       >
@@ -2804,50 +2977,6 @@ function App() {
                               {chatSending ? '...' : 'Senden'}
                             </button>
                           </form>
-                        </div>
-                      ) : null}
-                    </section>
-
-                    <section className="side-card">
-                      <button
-                        type="button"
-                        className="side-card-toggle"
-                        onClick={() => setShowNextPhasePanel((prev) => !prev)}
-                        aria-expanded={showNextPhasePanel}
-                      >
-                        <span>Nächste Phase (nach Gruppe)</span>
-                        <span className="side-card-toggle-icon">{showNextPhasePanel ? '−' : '+'}</span>
-                      </button>
-                      {showNextPhasePanel ? (
-                        <div className="side-card-body">
-                          {nextPhaseLoading ? <p className="inline-note">Lade nächste Phase von Sportmonks...</p> : null}
-                          {nextPhaseError ? <p className="inline-error">{nextPhaseError}</p> : null}
-                          {!nextPhaseLoading && !nextPhaseError ? (
-                            nextPhaseData.length > 0 ? (
-                              <div className="next-phase-table-wrap">
-                                <table className="next-phase-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Phase</th>
-                                      <th>Spiel</th>
-                                      <th>Zeit</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {nextPhaseData.slice(0, 12).map((fixture) => (
-                                      <tr key={`phase-${fixture.id}`}>
-                                        <td>{fixture.stage}</td>
-                                        <td>{fixture.homeTeam?.name} vs {fixture.awayTeam?.name}</td>
-                                        <td>{formatClientKickoff(fixture.kickoffUtc)}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            ) : (
-                              <p className="tips-empty">Noch keine Spiele nach der Gruppenphase vorhanden.</p>
-                            )
-                          ) : null}
                         </div>
                       ) : null}
                     </section>
@@ -3029,7 +3158,7 @@ function App() {
                         onClick={() => setShowNextPhaseDetailsPanel((prev) => !prev)}
                         aria-expanded={showNextPhaseDetailsPanel}
                       >
-                        <span>Nächste Phase (Details)</span>
+                        <span>Phasen-Details</span>
                         <span className="side-card-toggle-icon">{showNextPhaseDetailsPanel ? '−' : '+'}</span>
                       </button>
                       {showNextPhaseDetailsPanel ? (
@@ -3074,8 +3203,16 @@ function App() {
                               <button
                                 key={`phase-${stage.stage}`}
                                 type="button"
-                                className="tournament-phase-box"
-                                onClick={() => setSelectedDiagramStageName(stage.stage)}
+                                className={
+                                  stage.stage === selectedDiagramStageName
+                                    ? 'tournament-phase-box tournament-phase-box-active'
+                                    : 'tournament-phase-box'
+                                }
+                                onClick={() => {
+                                  setSelectedDiagramStageName(stage.stage);
+                                  setIsDiagramModalOpen(true);
+                                  setShowNextPhasePanel(true);
+                                }}
                                 title={`${stage.stage}: ${stage.teamsCount} Teams, ${stage.fixtureCount} Spiele`}
                               >
                                 <div className="phase-box-title">{stage.stage}</div>
@@ -3240,13 +3377,13 @@ function App() {
                   })}
                 </div>
               </div>
-              {selectedDiagramStage ? (
+              {isDiagramModalOpen && selectedDiagramStage ? (
                 <div
                   className="phase-diagram-overlay"
                   role="dialog"
                   aria-modal="true"
                   aria-label={`${selectedDiagramStage.stage} Diagramm`}
-                  onClick={() => setSelectedDiagramStageName('')}
+                  onClick={() => setIsDiagramModalOpen(false)}
                 >
                   <div className="phase-diagram-modal" onClick={(event) => event.stopPropagation()}>
                     <div className="phase-diagram-head">
@@ -3257,7 +3394,7 @@ function App() {
                       <button
                         type="button"
                         className="friend-remove-btn"
-                        onClick={() => setSelectedDiagramStageName('')}
+                        onClick={() => setIsDiagramModalOpen(false)}
                         aria-label="Diagramm schliessen"
                         title="Schliessen"
                       >
@@ -3266,8 +3403,8 @@ function App() {
                     </div>
 
                     <div className="phase-diagram-board">
-                      {(selectedDiagramStage.fixtures || []).length > 0 ? (
-                        (selectedDiagramStage.fixtures || []).map((fixture, index) => (
+                      {selectedDiagramStageRows.length > 0 ? (
+                        selectedDiagramStageRows.map(({ fixture, tips: fixtureTips }, index) => (
                           <article key={`diag-${selectedDiagramStage.stage}-${fixture.id}`} className="phase-diagram-match">
                             <span className="phase-diagram-match-index">Match {index + 1}</span>
                             <div className="phase-diagram-team-row">
@@ -3277,6 +3414,18 @@ function App() {
                             <div className="phase-diagram-team-row">
                               <span>{fixture.awayTeam?.name || 'TBD'}</span>
                               <strong>{Number(fixture.awayScore || 0)}</strong>
+                            </div>
+                            <div className="phase-diagram-tip-list">
+                              {fixtureTips.length > 0 ? (
+                                fixtureTips.map((tip) => (
+                                  <div key={`diag-tip-${fixture.id}-${tip.id}`} className="phase-diagram-tip-item">
+                                    <span>{tip.friend_name}</span>
+                                    <strong>{tip.home_tip}:{tip.away_tip}</strong>
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="tips-empty">Keine Friend-Tipps</span>
+                              )}
                             </div>
                           </article>
                         ))
