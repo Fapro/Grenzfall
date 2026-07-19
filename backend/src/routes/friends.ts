@@ -5,6 +5,7 @@ import {
   setTenantTeamFriends,
   listMembersByTenantId,
   findUserById,
+  listTenantTeamFriendScopes,
 } from '../multitenant/store';
 import { FriendEntry } from '../multitenant/types';
 import { randomId } from '../multitenant/auth';
@@ -75,6 +76,42 @@ function isValidFriendEntry(value: unknown): value is FriendEntry {
   });
 }
 
+function mergeFriendTips(base: FriendEntry[], additional: FriendEntry[]): FriendEntry[] {
+  const byFriendId = new Map<string, FriendEntry>();
+
+  additional.forEach((entry) => {
+    byFriendId.set(entry.id, {
+      id: entry.id,
+      name: entry.name,
+      tips: { ...(entry.tips || {}) },
+    });
+  });
+
+  base.forEach((entry) => {
+    const existing = byFriendId.get(entry.id);
+    if (!existing) {
+      byFriendId.set(entry.id, {
+        id: entry.id,
+        name: entry.name,
+        tips: { ...(entry.tips || {}) },
+      });
+      return;
+    }
+
+    byFriendId.set(entry.id, {
+      id: entry.id,
+      name: entry.name || existing.name,
+      // all-matches (base) wins on conflicts, legacy scopes fill the gaps
+      tips: {
+        ...(existing.tips || {}),
+        ...(entry.tips || {}),
+      },
+    });
+  });
+
+  return Array.from(byFriendId.values());
+}
+
 // Get all workspace members as friends with their tips
 router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response) => {
   const teamId = String(req.params.teamId ?? '').trim();
@@ -84,7 +121,20 @@ router.get('/:teamId', requireAuth, requireTenant, (req: Request, res: Response)
   const members = listMembersByTenantId(tenantId);
 
   // Get stored tips for all members
-  const allFriendsTips = getTenantTeamFriends(tenantId, teamId);
+  let allFriendsTips = getTenantTeamFriends(tenantId, teamId);
+
+  // Backward compatibility: older clients could store tips under team-specific scopes.
+  // When requesting all-matches, merge those scopes so knockout/phase tips remain visible.
+  if (teamId === 'all-matches') {
+    const extraScopes = listTenantTeamFriendScopes(tenantId)
+      .filter((scope) => scope !== 'all-matches');
+
+    const scopedFriends = extraScopes.flatMap((scope) => getTenantTeamFriends(tenantId, scope));
+    if (scopedFriends.length > 0) {
+      allFriendsTips = mergeFriendTips(allFriendsTips, scopedFriends);
+    }
+  }
+
   const { nextFriends, changed } = ensurePresetFriends(allFriendsTips);
   const friendsWithPreset = changed ? setTenantTeamFriends(tenantId, teamId, nextFriends) : allFriendsTips;
 

@@ -211,3 +211,11 @@ export function setTenantTeamFriends(
   });
   return friends;
 }
+
+export function listTenantTeamFriendScopes(tenantId: string): string[] {
+  const prefix = `${tenantId}:`;
+  return Object.keys(db.friendsByTenantTeam)
+    .filter((key) => key.startsWith(prefix))
+    .map((key) => key.slice(prefix.length))
+    .filter((scope) => scope.length > 0);
+}
