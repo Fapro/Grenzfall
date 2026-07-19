@@ -489,6 +489,7 @@ function App() {
   const [nextPhaseLoading, setNextPhaseLoading] = useState(false);
   const [nextPhaseError, setNextPhaseError] = useState('');
   const [selectedDiagramStageName, setSelectedDiagramStageName] = useState('');
+  const [isPhaseViewActive, setIsPhaseViewActive] = useState(false);
   const [isDiagramModalOpen, setIsDiagramModalOpen] = useState(false);
   const [formationData, setFormationData] = useState([]);
   const [matchesResultsData, setMatchesResultsData] = useState([]);
@@ -2088,10 +2089,33 @@ function App() {
     });
   }, [selectedDiagramStage, tips]);
 
+  const normalizedSelectedStageName = useMemo(
+    () => normalizeTournamentStageName(selectedDiagramStageName),
+    [selectedDiagramStageName]
+  );
+
+  const isSelectedKnockoutPhase = useMemo(() => {
+    return Boolean(normalizedSelectedStageName && normalizedSelectedStageName !== 'Group Stage');
+  }, [normalizedSelectedStageName]);
+
+  const selectedPhaseFixtures = useMemo(() => {
+    if (!isSelectedKnockoutPhase || selectedDiagramStageRows.length === 0) {
+      return [];
+    }
+    return selectedDiagramStageRows.map((row) => row.fixture);
+  }, [isSelectedKnockoutPhase, selectedDiagramStageRows]);
+
+  const mainFixtures = useMemo(() => {
+    return isSelectedKnockoutPhase ? selectedPhaseFixtures : selectedGroupFixtures;
+  }, [isSelectedKnockoutPhase, selectedGroupFixtures, selectedPhaseFixtures]);
+
   useEffect(() => {
     if (tournamentHierarchy.length === 0) {
       if (selectedDiagramStageName) {
         setSelectedDiagramStageName('');
+      }
+      if (isPhaseViewActive) {
+        setIsPhaseViewActive(false);
       }
       return;
     }
@@ -2104,7 +2128,7 @@ function App() {
     const preferred = tournamentHierarchy.find((stage) => Array.isArray(stage.fixtures) && stage.fixtures.length > 0)
       || tournamentHierarchy[0];
     setSelectedDiagramStageName(preferred.stage);
-  }, [selectedDiagramStageName, tournamentHierarchy]);
+  }, [isPhaseViewActive, selectedDiagramStageName, tournamentHierarchy]);
 
   useEffect(() => {
     if (!isDiagramModalOpen || !selectedDiagramStage) {
@@ -2120,6 +2144,10 @@ function App() {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [isDiagramModalOpen, selectedDiagramStage]);
+
+  useEffect(() => {
+    setIsPhaseViewActive(false);
+  }, [selectedTeamId]);
 
   const latestFormation = useMemo(() => {
     if (!formationData.length) {
@@ -2696,29 +2724,35 @@ function App() {
             {showGroupStage && selectedTeam ? (
               <div className="group-stage-view">
                 <div className="group-stage-headline">
-                  <h3>
-                    {getFlagImageSrc(selectedTeam) ? (
-                      <img className="inline-flag-img" src={getFlagImageSrc(selectedTeam)} alt={`${selectedTeam.name} Flagge`} loading="lazy" />
-                    ) : (
-                      <span className="flag">{selectedTeam.flag}</span>
-                    )}
-                    {' '}{selectedTeam.name} · Group {selectedGroupLetter}
-                  </h3>
-
-                </div>
-
-                <div className="group-team-strip">
-                  {selectedGroupTeams.map((team) => (
-                    <span key={team.id} className={team.id === selectedTeam.id ? 'group-team-chip active' : 'group-team-chip'}>
-                      {getFlagImageSrc(team) ? (
-                        <img className="inline-flag-img" src={getFlagImageSrc(team)} alt={`${team.name} Flagge`} loading="lazy" />
+                  {isSelectedKnockoutPhase ? (
+                    <h3>{normalizedSelectedStageName}</h3>
+                  ) : (
+                    <h3>
+                      {getFlagImageSrc(selectedTeam) ? (
+                        <img className="inline-flag-img" src={getFlagImageSrc(selectedTeam)} alt={`${selectedTeam.name} Flagge`} loading="lazy" />
                       ) : (
-                        <span className="flag">{team.flag}</span>
+                        <span className="flag">{selectedTeam.flag}</span>
                       )}
-                      {' '}{team.name}
-                    </span>
-                  ))}
+                      {' '}{selectedTeam.name} · Group {selectedGroupLetter}
+                    </h3>
+                  )}
+
                 </div>
+
+                {!isSelectedKnockoutPhase ? (
+                  <div className="group-team-strip">
+                    {selectedGroupTeams.map((team) => (
+                      <span key={team.id} className={team.id === selectedTeam.id ? 'group-team-chip active' : 'group-team-chip'}>
+                        {getFlagImageSrc(team) ? (
+                          <img className="inline-flag-img" src={getFlagImageSrc(team)} alt={`${team.name} Flagge`} loading="lazy" />
+                        ) : (
+                          <span className="flag">{team.flag}</span>
+                        )}
+                        {' '}{team.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
 
                 <div className="group-stage-content">
                   <aside className="phase-side-panel">
@@ -2922,7 +2956,10 @@ function App() {
                                 id="wm2026-phase-select"
                                 className="phase-select"
                                 value={selectedDiagramStageName}
-                                onChange={(event) => setSelectedDiagramStageName(event.target.value)}
+                                onChange={(event) => {
+                                  setSelectedDiagramStageName(event.target.value);
+                                  setIsPhaseViewActive(true);
+                                }}
                               >
                                 {tournamentHierarchy.map((stage) => (
                                   <option key={`wm-phase-${stage.stage}`} value={stage.stage}>
@@ -2943,9 +2980,35 @@ function App() {
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {selectedDiagramStageRows.map(({ fixture, fixtureId, tips: fixtureTips }) => (
+                                        {selectedDiagramStageRows.map(({ fixture, fixtureId, tips: fixtureTips }) => {
+                                          const homeTeamMeta = getCanonicalTeamMeta(fixture.homeTeam?.id, fixture.homeTeam?.name);
+                                          const awayTeamMeta = getCanonicalTeamMeta(fixture.awayTeam?.id, fixture.awayTeam?.name);
+                                          const homeFlagSrc = getFlagImageSrc(homeTeamMeta);
+                                          const awayFlagSrc = getFlagImageSrc(awayTeamMeta);
+                                          const homeTeamName = homeTeamMeta?.name || fixture.homeTeam?.name || 'TBD';
+                                          const awayTeamName = awayTeamMeta?.name || fixture.awayTeam?.name || 'TBD';
+
+                                          return (
                                           <tr key={`sel-phase-${selectedDiagramStage.stage}-${fixtureId}`}>
-                                            <td>{fixture.homeTeam?.name || 'TBD'} vs {fixture.awayTeam?.name || 'TBD'}</td>
+                                            <td>
+                                              <span className="team-name-with-flag">
+                                                {homeFlagSrc ? (
+                                                  <img className="inline-flag-img" src={homeFlagSrc} alt={`${homeTeamName} Flagge`} loading="lazy" />
+                                                ) : (
+                                                  <span className="flag">{homeTeamMeta?.flag || fixture.homeTeam?.flag || '🏳️'}</span>
+                                                )}
+                                                {' '}{homeTeamName}
+                                              </span>
+                                              {' '}vs{' '}
+                                              <span className="team-name-with-flag">
+                                                {awayFlagSrc ? (
+                                                  <img className="inline-flag-img" src={awayFlagSrc} alt={`${awayTeamName} Flagge`} loading="lazy" />
+                                                ) : (
+                                                  <span className="flag">{awayTeamMeta?.flag || fixture.awayTeam?.flag || '🏳️'}</span>
+                                                )}
+                                                {' '}{awayTeamName}
+                                              </span>
+                                            </td>
                                             <td>
                                               {isFixturePlayed(fixture)
                                                 ? `${Number(fixture.homeScore || 0)} : ${Number(fixture.awayScore || 0)}`
@@ -2969,7 +3032,8 @@ function App() {
                                               )}
                                             </td>
                                           </tr>
-                                        ))}
+                                          );
+                                        })}
                                       </tbody>
                                     </table>
                                   </div>
@@ -3261,6 +3325,7 @@ function App() {
                                 }
                                 onClick={() => {
                                   setSelectedDiagramStageName(stage.stage);
+                                  setIsPhaseViewActive(true);
                                   setIsDiagramModalOpen(true);
                                   setShowNextPhasePanel(true);
                                 }}
@@ -3290,15 +3355,33 @@ function App() {
                   </aside>
 
                 <div className="fixture-list">
-                  {fixturesLoading ? <p className="inline-note">Lade Group-Stage-Fixtures von Sportmonks...</p> : null}
+                  {fixturesLoading ? (
+                    <p className="inline-note">
+                      {isSelectedKnockoutPhase
+                        ? `Lade ${normalizedSelectedStageName}-Spiele...`
+                        : 'Lade Group-Stage-Fixtures von Sportmonks...'}
+                    </p>
+                  ) : null}
                   {!fixturesLoading && fixturesError ? (
                     <p className="inline-error">{fixturesError}</p>
                   ) : null}
-                  {selectedGroupFixtures.map((fixture) => {
-                    const fixtureTips = loadTipsForFixture(fixture.id);
+                  {!fixturesLoading && !fixturesError && mainFixtures.length === 0 ? (
+                    <p className="tips-empty">
+                      {isSelectedKnockoutPhase
+                        ? `Keine Spiele für ${normalizedSelectedStageName} vorhanden.`
+                        : 'Keine Group-Stage-Spiele vorhanden.'}
+                    </p>
+                  ) : null}
+                  {mainFixtures.map((fixture) => {
+                    const fixtureResolvedId = resolveFixtureIdValue(fixture);
+                    const fixtureTips = loadTipsForFixture(fixture);
                     const visibleTips = fixtureTips.slice(0, 10);
-                    const homeFlagSrc = getFlagImageSrc(fixture.homeTeam);
-                    const awayFlagSrc = getFlagImageSrc(fixture.awayTeam);
+                    const homeTeamMeta = getCanonicalTeamMeta(fixture.homeTeam?.id, fixture.homeTeam?.name);
+                    const awayTeamMeta = getCanonicalTeamMeta(fixture.awayTeam?.id, fixture.awayTeam?.name);
+                    const homeFlagSrc = getFlagImageSrc(homeTeamMeta);
+                    const awayFlagSrc = getFlagImageSrc(awayTeamMeta);
+                    const homeTeamName = homeTeamMeta?.name || fixture.homeTeam?.name || 'Home';
+                    const awayTeamName = awayTeamMeta?.name || fixture.awayTeam?.name || 'Away';
                     const venue = fixture.venue || {
                       name: 'Unknown venue',
                       city: 'Unknown city',
@@ -3308,7 +3391,7 @@ function App() {
                     };
 
                     return (
-                      <article key={fixture.id} className="fixture-card">
+                      <article key={fixtureResolvedId || `${fixture.stage || 'stage'}-${homeTeamName}-${awayTeamName}-${fixture.kickoffUtc || 'kickoff'}`} className="fixture-card">
                         <header>
                           <p className="fixture-stage">{fixture.stage}</p>
                         </header>
@@ -3316,19 +3399,19 @@ function App() {
                         <div className="match-teams-line">
                           <span className="team-home">
                             {homeFlagSrc ? (
-                              <img className="match-flag-img" src={homeFlagSrc} alt={`${fixture.homeTeam.name} Flagge`} loading="lazy" />
+                              <img className="match-flag-img" src={homeFlagSrc} alt={`${homeTeamName} Flagge`} loading="lazy" />
                             ) : (
-                              <span className="flag">{fixture.homeTeam.flag || '🏳️'}</span>
+                              <span className="flag">{homeTeamMeta?.flag || fixture.homeTeam?.flag || '🏳️'}</span>
                             )}
-                            {' '}{fixture.homeTeam.name}
+                            {' '}{homeTeamName}
                           </span>
                           <span className="team-away">
                             {awayFlagSrc ? (
-                              <img className="match-flag-img" src={awayFlagSrc} alt={`${fixture.awayTeam.name} Flagge`} loading="lazy" />
+                              <img className="match-flag-img" src={awayFlagSrc} alt={`${awayTeamName} Flagge`} loading="lazy" />
                             ) : (
-                              <span className="flag">{fixture.awayTeam.flag || '🏳️'}</span>
+                              <span className="flag">{awayTeamMeta?.flag || fixture.awayTeam?.flag || '🏳️'}</span>
                             )}
-                            {' '}{fixture.awayTeam.name}
+                            {' '}{awayTeamName}
                           </span>
                         </div>
 
@@ -3395,10 +3478,10 @@ function App() {
                             </div>
                             {fixtureTips.length > 10 ? <p className="tips-more">+{fixtureTips.length - 10} weitere Tipps gespeichert</p> : null}
 
-                            <form className="tip-form" onSubmit={(event) => saveTip(event, fixture.id)}>
+                            <form className="tip-form" onSubmit={(event) => saveTip(event, fixtureResolvedId)}>
                               <select
-                                value={getTipDraft(fixture.id).friendId}
-                                onChange={(event) => setTipDraft(fixture.id, { friendId: event.target.value })}
+                                value={getTipDraft(fixtureResolvedId).friendId}
+                                onChange={(event) => setTipDraft(fixtureResolvedId, { friendId: event.target.value })}
                               >
                                 <option value="">Freund wählen</option>
                                 {friends.map((friend) => (
@@ -3409,15 +3492,15 @@ function App() {
                                 type="number"
                                 min="0"
                                 placeholder="Home"
-                                value={getTipDraft(fixture.id).homeTip}
-                                onChange={(event) => setTipDraft(fixture.id, { homeTip: event.target.value })}
+                                value={getTipDraft(fixtureResolvedId).homeTip}
+                                onChange={(event) => setTipDraft(fixtureResolvedId, { homeTip: event.target.value })}
                               />
                               <input
                                 type="number"
                                 min="0"
                                 placeholder="Away"
-                                value={getTipDraft(fixture.id).awayTip}
-                                onChange={(event) => setTipDraft(fixture.id, { awayTip: event.target.value })}
+                                value={getTipDraft(fixtureResolvedId).awayTip}
+                                onChange={(event) => setTipDraft(fixtureResolvedId, { awayTip: event.target.value })}
                               />
                               <button type="submit" className="outline-btn">Tipp speichern</button>
                             </form>

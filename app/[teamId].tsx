@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -376,6 +377,14 @@ export default function TeamScreen() {
   const [activeHeaderMode, setActiveHeaderMode] = useState<HeaderMode>('GROUP');
   const [activeQualificationRound, setActiveQualificationRound] = useState<QualificationRound>('R32');
 
+  const qualificationRoundTitleByCode: Record<QualificationRound, string> = {
+    R32: 'Round of 32',
+    R16: 'Round of 16',
+    QF: 'Quarter-finals',
+    SF: 'Semi-finals',
+    FINAL: 'Final',
+  };
+
   const [players, setPlayers] = useState<Player[]>([]);
   const [trainerName, setTrainerName] = useState<string | null>(null);
   const [playersLoading, setPlayersLoading] = useState(false);
@@ -735,15 +744,37 @@ export default function TeamScreen() {
     [groupTable, team]
   );
 
+  const filteredSchedule = useMemo(() => {
+    if (activeHeaderMode === 'QUALI') {
+      return schedule.filter((match) => getStageShortcutForMatch(match) === activeQualificationRound);
+    }
+
+    if (activeStageShortcut === 'ALL') {
+      return schedule;
+    }
+
+    return schedule.filter((match) => getStageShortcutForMatch(match) === activeStageShortcut);
+  }, [activeHeaderMode, activeQualificationRound, activeStageShortcut, schedule]);
+
+  const scheduleHeaderTitle = useMemo(() => {
+    if (activeHeaderMode === 'QUALI') {
+      return `${qualificationRoundTitleByCode[activeQualificationRound]} · ${team.name}`;
+    }
+
+    return currentGroupLetter
+      ? `GROUP ${currentGroupLetter} ${team.name} Match Schedule`
+      : `${team.name} Match Schedule`;
+  }, [activeHeaderMode, activeQualificationRound, currentGroupLetter, team.name]);
+
   const upcomingMatch = useMemo(() => {
     const now = Date.now();
-    return schedule
+    return filteredSchedule
       .filter((match) => new Date(match.kickoffUtc).getTime() > now)
       .sort(
         (a, b) =>
           new Date(a.kickoffUtc).getTime() - new Date(b.kickoffUtc).getTime()
       )[0] ?? null;
-  }, [schedule]);
+  }, [filteredSchedule]);
 
   const upcomingKickoffText = useMemo(() => {
     if (!upcomingMatch) {
@@ -755,13 +786,6 @@ export default function TeamScreen() {
       deviceTimeZone
     )}`;
   }, [deviceTimeZone, upcomingMatch]);
-
-  const filteredSchedule = useMemo(() => {
-    if (activeStageShortcut === 'ALL') {
-      return schedule;
-    }
-    return schedule.filter((match) => getStageShortcutForMatch(match) === activeStageShortcut);
-  }, [activeStageShortcut, schedule]);
 
   const friendLeaderboard = useMemo(() => {
     if (friends.length === 0 || schedule.length === 0) return [];
@@ -1676,10 +1700,7 @@ export default function TeamScreen() {
                       onPress={() => {
                         setActiveHeaderMode('QUALI');
                         setActiveQualificationRound(stageChip.code);
-                        router.push({
-                          pathname: '/qualification/[round]',
-                          params: { round: stageChip.code, teamId: team.id },
-                        });
+                        setActiveStageShortcut(stageChip.code);
                       }}
                     >
                       <Text
@@ -1715,9 +1736,7 @@ export default function TeamScreen() {
           <View style={styles.scheduleHeaderCard}>
             <View style={[styles.scheduleHeaderTopRow, isSmallMobile ? styles.scheduleHeaderTopRowCompact : null]}>
               <Text style={[styles.scheduleTitle, isSmallMobile ? styles.scheduleTitleCompact : null]}>
-                {currentGroupLetter
-                  ? `GROUP ${currentGroupLetter} ${team.name} Match Schedule`
-                  : `${team.name} Match Schedule`}
+                {scheduleHeaderTitle}
               </Text>
               <View style={[styles.roarActionFrame, isSmallMobile ? styles.roarActionFrameCompact : null]}>
                 {!(isDesktopWeb || isUltraWideWeb) && (
@@ -1833,9 +1852,11 @@ export default function TeamScreen() {
 
               {!scheduleLoading && !scheduleError && filteredSchedule.length === 0 && (
                 <Text style={styles.scheduleEmptyText}>
-                  {activeStageShortcut === 'ALL'
-                    ? 'No fixtures found.'
-                    : `No fixtures found for ${activeStageShortcut}.`}
+                  {activeHeaderMode === 'QUALI'
+                    ? `No fixtures found for ${activeQualificationRound}.`
+                    : (activeStageShortcut === 'ALL'
+                      ? 'No fixtures found.'
+                      : `No fixtures found for ${activeStageShortcut}.`)}
                 </Text>
               )}
 
