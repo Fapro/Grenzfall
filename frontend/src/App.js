@@ -1359,8 +1359,22 @@ function App() {
     return raw.toLowerCase();
   }
 
-  function loadTipsForFixture(fixtureId) {
-    const fixtureRaw = String(fixtureId || '').trim();
+  function resolveFixtureIdValue(fixtureOrId) {
+    if (fixtureOrId && typeof fixtureOrId === 'object') {
+      const maybeFixture = fixtureOrId;
+      const candidate = maybeFixture.id ?? maybeFixture.fixture_id ?? maybeFixture.fixtureId;
+      return String(candidate || '').trim();
+    }
+
+    return String(fixtureOrId || '').trim();
+  }
+
+  function loadTipsForFixture(fixtureOrId) {
+    const fixtureRaw = resolveFixtureIdValue(fixtureOrId);
+    if (!fixtureRaw) {
+      return [];
+    }
+
     const fixtureNormalized = normalizeFixtureIdKey(fixtureRaw);
 
     return tips.filter((tip) => {
@@ -1374,11 +1388,11 @@ function App() {
       }
 
       const tipNormalized = normalizeFixtureIdKey(tipRaw);
-      if (tipNormalized && tipNormalized === fixtureNormalized) {
+      if (tipNormalized && fixtureNormalized && tipNormalized === fixtureNormalized) {
         return true;
       }
 
-      return tipRaw.endsWith(fixtureRaw) || fixtureRaw.endsWith(tipRaw);
+      return false;
     });
   }
 
@@ -2064,10 +2078,14 @@ function App() {
       return [];
     }
 
-    return selectedDiagramStage.fixtures.map((fixture) => ({
-      fixture,
-      tips: loadTipsForFixture(fixture.id)
-    }));
+    return selectedDiagramStage.fixtures.map((fixture, index) => {
+      const fixtureId = resolveFixtureIdValue(fixture) || `phase-${selectedDiagramStage.stage}-${index}`;
+      return {
+        fixture,
+        fixtureId,
+        tips: loadTipsForFixture(fixture)
+      };
+    });
   }, [selectedDiagramStage, tips]);
 
   useEffect(() => {
@@ -2925,8 +2943,8 @@ function App() {
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {selectedDiagramStageRows.map(({ fixture, tips: fixtureTips }) => (
-                                          <tr key={`sel-phase-${selectedDiagramStage.stage}-${fixture.id}`}>
+                                        {selectedDiagramStageRows.map(({ fixture, fixtureId, tips: fixtureTips }) => (
+                                          <tr key={`sel-phase-${selectedDiagramStage.stage}-${fixtureId}`}>
                                             <td>{fixture.homeTeam?.name || 'TBD'} vs {fixture.awayTeam?.name || 'TBD'}</td>
                                             <td>
                                               {isFixturePlayed(fixture)
@@ -2939,7 +2957,7 @@ function App() {
                                                   <summary>{fixtureTips.length} Tipps</summary>
                                                   <div className="phase-tip-list">
                                                     {fixtureTips.map((tip) => (
-                                                      <div key={`phase-tip-${fixture.id}-${tip.id}`} className="phase-tip-item">
+                                                      <div key={`phase-tip-${fixtureId}-${tip.id}`} className="phase-tip-item">
                                                         <span>{tip.friend_name}</span>
                                                         <strong>{tip.home_tip} : {tip.away_tip}</strong>
                                                       </div>
