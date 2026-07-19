@@ -1345,8 +1345,41 @@ function App() {
     return [{ title: `${teamName}: Keine aktuellen Spiele verfuegbar.` }];
   }
 
+  function normalizeFixtureIdKey(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+
+    const digits = raw.replace(/\D/g, '');
+    if (digits) {
+      return digits;
+    }
+
+    return raw.toLowerCase();
+  }
+
   function loadTipsForFixture(fixtureId) {
-    return tips.filter((tip) => String(tip.fixture_id) === String(fixtureId));
+    const fixtureRaw = String(fixtureId || '').trim();
+    const fixtureNormalized = normalizeFixtureIdKey(fixtureRaw);
+
+    return tips.filter((tip) => {
+      const tipRaw = String(tip.fixture_id || '').trim();
+      if (!tipRaw) {
+        return false;
+      }
+
+      if (tipRaw === fixtureRaw) {
+        return true;
+      }
+
+      const tipNormalized = normalizeFixtureIdKey(tipRaw);
+      if (tipNormalized && tipNormalized === fixtureNormalized) {
+        return true;
+      }
+
+      return tipRaw.endsWith(fixtureRaw) || fixtureRaw.endsWith(tipRaw);
+    });
   }
 
   function getOutcome(home, away) {
