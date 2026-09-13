@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PEOPLE BEFORE POWER — a global movement</title>
 <meta name="description" content="They call us angry. They're right. A global movement: people before power.">
+<meta property="og:title" content="PEOPLE BEFORE POWER">
+<meta property="og:description" content="They call us angry. They're right.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<!-- After generating og.png, uncomment and set your domain:
+<meta property="og:image" content="https://YOUR-DOMAIN/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+-->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23111'/%3E%3Crect y='40' width='100' height='20' fill='%23e2231a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
@@ -16,48 +25,44 @@ body{font-family:'Space Mono',ui-monospace,monospace;background:var(--paper);col
 ::selection{background:var(--red);color:#fff}
 [hidden]{display:none!important}
 .red{color:var(--red)}
-
-/* ---- ticker ---- */
 .ticker{background:var(--red);color:#fff;overflow:hidden;white-space:nowrap;border-bottom:4px solid var(--ink)}
 .ticker-track{display:inline-block;padding:.45rem 0;animation:slide 30s linear infinite}
 .ticker-track span{display:inline-block;padding-right:2rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:.78rem}
 @keyframes slide{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.ticker-track{animation:none}}
-
-/* ---- header ---- */
-header{position:sticky;top:0;z-index:50;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1.2rem;border-bottom:4px solid var(--red)}
-#brand{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(.72rem,2.4vw,1rem);letter-spacing:.02em}
+header.top{position:sticky;top:0;z-index:50;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.75rem 1.2rem;border-bottom:4px solid var(--red)}
+#brand{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(.72rem,2.4vw,1rem)}
 .langs{display:flex;border:2px solid var(--paper)}
 .lang-btn{appearance:none;background:transparent;color:var(--paper);border:0;border-right:2px solid var(--paper);font:700 .8rem 'Space Mono',monospace;padding:.45rem .8rem;cursor:pointer}
 .lang-btn:last-child{border-right:0}
 .lang-btn.active,.lang-btn:hover{background:var(--red);color:#fff}
-
 .stripe{height:14px;background:repeating-linear-gradient(-45deg,var(--ink) 0 18px,var(--red) 18px 36px)}
 main{max-width:1100px;margin:0 auto}
 section{padding:4rem 1.4rem}
-
-/* ---- hero ---- */
 .hero{padding-top:5rem}
 .kicker{font-size:.72rem;font-weight:700;letter-spacing:.22em;text-transform:uppercase;border:2px solid var(--ink);background:var(--white);display:inline-block;padding:.4rem .7rem;margin-bottom:2rem}
-h1{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(2.8rem,10vw,7rem);line-height:.92;letter-spacing:-.01em}
+h1{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(2.8rem,10vw,7rem);line-height:.92}
 .tagline{font-size:clamp(1.05rem,2.6vw,1.55rem);font-weight:700;margin:1.8rem 0 .8rem;max-width:46ch}
 .sub{max-width:54ch}
 .cta{display:flex;flex-wrap:wrap;gap:1rem;margin-top:2.2rem}
-.btn{display:inline-block;border:3px solid var(--ink);background:var(--white);color:var(--ink);font:700 1rem 'Space Mono',monospace;text-transform:uppercase;letter-spacing:.05em;padding:1rem 1.6rem;text-decoration:none}
+.btn{display:inline-block;border:3px solid var(--ink);background:var(--white);color:var(--ink);font:700 1rem 'Space Mono',monospace;text-transform:uppercase;padding:1rem 1.6rem;text-decoration:none}
 .btn:hover{background:var(--ink);color:var(--paper)}
-.btn:active{transform:translate(2px,2px)}
 .btn-red{background:var(--red);border-color:var(--red);color:#fff}
 .btn-red:hover{background:var(--ink);border-color:var(--ink)}
-
-/* ---- section titles ---- */
 .sec-title{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(1.4rem,4vw,2.4rem);background:var(--ink);color:var(--paper);display:flex;gap:1rem;align-items:baseline;padding:.6rem 1rem;margin-bottom:1.2rem}
 .sec-title .num{color:var(--red)}
-.sec-intro{margin-bottom:2.2rem;font-weight:700}
-
-/* ---- manifesto ---- */
+.sec-intro{margin-bottom:1.4rem;font-weight:700}
 .manifesto p.big{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(1.25rem,3.3vw,2rem);line-height:1.18;border-left:10px solid var(--red);padding:1.2rem 0 1.2rem 1.2rem;margin-bottom:1.2rem}
-
-/* ---- rogues ---- */
+.tabs{display:flex;flex-wrap:wrap;gap:3px;border:3px solid var(--ink);background:var(--ink);margin-bottom:1.4rem}
+.tab-btn{flex:1;min-width:130px;appearance:none;border:0;background:var(--white);font:700 .75rem 'Space Mono',monospace;text-transform:uppercase;padding:.9rem .4rem;cursor:pointer;border-right:3px solid var(--ink)}
+.tab-btn:last-child{border-right:0}
+.tab-btn:hover{background:var(--paper)}
+.tab-btn.active{background:var(--red);color:#fff}
+.panel{display:none}
+.panel.active{display:block}
+.tab-head{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(1.3rem,3.5vw,2rem);margin:1.6rem 0 .4rem}
+.tab-sub{font-weight:700;max-width:62ch;margin-bottom:1.6rem}
+.cluster-head{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(1rem,2.6vw,1.3rem);border-left:8px solid var(--red);padding-left:.7rem;margin:2.4rem 0 .5rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:3px;background:var(--ink);border:3px solid var(--ink)}
 .card{background:var(--white);padding:1.3rem}
 .card header{display:flex;justify-content:space-between;align-items:center;gap:.6rem;margin-bottom:.8rem}
@@ -65,40 +70,33 @@ h1{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:cla
 .stamp{font-size:.68rem;font-weight:700;text-transform:uppercase;color:var(--red);border:2px solid var(--red);padding:.15rem .4rem;transform:rotate(-2deg);white-space:nowrap}
 .card h3{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:1.45rem;margin-bottom:.6rem;line-height:1.05}
 .card p{font-size:.9rem}
-
-/* ---- dictionary ---- */
+.record{list-style:none;border-top:3px solid var(--ink);margin-top:.9rem;padding-top:.6rem}
+.record li{font-size:.76rem;padding:.16rem 0;line-height:1.4}
+.record li::before{content:"✕ ";color:var(--red);font-weight:700}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;border:3px solid var(--ink);background:var(--white)}
 th{font-family:'Archivo Black',sans-serif;text-transform:uppercase;text-align:left;background:var(--ink);color:var(--paper);padding:.8rem;font-size:.9rem}
 td{border:2px solid var(--ink);padding:.8rem;font-size:.95rem;vertical-align:top}
 td:first-child{width:38%;font-weight:700}
 tr:hover td{background:var(--ink);color:var(--paper)}
-
-/* ---- what we are ---- */
 .claims{list-style:none}
 .claims li{border:3px solid var(--ink);background:var(--white);padding:1.3rem;margin-bottom:1rem}
 .claims strong{font-family:'Archivo Black',sans-serif;text-transform:uppercase;display:block;margin-bottom:.4rem}
 .claims li:hover{background:var(--ink);color:var(--paper)}
-
-/* ---- faq ---- */
 details{border:3px solid var(--ink);background:var(--white);margin-bottom:1rem}
-summary{cursor:pointer;font-weight:700;padding:1rem 1.2rem;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:1rem;text-transform:uppercase}
+summary{cursor:pointer;font-weight:700;padding:1rem 1.2rem;list-style:none;display:flex;justify-content:space-between;gap:1rem;text-transform:uppercase}
 summary::-webkit-details-marker{display:none}
 summary::after{content:"+";font-family:'Archivo Black',sans-serif;color:var(--red);font-size:1.5rem;line-height:1}
 details[open] summary::after{content:"–"}
 details p{padding:0 1.2rem 1.2rem}
-
-/* ---- join ---- */
 .join{background:var(--ink);color:var(--paper);border-top:6px solid var(--red);border-bottom:6px solid var(--red)}
 .join h2{font-family:'Archivo Black',sans-serif;text-transform:uppercase;font-size:clamp(1.7rem,5vw,3.1rem);line-height:1.08;margin-bottom:1.6rem}
 .join form{display:flex;flex-wrap:wrap;gap:.8rem;max-width:600px}
 .join input{flex:1;min-width:220px;border:3px solid var(--paper);background:var(--ink);color:var(--paper);font:700 1rem 'Space Mono',monospace;padding:.9rem}
-.join input::placeholder{color:#8a8a8a}
-.join button{border:3px solid var(--red);background:var(--red);color:#fff;font:700 1rem 'Space Mono',monospace;text-transform:uppercase;padding:.9rem 1.5rem;cursor:pointer;letter-spacing:.05em}
+.join button{border:3px solid var(--red);background:var(--red);color:#fff;font:700 1rem 'Space Mono',monospace;text-transform:uppercase;padding:.9rem 1.5rem;cursor:pointer}
 .join button:hover{background:var(--paper);border-color:var(--paper);color:var(--ink)}
 .join .note{margin-top:.9rem;font-size:.8rem;opacity:.75}
 .join .ok{border:3px solid var(--red);padding:1rem;font-weight:700;text-transform:uppercase}
-
 footer{padding:2.5rem 1.4rem;text-align:center;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em}
 footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom:.5rem;font-size:.95rem}
 </style>
@@ -112,7 +110,7 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
   </div>
 </div>
 
-<header>
+<header class="top">
   <div id="brand">PEOPLE BEFORE POWER</div>
   <nav class="langs" aria-label="Language">
     <button class="lang-btn active" data-setlang="en" aria-pressed="true">EN</button>
@@ -123,7 +121,7 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
 
 <main>
 
-<!-- ==================== ENGLISH ==================== -->
+<!-- ============================================================ ENGLISH -->
 <div class="lang" data-lang-block="en">
 
   <section class="hero">
@@ -149,41 +147,402 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
   <section id="rogues-en">
     <h2 class="sec-title"><span class="num">02</span> The rogues' gallery</h2>
     <p class="sec-intro">Known faces. Public record. No Photoshop needed.</p>
-    <div class="grid">
-      <article class="card"><header><span class="cf">CASE FILE 01</span><span class="stamp">Convicted</span></header><h3>Donald Trump</h3>
-        <p>Convicted felon. Called Epstein “a terrific guy.” Twice. Then Epstein got arrested — and overnight, the files became “fake news.” A man who convinced half a country that the courtroom was the fake part.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 02</span><span class="stamp">"Re-elected"</span></header><h3>Vladimir Putin</h3>
-        <p>87% of the vote. The other 13% keeps falling out of windows. Twenty-five years of “temporary” rule. Even his opponents' parachutes have opinions.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 03</span><span class="stamp">Illiberal™</span></header><h3>Viktor Orbán</h3>
-        <p>He invented the phrase “illiberal democracy” — the most honest thing any of them ever said. His elections are like his EU funds: they technically exist.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 04</span><span class="stamp">Convicted</span></header><h3>Marine Le Pen</h3>
-        <p>Forty years rebranding the same venom: new bottle, better blazer. Calls every court a “witch hunt” — funny how the witches keep getting convicted.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 05</span><span class="stamp">Under rebrand</span></header><h3>Giorgia Meloni</h3>
-        <p>“God, fatherland, family.” Her party's family tree has a branch grafted in 1946. The word “post-fascist” has been doing a lot of heavy lifting.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 06</span><span class="stamp">Paid in rubles</span></header><h3>Nigel Farage</h3>
-        <p>The people's millionaire. Paid by Russian state TV, pours his own pint, represents “the forgotten man” from a seat he finally won on attempt eight. Persistence is his only principle.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 07</span><span class="stamp">Under surveillance</span></header><h3>The AfD</h3>
-        <p>Keeps asking when Germany was last “great.” Everyone knows which calendar they're reading. They say the quiet part with microphones now.</p></article>
-      <article class="card"><header><span class="cf">CASE FILE 08</span><span class="stamp">Redacted</span></header><h3>Epstein's address book</h3>
-        <p>The party of family values keeps turning up in a child trafficker's contacts. Thoughts and prayers for the victims. Trials for the friends.</p></article>
+    <div class="tabs" data-tabs>
+      <button class="tab-btn active" data-tab="law">Above the law</button>
+      <button class="tab-btn" data-tab="epstein">Epstein files</button>
+      <button class="tab-btn" data-tab="boss">Boss class</button>
+      <button class="tab-btn" data-tab="fasc">Fascist intl.</button>
+      <button class="tab-btn" data-tab="plan">The plan</button>
+    </div>
+
+    <!-- EN · LAW -->
+    <div class="panel active" data-panel="law">
+      <h3 class="tab-head">They don't obey the law.</h3>
+      <p class="tab-sub">So why the fuck should we? Answer: a courtroom is still the one room where they shrink. Rage first. Subpoenas second.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">CASE FILE 01</span><span class="stamp">Convicted</span></header><h3>Donald Trump</h3>
+          <p>First ex-president in US history convicted of felonies — 34 counts for buying a porn star's silence to win an election. Then he pardoned his own rioters and called the courts rigged. The rigging, funny enough, always runs his way.</p>
+          <ul class="record">
+            <li>34 felony counts — falsifying business records, NY 2024</li>
+            <li>Liable for sexual abuse &amp; defamation — E. Jean Carroll, $88M</li>
+            <li>$454M civil fraud verdict — for inflating his own net worth</li>
+            <li>Trump University: $25M settlement for fraud</li>
+            <li>Trump Foundation: dissolved by court — "persistently illegal conduct"</li>
+            <li>Classified-documents case: dropped the week he won. Justice has term limits.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 02</span><span class="stamp">ICC warrant</span></header><h3>Vladimir Putin</h3>
+          <p>There is an arrest warrant with his name on it — from the International Criminal Court — for deporting children. Twenty-five years in power, 87% election wins, critics who keep encountering gravity.</p>
+          <ul class="record">
+            <li>ICC arrest warrant, 2023 — unlawful deportation of children</li>
+            <li>Aleksei Navalny — died 2024 in an Arctic penal colony</li>
+            <li>20+ critics — fallen from windows, poisoned, imprisoned</li>
+            <li>President forever — the constitution was edited to allow it</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 03</span><span class="stamp">Convicted</span></header><h3>Marine Le Pen</h3>
+          <p>Convicted of embezzling European Parliament money — and stunned that courts apply to her too. The office ban took effect immediately, even before her appeal. That's how flagrant the court found it.</p>
+          <ul class="record">
+            <li>Embezzlement conviction, March 2025 — €4.4M in EU funds</li>
+            <li>Five-year ban from office — effective immediately</li>
+            <li>Family members on the parliamentary payroll — the family business</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 04</span><span class="stamp">Pardoned™</span></header><h3>Steve Bannon</h3>
+          <p>Convicted for refusing to answer Congress. Charged with cheating his own donors out of wall money. Rescued by a pardon from exactly the man those donors worshipped. He calls it loyalty. Prosecutors call it evidence.</p>
+          <ul class="record">
+            <li>Contempt of Congress — four months, 2022</li>
+            <li>"We Build the Wall" — fraud charges: pocketing donor money</li>
+            <li>Pardoned by Trump — before trial</li>
+            <li>New York, 2025: pleaded guilty — the state had the last word</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 05</span><span class="stamp">27 years</span></header><h3>Jair Bolsonaro</h3>
+          <p>The Brazilian copy of the January 8 script: storm the capital, wait for the generals. A court ruled the coup wasn't a feeling, it was a plan — and prescribed 27 years of reading the judgment.</p>
+          <ul class="record">
+            <li>Convicted of plotting a coup — 27 years, 2025</li>
+            <li>Banned from office until 2030</li>
+            <li>Still plays the political martyr — the file is longer</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 06</span><span class="stamp">Jails rivals</span></header><h3>Recep Tayyip Erdoğan</h3>
+          <p>Once jailed for reciting a poem. Now he jails the poets, the editors, and whoever polls above him. Turkey holds the world record for imprisoned journalists — he insists it's a misunderstanding.</p>
+          <ul class="record">
+            <li>1998: convicted of "inciting hatred" — the crime: a poem</li>
+            <li>~125,000 purged after 2016; tens of thousands jailed</li>
+            <li>İmamoğlu — his main rival — jailed while running against him, 2025</li>
+            <li>World record: imprisoned journalists, year after year</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 07</span><span class="stamp">Certified extremist</span></header><h3>The AfD</h3>
+          <p>Germany's domestic intelligence classifies them as confirmed right-wing extremist — not an insult, a work assessment. Their star speaker has convictions for shouting banned Nazi slogans. The slogan means "everything for Germany." He knows. That's why he shouts it.</p>
+          <ul class="record">
+            <li>Classified "confirmed right-wing extremist" — BfV, 2025</li>
+            <li>Björn Höcke: two convictions — banned Nazi slogan</li>
+            <li>Coup-plot trial with party members in the dock</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 08</span><span class="stamp">ICC warrant</span></header><h3>Benjamin Netanyahu</h3>
+          <p>The ICC issued an arrest warrant for him in November 2024 — war crimes and crimes against humanity, the court's own words, including starvation of civilians. He holds another record too: the first sitting Israeli prime minister to testify as a criminal defendant — in his own corruption trial, running since 2020. The 2023 court "reform" that filled the streets? Proposed by a man whose trial was getting uncomfortable. Coincidence, they assured us.</p>
+          <ul class="record">
+            <li>ICC arrest warrant, Nov 2024 — war crimes, crimes against humanity</li>
+            <li>Corruption trial since 2020 — bribery, fraud, breach of trust</li>
+            <li>Dec 2024: testified in his own criminal trial — a first</li>
+            <li>The 2023 judicial overhaul: rebuild the court before it rules</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 09</span><span class="stamp">Visa refused</span></header><h3>Narendra Modi</h3>
+          <p>In 2002, over a thousand people — most of them Muslims — died in Gujarat while he ran the state. The US and UK barred his visa for years over it. Then he became prime minister, and the bans became banquet invitations. Since then: spyware on journalists' phones, confirmed by a panel of his own Supreme Court; opposition chief ministers jailed months before an election; a BBC documentary about him banned and its offices raided. The press-freedom ranking — 159th of 180 — he presumably calls fake news too.</p>
+          <ul class="record">
+            <li>2002 Gujarat: 1,000+ dead — US &amp; UK refused him visas</li>
+            <li>Pegasus spyware on journalists &amp; rivals — confirmed by SC panel</li>
+            <li>Opposition chief ministers jailed before the 2024 vote</li>
+            <li>BBC documentary banned; tax raids on the broadcaster</li>
+            <li>Press freedom: 159th of 180 countries</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">CASE FILE 10</span><span class="stamp">Nepo minister</span></header><h3>The family business</h3>
+          <p>Erdoğan's son-in-law Berat Albayrak got the energy ministry, then the entire economy — no résumé required, just the wedding. Then 17,000 of his emails leaked: PR firms under fake identities, a media empire under family control. Turkish regulators reacted at record speed — to block the outlets reporting the leaks. Albayrak resigned "for health reasons" via Instagram after the lira cratered. The family's health improved. Meanwhile: a 1,150-room palace for the people, at $615M.</p>
+          <ul class="record">
+            <li>Son-in-law: energy minister, then the whole economy — by marriage</li>
+            <li>17,000 leaked emails: dark-PR agencies, media control</li>
+            <li>Regulators blocked reporting on the leaks</li>
+            <li>Resigned "for health reasons" — announced on Instagram</li>
+            <li>Ak Saray: 1,150 rooms, ~$615M — on the people's tab</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- EN · EPSTEIN -->
+    <div class="panel" data-panel="epstein">
+      <h3 class="tab-head">The Epstein files.</h3>
+      <p class="tab-sub">The biggest coverup in human history — and they're doing it in broad daylight, betting on our attention span. Bad bet.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 01</span><span class="stamp">No list (this week)</span></header><h3>The memo</h3>
+          <p>February 2025: the US Attorney General says the client list is "sitting on my desk." July 2025: the same department announces there is no list. Case closed. A document traveled from desk to nonexistent in five months. Believe that, and there's a bridge in Florida they'll sell you — Epstein's old neighborhood, actually.</p>
+          <ul class="record">
+            <li>Feb 2025: list is "on my desk" — AG Bondi</li>
+            <li>Jul 2025: there is no list — DOJ/FBI memo</li>
+            <li>The investigation that found nothing: closed by the same administration</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 02</span><span class="stamp">On tape</span></header><h3>"A terrific guy"</h3>
+          <p>Trump, 2002: "I've known Jeff for fifteen years. Terrific guy. He's a lot of fun." The friendship ended in 2004 — over a real-estate bidding war, not over the girls. Today the files are "fake news." The quote is on tape. The tape is presumably fake news too.</p>
+          <ul class="record">
+            <li>2002: the quote, on camera</li>
+            <li>Flight logs: Trump's name, multiple flights</li>
+            <li>2025: "fake news" — exactly when the files started to matter</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 03</span><span class="stamp">Redacted</span></header><h3>The flight logs</h3>
+          <p>Congress pried pages loose in 2025. What's public is mostly black bars and signatures. The logbook is real enough to protect names — "heavily redacted" whenever it hurts. Ask why a dead man's guest list needs more protection than the victims got.</p>
+          <ul class="record">
+            <li>Released 2025: partial, redacted, curated</li>
+            <li>Famous names: redacted or "unverified" — as needed</li>
+            <li>Victims' names: leaked faster than any client's</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 04</span><span class="stamp">20 years</span></header><h3>The only convict</h3>
+          <p>Ghislaine Maxwell got 20 years for trafficking girls to nobody. Sit with that grammar: a ring with no clients. Either she ran history's loneliest criminal enterprise — or the client list is the one document you will never be allowed to read.</p>
+          <ul class="record">
+            <li>Convicted 2021, sentenced 2022 — 20 years</li>
+            <li>Clients named in court: effectively zero</li>
+            <li>Her new home: a minimum-security camp — the wages of silence</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 05</span><span class="stamp">Camera "broke"</span></header><h3>The cell</h3>
+          <p>August 2019: the most-watched prisoner in America dies alone, under a camera that "malfunctioned," beside guards who "fell asleep" and falsified the logs — charged for it, quietly settled. Maybe it was suicide. Then it's the most incompetent jail in US history. Either way, the files survived — and those are what they're hiding now.</p>
+          <ul class="record">
+            <li>Two cameras failed that night</li>
+            <li>Guards falsified records — charged, softly resolved</li>
+            <li>Autopsy: suicide. His own expert disagreed.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 06</span><span class="stamp">April 2025</span></header><h3>Virginia Giuffre</h3>
+          <p>Recruited at 16 — from Mar-a-Lago, Trump's own club. Fifteen years in court trying to make the powerful say names out loud. She died by suicide in April 2025, still waiting for the list. The chief witness ran out of time. The men are still "fake news." Read that until it makes you furious.</p>
+          <ul class="record">
+            <li>Trafficked at 16 — recruited from his club</li>
+            <li>15 years of testimony, depositions, lawsuits</li>
+            <li>Died April 2025 — the answers still sealed</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 07</span><span class="stamp">Always works</span></header><h3>The playbook</h3>
+          <p>Lose the evidence. Discredit the girls — again: girls, plural, teenagers. Redact the rest. Call it old news while withholding the old news. It worked for decades before Epstein and it's working right now. The countermeasure is not a hashtag. It's refusing to let the sentence finish.</p>
+          <ul class="record">
+            <li>Redact, delay, deny — in rotation since the nineties</li>
+            <li>Victims smeared as gold diggers — by men in flight logs</li>
+            <li>"Nothing to see here" — then why is everything classified?</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- EN · BOSS CLASS -->
+    <div class="panel" data-panel="boss">
+      <h3 class="tab-head">The boss class.</h3>
+      <p class="tab-sub">Exploiting workers is the entry ticket. The real product is impunity: fines as subscriptions, lives priced under a paint can, handcuffs that never arrive.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 01</span><span class="stamp">Fraud, settled</span></header><h3>Elon Musk</h3>
+          <p>One tweet — "funding secured" — cost him $40M and investors billions. His factories paid verdicts for racial harassment. His regulators open Autopilot death files like fridges. Richest man alive, defendant in hundreds of cases, never a day in jail. The odds? The odds are a lobbying budget.</p>
+          <ul class="record">
+            <li>SEC fraud settlement — $40M, 2018</li>
+            <li>NLRB: repeatedly ruled to have broken labor law</li>
+            <li>Racial-harassment verdicts at Tesla plants</li>
+            <li>Cobalt &amp; child mining: the lawsuit died on a technicality</li>
+            <li>Autopilot deaths: investigations, settlements, zero accountability</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 02</span><span class="stamp">Known since 2019</span></header><h3>Mark Zuckerberg</h3>
+          <p>His own researchers found Instagram worsens body image for one in three teenage girls. The slides existed. The algorithm shipped anyway. He now apologizes to the parents in Congress once a year — the way other men leave tips.</p>
+          <ul class="record">
+            <li>$5B FTC fine — Cambridge Analytica</li>
+            <li>$725M settlement — largest privacy payout ever</li>
+            <li>Sued by 41 states — for harm to children</li>
+            <li>Internal research: known 2019, denied in public, shipped regardless</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 03</span><span class="stamp">For losers</span></header><h3>Peter Thiel</h3>
+          <p>"Competition is for losers" — his words. So he stopped competing: he funded the lawsuit that killed Gawker, bought a senator like a start-up, and built Palantir — the database ICE uses to find people. He never wins elections. He doesn't need to.</p>
+          <ul class="record">
+            <li>Gawker: destroyed by a lawsuit he secretly funded</li>
+            <li>Palantir: the software under deportations and border dragnets</li>
+            <li>A Senate seat for $15M — the cheapest crown in history</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 04</span><span class="stamp">~$16,000</span></header><h3>The price of a life</h3>
+          <p>In the US, the typical fine for maiming or killing a worker: about $16,000. A mid-range paint can costs more than a preventable death. Wage theft — bosses simply not paying what's owed — takes more from workers every year than all street robbery combined. All legal. All designed.</p>
+          <ul class="record">
+            <li>Average OSHA penalty, serious violation: ~$16,000</li>
+            <li>Wage theft: ~$15B/year — more than all robberies</li>
+            <li>~5,000 killed on the job yearly — prosecutions rare, fines smaller</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 05</span><span class="stamp">Too big to jail</span></header><h3>Impunity, Inc.</h3>
+          <p>2008: the crash evicted ten million Americans. Jail time for the architects: functionally one man. Rana Plaza: 1,134 garment workers crushed in a building the brands knew was cracked. The Western brands paid. In settlements. Nobody flew home in handcuffs. The fine isn't a punishment — it's a subscription.</p>
+          <ul class="record">
+            <li>2008: functionally zero bankers jailed</li>
+            <li>Rana Plaza, 2013: 1,134 dead — settlements, no sentences</li>
+            <li>The pattern: crime priced in, jail priced out</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 06</span><span class="stamp">Mined</span></header><h3>The children's table</h3>
+          <p>They love children — as a market. Algorithms tuned for addiction, feeds that measure sadness in minutes, supply chains with twelve-year-old hands in the cobalt. When those kids grow up and organize, it's "indoctrination." When they strike, it's "ingratitude."</p>
+          <ul class="record">
+            <li>Internal docs: children's attention is the product</li>
+            <li>Cobalt mines: kids in the chain — lawsuits dead on procedure</li>
+            <li>The generation being mined will outlive them. That's the flaw in the plan.</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- EN · FASCIST INTL -->
+    <div class="panel" data-panel="fasc">
+      <h3 class="tab-head">The Fascist International.</h3>
+      <p class="tab-sub">Same poems, different accents. They meet at the same summits, praise the same strongmen, lose in the same courts — and call it persecution.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 01</span><span class="stamp">Illiberal™</span></header><h3>Viktor Orbán</h3>
+          <p>"Illiberal democracy" — his phrase, the most honest thing any of them ever said. His elections are like his EU funds: they technically exist. Meanwhile the money flows to newspapers that wave back.</p>
+          <ul class="record">
+            <li>"Illiberal democracy" — proclaimed 2014</li>
+            <li>Hundreds of media outlets seized in one bloc — KESMA, 2018</li>
+            <li>Election observers: none — you don't invite referees</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 02</span><span class="stamp">Under rebrand</span></header><h3>Giorgia Meloni</h3>
+          <p>"God, fatherland, family" — a slogan with a pedigree. Her party still carries the flame of the MSI, Mussolini's heirs, in its logo. "Post-fascist" is doing a lot of heavy lifting. She smiles more than the others; the syllabus is the same.</p>
+          <ul class="record">
+            <li>MSI flame — Mussolini's heirs — still in the logo</li>
+            <li>"Post-fascist": the "post" carries the whole weight</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 03</span><span class="stamp">Acquitted</span></header><h3>Geert Wilders</h3>
+          <p>The only one a court ever cleared — and he performs persecution daily anyway. "Fewer, fewer, fewer" Moroccans, he chanted; the court let him go; he lives under permanent police protection. Imagine needing bodyguards for your free speech — and burning it all on hate.</p>
+          <ul class="record">
+            <li>2011 &amp; 2016: two acquittals — his favorite fact</li>
+            <li>"Fewer, fewer, fewer" — the chant, on camera</li>
+            <li>Permanent protection since 2004 — free speech, with escort</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 04</span><span class="stamp">Paid in Austria</span></header><h3>The donors' club</h3>
+          <p>The party of pints, pipes and "the forgotten little man" just took the biggest donation in its history: €2.35 million from Hans Christian Limbach — tied to Austria's Identitarian movement, the far right's fashionable youth wing. And when the money got awkward to declare? It was split into instalments across years — flagged by Bundestag officials as suspected evasion of disclosure rules. Grassroots, they call it. From abroad, we call it.</p>
+          <ul class="record">
+            <li>€2.35M — largest gift in party history — Identitarian-linked donor</li>
+            <li>Split into instalments to dodge disclosure — flagged by the Bundestag</li>
+            <li>"Man of the people" — bankrolled by foreign millionaires</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- EN · THE PLAN -->
+    <div class="panel" data-panel="plan">
+      <h3 class="tab-head">The plan.</h3>
+      <p class="tab-sub">You don't have to believe us. They published it — 922 pages, with a foreword. Money → mandate → gospel → machine. Read it in that order and nothing they do will surprise you again.</p>
+
+      <h4 class="cluster-head">I · The money</h4>
+      <p class="tab-sub">Fascism has never paid for itself. It has patrons.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 01</span><span class="stamp">Patron of the year</span></header><h3>Elon Musk</h3>
+          <p>The richest man alive shopped for a government and found one. Then he told Germans "Only the AfD can save Germany," keynoted their rally by video, and lectured the country about obsessing over its past. A German with a hobby like this would be under observation. He's a donor.</p>
+          <ul class="record">
+            <li>$250M+ — his 2024 US election spending</li>
+            <li>AfD endorsement + video keynote, Halle rally, Jan 2025</li>
+            <li>Ran DOGE with access to payment and data systems — while his companies held ~$38B in federal contracts</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 02</span><span class="stamp">His words, 2009</span></header><h3>Peter Thiel</h3>
+          <p>"I no longer believe that freedom and democracy are compatible." He wrote that in 2009, then spent fifteen years proving himself right: bought a senator for $15M, who became vice president; secretly funded the lawsuit that bankrupted a newspaper; bankrolled the philosophers of the "CEO-king" movement. And founded the machine in chapter IV.</p>
+          <ul class="record">
+            <li>2009: the quote, in his own essay</li>
+            <li>$15M → JD Vance: Senate, then VP</li>
+            <li>Gawker: destroyed via a lawsuit he hid behind</li>
+            <li>Palantir: his company, their enforcement arm</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 03</span><span class="stamp">Said it out loud</span></header><h3>JD Vance</h3>
+          <p>2021, on camera: fire every civil servant on day one, replace them "with our people," and when courts object, channel Andrew Jackson — "The chief justice has made his ruling. Now let him enforce it." The line was probably never said by Jackson. Of course it wasn't. Even their history is fake.</p>
+          <ul class="record">
+            <li>The 2021 quote, on a podcast — not leaked, broadcast</li>
+            <li>Thiel's $15M made him a senator; three years later, VP</li>
+            <li>The bridge from "dark enlightenment" theory to the executive office</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 04</span><span class="stamp">Privacy for thee</span></header><h3>The collectors</h3>
+          <p>Harlan Crow: twenty years of undisclosed luxury gifts to a Supreme Court justice — and a private museum of Hitler paintings and tyrant statues. Richard Uihlein: the packing-fortune ATM of election deniers. Timothy Mellon: biggest single donor of 2024, ~$150M — weeks after the hush-money conviction. His memoir calls Social Security "slavery redux." They collect judges, elections, and grievances.</p>
+          <ul class="record">
+            <li>Crow → Thomas: jet trips, gifts, decades (ProPublica)</li>
+            <li>Uihlein: tens of millions to those who refused to certify</li>
+            <li>Mellon: $150M to MAGA Inc. — post-conviction</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">II · The mandate</h4>
+      <p class="tab-sub">Nobody reads the fine print. That was the trick. So here is the fine print.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 05</span><span class="stamp">922 pages</span></header><h3>The book they wrote about you</h3>
+          <p>"Mandate for Leadership" — Heritage Foundation, April 2023. Trump, July 2024: "I know nothing about Project 2025." Then he hired its authors: Vought to run the budget, Homan as border czar, Ratcliffe to the CIA, Carr to the FCC. Independent trackers: roughly half the playbook executed within a year. Nothing to know. All done.</p>
+          <ul class="record">
+            <li>922 pages, published a year before the election</li>
+            <li>"I know nothing about Project 2025" — then the staffing list</li>
+            <li>~50% implemented by mid-2025, per trackers</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 06</span><span class="stamp">Day one</span></header><h3>The purge</h3>
+          <p>Schedule F: reclassify ~50,000 federal jobs so they can be fired like staff in a diner. Loyalty questionnaires. Seventeen inspectors general fired in one Friday night. FBI leadership forced out, January-6 prosecutors dismissed. The state isn't being shrunk. It's being captured — for exactly the things in chapter IV.</p>
+          <ul class="record">
+            <li>Schedule F revival — signed January 2025</li>
+            <li>17 inspectors general — fired in a night</li>
+            <li>Loyalty surveys at OPM, purges at FBI and DOJ</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 07</span><span class="stamp">Rehearsal</span></header><h3>The proving ground</h3>
+          <p>An 1798 wartime law, dusted off for migrants. Men shipped to El Salvador's CECOT — a torture prison, per every human-rights body — with no trial, for millions in fees. The Supreme Court ruled 9–0 that this needs due process. Abrego Garcia, deported "in error" by their own admission, came back in handcuffs. First the strangers. Then the procedure. Then you.</p>
+          <ul class="record">
+            <li>Alien Enemies Act invoked, March 2025</li>
+            <li>CECOT deportations — no hearings, paid per head</li>
+            <li>SCOTUS 9–0: stop. They kept testing.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 08</span><span class="stamp">Easy way or hard way</span></header><h3>The silencing</h3>
+          <p>Public broadcasting: axed, $1.1B. The FCC chairman threatens broadcasters — "the easy way or the hard way" — and a late-night host is suspended days later. Harvard loses its tax exemption, the first university in US history, for refusing to obey. Columbia: $400M gone. This is what "free speech" meant all along: theirs, enforced on yours.</p>
+          <ul class="record">
+            <li>$1.1B cut from public media, July 2025</li>
+            <li>The FCC quote, on camera; the suspension followed</li>
+            <li>Harvard: tax-exempt status revoked — a first</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 09</span><span class="stamp">Forever</span></header><h3>The consolidation</h3>
+          <p>Independent agencies placed under White House control. Impoundment: refuse to spend what Congress approved. The 1873 Comstock Act back on the table — to ban abortion pills without a vote. "Two sexes" as passport law. Elections keep happening; their outcomes stop mattering. That's the import: the Hungarian model, with the paperwork attached.</p>
+          <ul class="record">
+            <li>February 2025 EO: agencies answer to the White House</li>
+            <li>Comstock Act (1873) — resuscitated in the mandate</li>
+            <li>The end state: opposition legal, powerless, decorative</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">III · The gospel</h4>
+      <p class="tab-sub">None of this works as politics. It works as apocalypse. This is not an attack on faith — it's an exposure of a heist wearing faith's coat.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 10</span><span class="stamp">Anointed</span></header><h3>The chosen king</h3>
+          <p>Their preachers crowned him Cyrus — the pagan king God used without knowing it. After the Butler shooting: "It was God alone who prevented the unthinkable." A Faith Office now runs out of the White House under a prosperity preacher. The function is simple: a king cannot be convicted. Thirty-four felonies become "persecution." A king cannot lose — elections are only ever stolen from him.</p>
+          <ul class="record">
+            <li>The "Cyrus" anointing — standard in his charismatic court</li>
+            <li>"God alone" — his own post, July 2024</li>
+            <li>Faith Office, established February 2025</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 11</span><span class="stamp">Seven peaks</span></header><h3>The mountains</h3>
+          <p>Their theology has a flowchart: seize the "seven mountains" — government, education, media, business, family, church, arts. Read Project 2025 again with that list in hand. It's the mountains in bureaucratic prose. Department of Education, chapter two. Media control, chapter eight. It's not a conspiracy. It's a syllabus.</p>
+          <ul class="record">
+            <li>The Seven Mountain Mandate — their own published doctrine</li>
+            <li>The mandate's chapters map onto the mountains, one by one</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 12</span><span class="stamp">The swap</span></header><h3>Who's the Antichrist here?</h3>
+          <p>Here's the theological achievement: the strongman fits the classic end-times checklist better than his critics — the lying tongue, the worship of power, the crowds crying "he's a god." Awkward. So the movement performed a transfer: the Antichrist is now whoever resists the anointed one. Opponents aren't wrong, they're possessed — and you don't debate demons, you expel them. That's the license under every norm they've broken. Putin's state church blesses the same war. Orbán wraps the same deal in "Christian liberty." Same gospel, exported.</p>
+          <ul class="record">
+            <li>"Many antichrists" — 1 John — their favorite verse, inverted</li>
+            <li>Rallies in the grammar of exorcism: evil, not opposition</li>
+            <li>The product of the theology: a permit for anything</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">IV · The machine</h4>
+      <p class="tab-sub">A religion of the anointed king needs infrastructure. They bought it off the shelf.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">FILE 13</span><span class="stamp">Self-aware branding</span></header><h3>Palantír, Inc.</h3>
+          <p>In Tolkien, a palantír is a seeing-stone — the tool Sauron used to watch Middle-earth and bend its leaders. They picked the name themselves. Finally, honest branding. Founded 2003 with CIA seed money; today it sells AI targeting to the Pentagon and migrant-hunting to the border agencies. The same company on both ends of the gun.</p>
+          <ul class="record">
+            <li>Seed money: In-Q-Tel — the CIA's venture arm</li>
+            <li>Maven AI-targeting contracts: hundreds of millions</li>
+            <li>The name: Sauron's surveillance hardware</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 14</span><span class="stamp">$30M, 2025</span></header><h3>ImmigrationOS</h3>
+          <p>Palantir software has run ICE's raids and target lists since at least 2019 — including family separation. In April 2025, DHS paid $30M for "ImmigrationOS": the tracking layer for the largest deportation program in American history. The mandate in chapter II is the intent. This is the ignition.</p>
+          <ul class="record">
+            <li>ICE systems: built by Palantir — documented since 2019</li>
+            <li>ImmigrationOS contract, April 2025</li>
+            <li>Goal, per the contract: track removals "end to end"</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 15</span><span class="stamp">One query = your life</span></header><h3>The master database</h3>
+          <p>March 2025: an executive order orders every agency to break its "information silos." Since then: Palantir engineers embedded at the IRS, tax records pooled with Social Security, health data, immigration files. Reporters call it the master control plot — one query, a whole life, searchable by an unaccountable contractor's staff. Your government now knows you better than your family. And it has a deportation budget.</p>
+          <ul class="record">
+            <li>EO "eliminating information silos," March 2025</li>
+            <li>IRS data-access deal — Palantir inside the tax office</li>
+            <li>The pooling: SSA, HHS, DHS — one dashboard</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">FILE 16</span><span class="stamp">Stasi 2.0</span></header><h3>The file writes itself</h3>
+          <p>East Germany needed 91,000 officers and ~190,000 informers to watch 16 million people — decades, filing cabinets, carbon paper. They replaced all of it with an API. In the old world you feared your file existed somewhere. In the new one, the file writes itself, continuously, and access is sold as a subscription. No conspiracy theory required — Thiel's quote, Vance's quote, and a 922-page book say it in daylight.</p>
+          <ul class="record">
+            <li>Stasi: 91,000 staff, ~190,000 informers, 16M citizens</li>
+            <li>Palantir: cloud, AI, one contractor, no elections needed</li>
+            <li>They published the plan. We read it. That's the whole difference.</li>
+          </ul></article>
+      </div>
+      <p class="tab-sub" style="margin-top:2rem">This is not a theory. It's a delivery schedule.</p>
     </div>
   </section>
 
   <section>
     <h2 class="sec-title"><span class="num">03</span> Dictionary of power <span style="font-family:'Space Mono';font-size:.8rem">(translations)</span></h2>
-    <p class="sec-intro">Their words, translated for free.</p>
     <div class="table-wrap">
     <table>
       <tr><th>They say</th><th>It means</th></tr>
-      <tr><td>“The will of the people”</td><td>His will. He's very willful.</td></tr>
-      <tr><td>“Fake news”</td><td>Journalism that checked.</td></tr>
-      <tr><td>“The elite”</td><td>People who read past the headline.</td></tr>
-      <tr><td>“Globalists”</td><td>A word that means “Jews” in the mouths of cowards. We translated it for free.</td></tr>
-      <tr><td>“Witch hunt”</td><td>A court. Specifically one near them.</td></tr>
-      <tr><td>“Sovereignty”</td><td>Their right to be corrupted without supervision.</td></tr>
-      <tr><td>“Family values”</td><td>Values for your family. Theirs appear in flight logs.</td></tr>
-      <tr><td>“Patriotism”</td><td>A flag on a yacht that never docks in its own country.</td></tr>
-      <tr><td>“The swamp was drained”</td><td>The swamp was renovated and given a marina.</td></tr>
+      <tr><td>"The will of the people"</td><td>His will. He's very willful.</td></tr>
+      <tr><td>"Fake news"</td><td>Journalism that checked.</td></tr>
+      <tr><td>"The elite"</td><td>People who read past the headline.</td></tr>
+      <tr><td>"Globalists"</td><td>A word that means "Jews" in the mouths of cowards. We translated it for free.</td></tr>
+      <tr><td>"Witch hunt"</td><td>A court. Specifically one near them.</td></tr>
+      <tr><td>"Sovereignty"</td><td>Their right to be corrupted without supervision.</td></tr>
+      <tr><td>"Family values"</td><td>Values for your family. Theirs appear in flight logs.</td></tr>
+      <tr><td>"Patriotism"</td><td>A flag on a yacht that never docks in its own country.</td></tr>
+      <tr><td>"The swamp was drained"</td><td>The swamp was renovated and given a marina.</td></tr>
     </table>
     </div>
   </section>
@@ -192,7 +551,7 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
     <h2 class="sec-title"><span class="num">04</span> What we are</h2>
     <ul class="claims">
       <li><strong>Not centrists.</strong> Centrism is what happens when you fall asleep between two extremes and call it balance.</li>
-      <li><strong>Not “the left” as they define it.</strong> They'd call a soup kitchen Marxism. Fine. Fill the pot.</li>
+      <li><strong>Not "the left" as they define it.</strong> They'd call a soup kitchen Marxism. Fine. Fill the pot.</li>
       <li><strong>Not going away.</strong> They have the money. We have the headcount, the memory, and the receipts.</li>
     </ul>
   </section>
@@ -200,7 +559,7 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
   <section>
     <h2 class="sec-title"><span class="num">05</span> Frequently asked. Answered anyway.</h2>
     <details><summary>Isn't this just hate?</summary><p>No. Hate needs no evidence. We have court transcripts.</p></details>
-    <details><summary>You're so negative.</summary><p>We prefer “observant, with receipts.”</p></details>
+    <details><summary>You're so negative.</summary><p>We prefer "observant, with receipts."</p></details>
     <details><summary>What can one person do?</summary><p>One person is a crank. A million is a weather system. They built walls. We're the weather.</p></details>
   </section>
 
@@ -221,7 +580,7 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
 
 </div>
 
-<!-- ==================== DEUTSCH ==================== -->
+<!-- ============================================================ DEUTSCH -->
 <div class="lang" data-lang-block="de" hidden>
 
   <section class="hero">
@@ -247,29 +606,390 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
   <section id="rogues-de">
     <h2 class="sec-title"><span class="num">02</span> Die Schurken-Galerie</h2>
     <p class="sec-intro">Bekannte Gesichter. Öffentliche Quellen. Kein Photoshop nötig.</p>
-    <div class="grid">
-      <article class="card"><header><span class="cf">AKTE 01</span><span class="stamp">Verurteilt</span></header><h3>Donald Trump</h3>
-        <p>Verurteilter Straftäter. Nannte Epstein »einen großartigen Kerl«. Zweimal. Dann wurde Epstein verhaftet — und über Nacht waren die Akten plötzlich »Fake News«. Ein Mann, der einem halben Land weismachte, der Gerichtssaal sei der erfundene Teil.</p></article>
-      <article class="card"><header><span class="cf">AKTE 02</span><span class="stamp">»Wiedergewählt«</span></header><h3>Wladimir Putin</h3>
-        <p>87 % der Stimmen. Die anderen 13 % fallen derzeit aus Fenstern. Fünfundzwanzig Jahre »vorübergehende« Herrschaft. Selbst die Fallschirme seiner Gegner haben Meinungen.</p></article>
-      <article class="card"><header><span class="cf">AKTE 03</span><span class="stamp">Illiberal™</span></header><h3>Viktor Orbán</h3>
-        <p>Er hat den Begriff »illiberale Demokratie« erfunden — das Ehrlichste, was je einer von ihnen gesagt hat. Seine Wahlen sind wie seine EU-Gelder: Sie existieren technisch gesehen.</p></article>
-      <article class="card"><header><span class="cf">AKTE 04</span><span class="stamp">Verurteilt</span></header><h3>Marine Le Pen</h3>
-        <p>Vierzig Jahre Rebranding desselben Gifts: neue Flasche, besserer Blazer. Nennt jedes Gericht eine »Hexenjagd« — komisch, dass die »Hexen« ständig verurteilt werden.</p></article>
-      <article class="card"><header><span class="cf">AKTE 05</span><span class="stamp">Im Rebranding</span></header><h3>Giorgia Meloni</h3>
-        <p>»Gott, Vaterland, Familie.« Der Stammbaum ihrer Partei hat einen Ast, gepfropft 1946. Das Wort »postfaschistisch« leistet Schwerstarbeit.</p></article>
-      <article class="card"><header><span class="cf">AKTE 06</span><span class="stamp">Bezahlt in Rubeln</span></header><h3>Nigel Farage</h3>
-        <p>Der Millionär des Volkes. Bezahlt vom russischen Staatssender, zapft sein eigenes Bier, vertritt »den vergessenen Mann« — von einem Parlamentssitz, den er beim achten Anlauf endlich bekam. Hartnäckigkeit ist sein einziges Prinzip.</p></article>
-      <article class="card"><header><span class="cf">AKTE 07</span><span class="stamp">Wird beobachtet</span></header><h3>Die AfD</h3>
-        <p>Fragt sich dauernd, wann Deutschland zuletzt »groß« war. Alle wissen, welchen Kalender sie lesen. Den stillen Teil sagen sie inzwischen mit Mikrofonen.</p></article>
-      <article class="card"><header><span class="cf">AKTE 08</span><span class="stamp">Geschwärzt</span></header><h3>Epsteins Adressbuch</h3>
-        <p>Die Partei der Familienwerte taucht immer wieder in den Kontakten eines Kinderhändlers auf. Gedanken und Gebete für die Opfer. Prozesse für die Freunde.</p></article>
+    <div class="tabs" data-tabs>
+      <button class="tab-btn active" data-tab="law">Über dem Gesetz</button>
+      <button class="tab-btn" data-tab="epstein">Epstein-Akten</button>
+      <button class="tab-btn" data-tab="boss">Herrenklasse</button>
+      <button class="tab-btn" data-tab="fasc">Faschisten-Int.</button>
+      <button class="tab-btn" data-tab="plan">Der Plan</button>
+    </div>
+
+    <!-- DE · GESETZ -->
+    <div class="panel active" data-panel="law">
+      <h3 class="tab-head">Sie halten sich nicht ans Gesetz.</h3>
+      <p class="tab-sub">Also warum zur Hölle sollten wir? Antwort: Weil ein Gerichtssaal immer noch der einzige Raum ist, in dem sie schrumpfen. Erst Wut. Dann Vorladungen.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 01</span><span class="stamp">Verurteilt</span></header><h3>Donald Trump</h3>
+          <p>Der erste Ex-Präsident der US-Geschichte, der wegen Schwerverbrechen verurteilt wurde — 34 Anklagepunkte, um das Schweigen einer Pornodarstellerin zu kaufen. Danach begnadigte er seine eigenen Putschtrottel und nannte die Gerichte manipuliert. Die Manipulation läuft, wie praktisch, immer zu seinen Gunsten.</p>
+          <ul class="record">
+            <li>34 Schwerverbrechen — Fälschung von Geschäftsurkunden, NY 2024</li>
+            <li>Für sexuellen Missbrauch &amp; Verleumdung haftbar — E. Jean Carroll, 88 Mio. $</li>
+            <li>454 Mio. $ Zivilurteil wegen Betrugs — Aufblähen des eigenen Vermögens</li>
+            <li>Trump University: 25 Mio. $ Vergleich wegen Betrugs</li>
+            <li>Trump Foundation: per Gericht aufgelöst — »hartnäckig illegales Verhalten«</li>
+            <li>Klassifizierte Dokumente: Verfahren eingestellt — in der Woche seines Wahlsiegs</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 02</span><span class="stamp">ICC-Haftbefehl</span></header><h3>Wladimir Putin</h3>
+          <p>Es gibt einen Haftbefehl mit seinem Namen — vom Internationalen Strafgerichtshof — wegen der Verschleppung von Kindern. Fünfundzwanzig Jahre an der Macht, 87 % der Stimmen, Kritiker, die immer wieder der Schwerkraft begegnen.</p>
+          <ul class="record">
+            <li>ICC-Haftbefehl, 2023 — rechtswidrige Verschleppung von Kindern</li>
+            <li>Aleksei Nawalny — starb 2024 in einer Strafkolonie in der Arktis</li>
+            <li>20+ Kritiker — aus Fenstern gefallen, vergiftet, inhaftiert</li>
+            <li>Präsident auf ewig — die Verfassung wurde dafür umgeschrieben</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 03</span><span class="stamp">Verurteilt</span></header><h3>Marine Le Pen</h3>
+          <p>Wegen Veruntreuung von Geldern des Europaparlaments verurteilt — und fassungslos, dass Gerichte auch für sie gelten. Das Ämterverbot trat sofort in Kraft, noch vor der Berufung. So flagrant fand es das Gericht.</p>
+          <ul class="record">
+            <li>Veruntreuungsurteil, März 2025 — 4,4 Mio. € aus EU-Geldern</li>
+            <li>Fünf Jahre Ämterverbot — sofort wirksam</li>
+            <li>Familienmitglieder auf der Parlamentslohnliste — der Familienbetrieb</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 04</span><span class="stamp">Begnadigt™</span></header><h3>Steve Bannon</h3>
+          <p>Wegen Missachtung des Kongresses verurteilt. Angeklagt, seine eigenen Spender um das Mauer-Geld zu betrügen. Gerettet durch einen Gnadenakt von genau dem Mann, den diese Spender anbeteten. Er nennt es Loyalität. Staatsanwälte nennen es Beweismittel.</p>
+          <ul class="record">
+            <li>Missachtung des Kongresses — vier Monate, 2022</li>
+            <li>»We Build the Wall« — Betrugsvorwurf: veruntreutes Spendergeld</li>
+            <li>Von Trump begnadigt — vor dem Prozess</li>
+            <li>New York, 2025: schuldig plädiert — der Staat hatte das letzte Wort</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 05</span><span class="stamp">27 Jahre</span></header><h3>Jair Bolsonaro</h3>
+          <p>Die brasilianische Kopie des Drehbuchs vom 8. Januar: das Kapital stürmen, auf die Generäle warten. Ein Gericht stellte fest, dass der Putsch kein Gefühl war, sondern ein Plan — und verordnete 27 Jahre Lektüre des Urteils.</p>
+          <ul class="record">
+            <li>Wegen Putschplans verurteilt — 27 Jahre, 2025</li>
+            <li>Bis 2030 von Ämtern ausgeschlossen</li>
+            <li>Spielt weiter den politischen Märtyrer — die Akte ist länger</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 06</span><span class="stamp">Kerkert Rivalen</span></header><h3>Recep Tayyip Erdoğan</h3>
+          <p>Saß einmal wegen eines Gedichts im Gefängnis. Heute sperrt er die Dichter, die Redakteure und alle, die in Umfragen vor ihm liegen. Die Türkei hält den Weltrekord inhaftierter Journalisten — er nennt es ein Missverständnis.</p>
+          <ul class="record">
+            <li>1998: verurteilt wegen »Aufstachelung zum Hass« — die Tat: ein Gedicht</li>
+            <li>~125.000 Entlassene nach 2016; Zehntausende in Haft</li>
+            <li>İmamoğlu — sein schärfster Konkurrent — 2025 verhaftet, mitten im Wahlkampf</li>
+            <li>Weltrekord: inhaftierte Journalisten, Jahr für Jahr</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 07</span><span class="stamp">Gesichert extremistisch</span></header><h3>Die AfD</h3>
+          <p>Der Verfassungsschutz stuft sie als gesichert rechtsextremistisch ein — keine Beleidigung, eine Arbeitsbewertung. Ihr Star-Redner wurde zweimal verurteilt, weil er verbotene NS-Parolen schreit. Die Parole heißt »Alles für Deutschland«. Er weiß das. Deshalb schreit er sie.</p>
+          <ul class="record">
+            <li>Einstufung »gesichert rechtsextremistisch« — BfV, 2025</li>
+            <li>Björn Höcke: zwei Verurteilungen — verbotene NS-Parole</li>
+            <li>Putschprozess mit Parteimitgliedern auf der Anklabank</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 08</span><span class="stamp">ICC-Haftbefehl</span></header><h3>Benjamin Netanjahu</h3>
+          <p>Der ICC erließ im November 2024 einen Haftbefehl gegen ihn — Kriegsverbrechen und Verbrechen gegen die Menschlichkeit, im Wortlaut des Gerichts, eingeschlossen die Aushungerung von Zivilisten. Dazu ein weiterer Rekord: als erster amtierender israelischer Ministerpräsident Angeklagter in einem Strafprozess — in seinem eigenen Korruptionsprozess, der seit 2020 läuft. Die »Justizreform« von 2023, die Hunderttausende auf die Straße trieb? Vorgeschlagen von einem Mann, dessen Prozess unbequem wurde. Zufall, versicherten sie.</p>
+          <ul class="record">
+            <li>ICC-Haftbefehl, Nov. 2024 — Kriegsverbrechen, Verbrechen gegen die Menschlichkeit</li>
+            <li>Korruptionsprozess seit 2020 — Bestechung, Betrug, Vertrauensmissbrauch</li>
+            <li>Dez. 2024: Aussage im eigenen Strafprozess — ein Novum</li>
+            <li>Die Justizreform 2023: das Gericht umbauen, bevor es urteilt</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 09</span><span class="stamp">Visum verweigert</span></header><h3>Narendra Modi</h3>
+          <p>2002 starben in Gujarat über tausend Menschen — die meisten davon Muslime —, während er den Bundesstaat regierte. Die USA und Großbritannien verweigerten ihm deswegen jahrelang das Visum. Dann wurde er Premierminister, und aus den Einreiseverboten wurden Bankett-Einladungen. Seitdem: Spyware auf Telefonen von Journalisten, bestätigt von einem Panel seines eigenen Supreme Courts; oppositionelle Ministerpräsidenten Monate vor der Wahl in Haft; eine BBC-Dokumentation über ihn verboten, die Büros durchsucht. Den Pressefreiheits-Rang — Platz 159 von 180 — nennt er vermutlich auch Fake News.</p>
+          <ul class="record">
+            <li>2002 Gujarat: über 1.000 Tote — USA &amp; UK verweigerten das Visum</li>
+            <li>Pegasus-Spyware auf Journalisten &amp; Gegnern — vom Panel bestätigt</li>
+            <li>Oppositionelle Ministerpräsidenten vor der Wahl 2024 in Haft</li>
+            <li>BBC-Dokumentation verboten; Durchsuchungen beim Sender</li>
+            <li>Pressefreiheit: Platz 159 von 180</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 10</span><span class="stamp">Nepo-Minister</span></header><h3>Das Familienunternehmen</h3>
+          <p>Erdoğans Schwiegersohn Berat Albayrak bekam erst das Energieministerium, dann die gesamte Wirtschaft — Lebenslauf nicht erforderlich, nur die Hochzeit. Dann leakeden 17.000 seiner E-Mails: PR-Firmen unter fingierten Identitäten, ein Medienreich unter Familienkontrolle. Die türkischen Behörden reagierten rekordschnell — darauf, die Sender zu blockieren, die darüber berichteten. Albayrak trat »aus gesundheitlichen Gründen« per Instagram zurück, nachdem die Lira abgestürzt war. Der Gesundheit der Familie ging es danach besser. Nebenbei: ein 1.150-Zimmer-Palast fürs Volk, für 615 Mio. $.</p>
+          <ul class="record">
+            <li>Schwiegersohn: Energieminister, dann die ganze Wirtschaft — durch Heirat</li>
+            <li>17.000 geleakte E-Mails: Dark-PR-Agenturen, Medienkontrolle</li>
+            <li>Behörden blockierten die Berichte über die Leaks</li>
+            <li>Rücktritt »aus gesundheitlichen Gründen« — verkündet per Instagram</li>
+            <li>Ak Saray: 1.150 Zimmer, ~615 Mio. $ — auf Volkskosten</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- DE · EPSTEIN -->
+    <div class="panel" data-panel="epstein">
+      <h3 class="tab-head">Die Epstein-Akten.</h3>
+      <p class="tab-sub">Die größte Vertuschung der Menschheitsgeschichte — bei hellem Tageslicht, als Wette auf unsere Aufmerksamkeitsspanne. Schlechte Wette.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 01</span><span class="stamp">Keine Liste (diese Woche)</span></header><h3>Das Memo</h3>
+          <p>Februar 2025: Die US-Justizministerin sagt, die Kundenliste liege »auf meinem Schreibtisch«. Juli 2025: Dasselbe Ministerium verkündet, es gebe keine Liste. Fall abgeschlossen. Ein Dokument schaffte den Weg vom Schreibtisch ins Nichts in fünf Monaten. Wer das glaubt, dem verkaufen sie auch eine Brücke in Florida — Epsteins alte Nachbarschaft, übrigens.</p>
+          <ul class="record">
+            <li>Feb 2025: Liste »auf meinem Schreibtisch« — Justizministerin Bondi</li>
+            <li>Juli 2025: Es gibt keine Liste — DOJ/FBI-Memo</li>
+            <li>Die Ermittlung, die nichts fand: geschlossen von derselben Regierung</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 02</span><span class="stamp">Auf Band</span></header><h3>Ein großartiger Kerl</h3>
+          <p>Trump, 2002: »Ich kenne Jeff seit fünfzehn Jahren. Ein großartiger Kerl. Er macht viel Spaß.« Die Freundschaft endete 2004 — wegen eines Bieterwettstreits um eine Immobilie, nicht wegen der Mädchen. Heute sind die Akten »Fake News«. Das Zitat existiert auf Video. Das Video ist vermutlich auch Fake News.</p>
+          <ul class="record">
+            <li>2002: das Zitat, vor laufender Kamera</li>
+            <li>Fluglisten: Trumps Name, mehrere Flüge</li>
+            <li>2025: »Fake News« — genau dann, als die Akten relevant wurden</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 03</span><span class="stamp">Geschwärzt</span></header><h3>Die Fluglisten</h3>
+          <p>Der Kongress presste 2025 Seiten heraus. Was öffentlich ist, sind vor allem schwarze Balken und Unterschriften. Das Logbuch ist echt genug, um Namen zu schützen — »stark geschwärzt«, immer wenn es wehtut. Fragen Sie, warum die Gästeliste eines Toten mehr Schutz braucht, als die Opfer je bekommen haben.</p>
+          <ul class="record">
+            <li>Veröffentlicht 2025: teilweise, geschwärzt, kuratiert</li>
+            <li>Bekannte Namen: geschwärzt oder »unverifiziert« — nach Bedarf</li>
+            <li>Die Namen der Opfer: schneller geleakt als jeder Kundenname</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 04</span><span class="stamp">20 Jahre</span></header><h3>Die Einzige Verurteilte</h3>
+          <p>Ghislaine Maxwell bekam 20 Jahre für Mädchenhandel an Niemand. Verweilen Sie bei dieser Grammatik: ein Ring ohne Kunden. Entweder führte sie das einsamste Verbrechensunternehmen der Geschichte — oder die Kundenliste ist das eine Dokument, das Sie nie zu lesen bekommen.</p>
+          <ul class="record">
+            <li>2021 schuldig gesprochen, 2022 verurteilt — 20 Jahre</li>
+            <li>Vor Gericht genannte Kunden: effektiv null</li>
+            <li>Ihre neue Bleibe: ein Minimalsicherheitslager — der Lohn des Schweigens</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 05</span><span class="stamp">Kamera „kaputt“</span></header><h3>Die Zelle</h3>
+          <p>August 2019: Der meistbewachte Häftling Amerikas stirbt allein, unter einer Kamera, die »ausgefallen« ist, neben Wärtern, die »eingenickt« sind und die Protokolle fälschten — angeklagt wurden sie, leise beigelegt. Vielleicht war es Suizid. Dann ist das der inkompetenteste Knast der US-Geschichte. In beiden Fällen überlebten die Akten — und genau die versteckt man jetzt.</p>
+          <ul class="record">
+            <li>Zwei Kameras fielen in dieser Nacht aus</li>
+            <li>Wärter fälschten Aufzeichnungen — angeklagt, milde beigelegt</li>
+            <li>Autopsie: Suizid. Sein eigener Gutachter widersprach.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 06</span><span class="stamp">April 2025</span></header><h3>Virginia Giuffre</h3>
+          <p>Mit 16 angeworben — aus Mar-a-Lago, Trumps eigenem Club. Fünfzehn Jahre lang vor Gericht, um die Mächtigen zu zwingen, Namen laut zu sagen. Sie starb im April 2025 durch Suizid, noch immer wartend auf die Liste. Die Hauptzeugin ist aus der Zeit gelaufen. Die Männer bleiben »Fake News«. Lesen Sie das so lange, bis es Sie wütend macht.</p>
+          <ul class="record">
+            <li>Verschleppt mit 16 — angeworben aus seinem Club</li>
+            <li>15 Jahre Aussagen, Zeugenaussagen, Prozesse</li>
+            <li>Gestorben April 2025 — die Antworten weiterhin versiegelt</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 07</span><span class="stamp">Funktioniert immer</span></header><h3>Das Spielbuch</h3>
+          <p>Beweise vernichten. Die Mädchen diskreditieren — noch einmal: Mädchen, Plural, Teenager. Den Rest schwärzen. »Alte Nachrichten« rufen, während man die alten Nachrichten zurückhält. Es funktionierte Jahrzehnte vor Epstein, und es funktioniert gerade jetzt. Das Gegenmittel ist kein Hashtag. Es ist, den Satz nicht zu Ende sprechen zu lassen.</p>
+          <ul class="record">
+            <li>Schwärzen, verzögern, leugnen — im Wechsel seit den Neunzigern</li>
+            <li>Opfer als Goldgräberinnen beschimpft — von Männern in Fluglisten</li>
+            <li>»Hier gibt es nichts zu sehen« — dann warum ist alles versiegelt?</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- DE · HERRENKLASSE -->
+    <div class="panel" data-panel="boss">
+      <h3 class="tab-head">Die Herrenklasse.</h3>
+      <p class="tab-sub">Arbeiter auszubeuten ist der Eintrittspreis. Das eigentliche Produkt ist Straffreiheit: Strafen als Abo, Leben billiger als ein Farbeneimer, Handschellen, die nie ankommen.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 01</span><span class="stamp">Betrug, beigelegt</span></header><h3>Elon Musk</h3>
+          <p>Ein einziger Tweet — »financing secured« — kostete ihn 40 Mio. $ und Anlegern Milliarden. Seine Werke zahlten Urteile wegen rassistischer Belästigung. Seine Aufsichtsbehörden öffnen Autopilot-Todesakten wie Kühlschränke. Reichster Mann der Welt, Beklagter in Hunderten von Verfahren, nie ein Tag in Haft. Die Quoten? Die Quoten sind ein Lobby-Budget.</p>
+          <ul class="record">
+            <li>SEC-Vergleich wegen Wertpapierbetrugs — 40 Mio. $, 2018</li>
+            <li>NLRB: wiederholt wegen Verstoßes gegen das Arbeitsrecht verurteilt</li>
+            <li>Urteile wegen rassistischer Belästigung in Tesla-Werken</li>
+            <li>Kobalt &amp; Kinderbergbau: die Klage starb an einer Formalie</li>
+            <li>Autopilot-Tote: Ermittlungen, Vergleiche, null Verantwortung</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 02</span><span class="stamp">Bekannt seit 2019</span></header><h3>Mark Zuckerberg</h3>
+          <p>Seine eigenen Forscher fanden heraus, dass Instagram das Körperbild eines von drei Teenager-Mädchens verschlechtert. Die Folien existierten. Der Algorithmus wurde trotzdem ausgeliefert. Jetzt entschuldigt er sich einmal im Jahr vor den Eltern im Kongress — so wie andere Männer Trinkgeld geben.</p>
+          <ul class="record">
+            <li>5 Mrd. $ Strafe der FTC — Cambridge Analytica</li>
+            <li>725 Mio. $ Vergleich — größte Datenschutz-Zahlung aller Zeiten</li>
+            <li>Verklagt von 41 Bundesstaaten — wegen Schaden an Kindern</li>
+            <li>Interne Forschung: seit 2019 bekannt, öffentlich geleugnet, trotzdem ausgeliefert</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 03</span><span class="stamp">Für Verlierer</span></header><h3>Peter Thiel</h3>
+          <p>»Wettbewerb ist für Verlierer« — seine Worte. Also hörte er auf zu konkurrieren: Er finanzierte die Klage, die Gawker tötete, kaufte einen Senator wie ein Start-up und baute Palantir — die Datenbank, mit der ICE Menschen findet. Er gewinnt nie Wahlen. Er muss auch nicht.</p>
+          <ul class="record">
+            <li>Gawker: zerstört durch eine Klage, die er heimlich finanzierte</li>
+            <li>Palantir: die Software unter Abschiebungen und Grenz-Rasterfahndung</li>
+            <li>Ein Senatssitz für 15 Mio. $ — die billigste Krone der Geschichte</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 04</span><span class="stamp">~16.000 $</span></header><h3>Der Preis eines Lebens</h3>
+          <p>In den USA beträgt die übliche Strafe dafür, einen Arbeiter zu verstümmeln oder zu töten: etwa 16.000 $. Ein mittlerer Farbeneimer kostet mehr als ein vermeidbarer Tod. Lohndiebstahl — Chefs zahlen einfach nicht, was sie schulden — nimmt Arbeitern jedes Jahr mehr ab als alle Straßenraubüberfälle zusammen. Alles legal. Alles so gestaltet.</p>
+          <ul class="record">
+            <li>Durchschnittliche OSHA-Strafe, schwere Verstöße: ~16.000 $</li>
+            <li>Lohndiebstahl: ~15 Mrd. $/Jahr — mehr als alle Raubüberfälle</li>
+            <li>~5.000 getötete Arbeiter jährlich — Verfahren selten, Strafen kleiner</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 05</span><span class="stamp">Zu groß für Knast</span></header><h3>Straffreiheit GmbH</h3>
+          <p>2008: Die Krise verwies zehn Millionen Amerikaner aus ihren Häusern. Haftstrafen für die Architekten: funktional ein einziger Mann. Rana Plaza: 1.134 Textilarbeiterinnen in einem Gebäude zerschmettert, dessen Risse den Marken bekannt waren. Die westlichen Marken zahlten. In Vergleichen. Niemand flog in Handschellen nach Hause. Die Strafe ist keine Strafe — sie ist ein Abo.</p>
+          <ul class="record">
+            <li>2008: funktional null inhaftierte Banker</li>
+            <li>Rana Plaza, 2013: 1.134 Tote — Vergleiche, keine Urteile</li>
+            <li>Das Muster: Verbrechen einkalkuliert, Haft rauskalkuliert</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 06</span><span class="stamp">Abgeschöpft</span></header><h3>Der Kindertisch</h3>
+          <p>Sie lieben Kinder — als Markt. Algorithmen, abgestimmt auf Sucht, Feeds, die Traurigkeit in Minuten messen, Lieferketten mit Zwölfjährigen im Kobalt. Wenn diese Kinder erwachsen werden und sich organisieren, heißt es »Indoktrination«. Wenn sie streiken, heißt es »Undankbarkeit«.</p>
+          <ul class="record">
+            <li>Interne Dokumente: die Aufmerksamkeit von Kindern ist das Produkt</li>
+            <li>Kobaltminen: Kinder in der Kette — Klagen an Formalitäten gestorben</li>
+            <li>Die abgeschöpfte Generation überlebt sie alle. Das ist der Fehler im Plan.</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- DE · FASCHISTEN-INT -->
+    <div class="panel" data-panel="fasc">
+      <h3 class="tab-head">Die Faschisten-Internationale.</h3>
+      <p class="tab-sub">Gleiche Gedichte, andere Akzente. Sie treffen sich bei denselben Gipfeln, loben dieselben Starken, verlieren vor denselben Gerichten — und nennen es Verfolgung.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 01</span><span class="stamp">Illiberal™</span></header><h3>Viktor Orbán</h3>
+          <p>»Illibereale Demokratie« — seine Phrase, das Ehrlichste, was je einer von ihnen sagte. Seine Wahlen sind wie seine EU-Gelder: Sie existieren technisch gesehen. Währenddessen fließt das Geld in Zeitungen, die zurückwinken.</p>
+          <ul class="record">
+            <li>»Illibereale Demokratie« — proklamiert 2014</li>
+            <li>Hunderte Medien in einem Block vereinnahmt — KESMA, 2018</li>
+            <li>Wahlbeobachter: keine — Schiedsrichter lädt man nicht ein</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 02</span><span class="stamp">Im Rebranding</span></header><h3>Giorgia Meloni</h3>
+          <p>»Gott, Vaterland, Familie« — eine Losung mit Stammbaum. Ihre Partei trägt die Flamme des MSI, Mussolinis Erben, bis heute im Logo. »Postfaschistisch« leistet Schwerstarbeit. Sie lächelt mehr als die anderen; der Lehrplan ist derselbe.</p>
+          <ul class="record">
+            <li>MSI-Flamme — Mussolinis Erben — noch immer im Logo</li>
+            <li>»Postfaschistisch«: das »post« trägt das gesamte Gewicht</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 03</span><span class="stamp">Freigesprochen</span></header><h3>Geert Wilders</h3>
+          <p>Der Einzige, den ein Gericht je freisprach — und er führt trotzdem täglich Verfolgung auf. »Weniger, weniger, weniger« Marokkaner, rief er; das Gericht ließ ihn laufen; er lebt unter ständigem Personenschutz. Man stelle sich vor: Leibwächter für die eigene Redefreiheit — und verbrannt für Hass.</p>
+          <ul class="record">
+            <li>2011 &amp; 2016: zwei Freisprüche — seine Lieblingstatsache</li>
+            <li>»Weniger, weniger, weniger« — der Ruf, auf Kamera</li>
+            <li>Ständiger Schutz seit 2004 — Redefreiheit, mit Begleitung</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 04</span><span class="stamp">Bezahlt in Österreich</span></header><h3>Der Spendensalon</h3>
+          <p>Die Partei der Zapfhähne, des Biers und des »vergessenen kleinen Mannes« hat gerade die größte Spende ihrer Geschichte kassiert: 2,35 Mio. € von Hans Christian Limbach — verbunden mit der österreichischen Identitären Bewegung, dem modischen Jugendflügel der extremen Rechten. Und als das Geld unbequem zu deklarieren wurde? Man verteilte es in Raten über Jahre — von der Bundestagsverwaltung als Verdacht auf Umgehung der Publizitätspflicht markiert. Basisnah, nennen sie das. Aus dem Ausland, nennen wir das.</p>
+          <ul class="record">
+            <li>2,35 Mio. € — größte Spende der Parteigeschichte — Identitären-Umfeld</li>
+            <li>In Raten aufgeteilt, um die Deklaration zu umgehen — von der Bundestagsverwaltung markiert</li>
+            <li>»Mann des Volkes« — finanziert von ausländischen Millionären</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- DE · DER PLAN -->
+    <div class="panel" data-panel="plan">
+      <h3 class="tab-head">Der Plan.</h3>
+      <p class="tab-sub">Du musst uns nicht glauben. Sie haben es veröffentlicht — 922 Seiten, mit Vorwort. Geld → Mandat → Evangelium → Maschine. Lies es in dieser Reihenfolge, und nichts, was sie tun, wird dich je wieder überraschen.</p>
+
+      <h4 class="cluster-head">I · Das Geld</h4>
+      <p class="tab-sub">Der Faschismus hat sich noch nie selbst bezahlt. Er hat Mäzene.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 01</span><span class="stamp">Mäzen des Jahres</span></header><h3>Elon Musk</h3>
+          <p>Der reichste Mann der Welt kaufte sich eine Regierung — und fand eine. Dann erzählte er den Deutschen, »nur die AfD kann Deutschland retten«, hielt per Video die Hauptrede auf deren Kundgebung und hielt dem Land eine Predigt über seinen Umgang mit der Vergangenheit. Ein Deutscher mit diesem Hobby würde beobachtet. Er ist Spender.</p>
+          <ul class="record">
+            <li>Über 250 Mio. $ — seine Wahlausgaben 2024 in den USA</li>
+            <li>AfD-Unterstützung + Video-Keynote, Kundgebung Halle, Januar 2025</li>
+            <li>Führte DOGE mit Zugriff auf Zahlungs- und Datensysteme — während seine Firmen ~38 Mrd. $ an Bundesaufträgen halten</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 02</span><span class="stamp">Seine Worte, 2009</span></header><h3>Peter Thiel</h3>
+          <p>»Ich glaube nicht mehr, dass Freiheit und Demokratie vereinbar sind.« Das schrieb er 2009 — und verbrachte fünfzehn Jahre damit, sich selbst zu bestätigen: kaufte für 15 Mio. $ einen Senator, der Vizepräsident wurde; finanzierte heimlich die Klage, die eine Zeitung in den Bankrott trieb; bezahlte die Philosophen der »CEO-König«-Bewegung. Und gründete die Maschine aus Kapitel IV.</p>
+          <ul class="record">
+            <li>2009: das Zitat, in seinem eigenen Essay</li>
+            <li>15 Mio. $ → JD Vance: Senat, dann Vizepräsident</li>
+            <li>Gawker: zerstört, versteckt hinter einer Klage</li>
+            <li>Palantir: seine Firma, deren Vollstreckerarm</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 03</span><span class="stamp">Laut gesagt</span></header><h3>JD Vance</h3>
+          <p>2021, vor laufender Kamera: Feuere am ersten Tag alle Beamten, ersetze sie »mit unseren Leuten« — und wenn Gerichte widersprechen, zitiere Andrew Jackson: »Der oberste Richter hat entschieden. Jetzt mag er es durchsetzen.« Den Satz hat Jackson vermutlich nie gesagt. Natürlich nicht. Sogar ihre Geschichte ist Fake.</p>
+          <ul class="record">
+            <li>Das Zitat von 2021, in einem Podcast — nicht geleakt, gesendet</li>
+            <li>Thiels 15 Mio. $ machten ihn zum Senator; drei Jahre später Vizepräsident</li>
+            <li>Die Brücke von der »Dark Enlightenment«-Theorie ins Regierungsamt</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 04</span><span class="stamp">Privatsammlung</span></header><h3>Die Sammler</h3>
+          <p>Harlan Crow: zwanzig Jahre undeklarierter Luxusgeschenke an einen Supreme-Court-Richter — und ein Privatmuseum mit Hitler-Bildern und Tyrannenstatuen. Richard Uihlein: das Verpackungs-Vermögen als Geldautomat der Wahlanfechter. Timothy Mellon: größter Einzelspender 2024, ~150 Mio. $ — Wochen nach der Schweiggeld-Verurteilung. Seine Memoiren nennen die Sozialversicherung »Sklaverei redux«. Sie sammeln Richter, Wahlen und Groll.</p>
+          <ul class="record">
+            <li>Crow → Thomas: Privatjets, Geschenke, Jahrzehnte (ProPublica)</li>
+            <li>Uihlein: zweistellige Millionenbeträge an alle, die die Zertifizierung verweigerten</li>
+            <li>Mellon: 150 Mio. $ an MAGA Inc. — nach der Verurteilung</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">II · Das Mandat</h4>
+      <p class="tab-sub">Niemand liest das Kleingedruckte. Das war der Trick. Also: hier ist das Kleingedruckte.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 05</span><span class="stamp">922 Seiten</span></header><h3>Das Buch über dich</h3>
+          <p>»Mandate for Leadership« — Heritage Foundation, April 2023. Trump, Juli 2024: »Ich weiß nichts über Project 2025.« Dann stellte er die Autoren ein: Vought an den Haushalt, Homan als Grenzzar, Ratcliffe zur CIA, Carr zur FCC. Unabhängige Tracker: rund die Hälfte des Programms innerhalb eines Jahres umgesetzt. Nichts gewusst. Alles erledigt.</p>
+          <ul class="record">
+            <li>922 Seiten, veröffentlicht ein Jahr vor der Wahl</li>
+            <li>»Ich weiß nichts über Project 2025« — dann die Personalliste</li>
+            <li>~50 % umgesetzt bis Mitte 2025, laut Trackern</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 06</span><span class="stamp">Tag eins</span></header><h3>Die Säuberung</h3>
+          <p>Schedule F: ~50.000 Bundesjobs umstufen, damit man sie feuern kann wie Personal in einer Kantine. Loyalitätsfragebögen. Siebzehn Generalinspekteure an einem Freitagabend gefeuert. FBI-Spitze raus, Januar-6-Staatsanwälte entlassen. Der Staat wird nicht verkleinert. Er wird gekapert — für genau das, was in Kapitel IV steht.</p>
+          <ul class="record">
+            <li>Schedule-F-Wiederbelebung — unterschrieben Januar 2025</li>
+            <li>17 Generalinspekteure — über Nacht entlassen</li>
+            <li>Loyalitätsbefragungen bei der OPM, Säuberungen bei FBI und DOJ</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 07</span><span class="stamp">Generalprobe</span></header><h3>Der Versuchsraum</h3>
+          <p>Ein Kriegsgesetz von 1798, ausgegraben für Migranten. Männer in den CECOT-Knast El Salvadors verschifft — ein Foltergefängnis, laut jeder Menschenrechtsorganisation — ohne Verfahren, gegen Millionen Gebühren. Der Supreme Court urteilte 9:0, dass das ein Verfahren braucht. Abrego Garcia, »versehentlich« abgeschoben, kam zurück in Handschellen. Erst die Fremden. Dann das Verfahren. Dann du.</p>
+          <ul class="record">
+            <li>Alien Enemies Act aktiviert, März 2025</li>
+            <li>CECOT-Abschiebungen — keine Anhörungen, bezahlt pro Kopf</li>
+            <li>Supreme Court 9:0: Stop. Sie testen trotzdem weiter.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 08</span><span class="stamp">Auf die leichte Art</span></header><h3>Das Schweigen</h3>
+          <p>Öffentlich-rechtliche Medien: gekappt, 1,1 Mrd. $. Der FCC-Vorsitzende droht Sendern — »auf die leichte oder die harte Tour« — Tage später wird ein Late-Night-Moderator suspendiert. Harvard verliert die Steuerbefreiung als erste Universität der US-Geschichte — weil es nicht gehorchte. Columbia: 400 Mio. $ weg. Das meinte »Meinungsfreiheit« immer: seine, durchgesetzt gegen deine.</p>
+          <ul class="record">
+            <li>1,1 Mrd. $ Kürzung für öffentliche Medien, Juli 2025</li>
+            <li>Das FCC-Zitat, vor Kamera; die Suspendierung folgte</li>
+            <li>Harvard: Gemeinnützigkeit entzogen — ein Präzedenzfall</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 09</span><span class="stamp">Für immer</span></header><h3>Die Konsolidierung</h3>
+          <p>Unabhängige Behörden dem Weißen Haus unterstellt. Impoundment: einfach nicht ausgeben, was der Kongress bewilligt hat. Der Comstock Act von 1873 wieder auf dem Tisch — um Abtreibungspillen ohne Abstimmung zu verbieten. »Zwei Geschlechter« als Passrecht. Wahlen finden weiter statt; ihre Ergebnisse hören auf, etwas zu bedeuten. Das ist der Kern: das ungarische Modell, mit Schriftverkehr.</p>
+          <ul class="record">
+            <li>Februar-2025-Erlass: Behörden antworten dem Weißen Haus</li>
+            <li>Comstock Act (1873) — wiederbelebt im Mandat</li>
+            <li>Der Endzustand: Opposition legal, machtlos, dekorativ</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">III · Das Evangelium</h4>
+      <p class="tab-sub">Nichts davon funktioniert als Politik. Es funktioniert als Apokalypse. Das ist kein Angriff auf den Glauben — es ist die Enttarnung eines Raubes im Mantel des Glaubens.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 10</span><span class="stamp">Gesalbt</span></header><h3>Der gesalbte König</h3>
+          <p>Ihre Prediger krönten ihn zu Cyrus — dem heidnischen König, den Gott benutzte, ohne es zu wissen. Nach dem Attentat von Butler: »Gott allein hat das Undenkbare verhindert.« Ein Glaubensbüro läuft jetzt aus dem Weißen Haus, unter einem Wohlstandsprediger. Die Funktion ist simpel: Ein König kann nicht verurteilt werden. 34 Schwerverbrechen werden zu »Verfolgung«. Ein König kann nicht verlieren — Wahlen werden ihm nur je gestohlen.</p>
+          <ul class="record">
+            <li>Die »Cyrus«-Salbung — Standard in seinem charismatischen Hofstaat</li>
+            <li>»Gott allein« — sein eigener Post, Juli 2024</li>
+            <li>Glaubensbüro, eingerichtet Februar 2025</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 11</span><span class="stamp">Sieben Gipfel</span></header><h3>Die Berge</h3>
+          <p>Ihre Theologie hat ein Flussdiagramm: Erobere die »sieben Berge« — Regierung, Bildung, Medien, Wirtschaft, Familie, Kirche, Kunst. Lies Project 2025 noch einmal mit dieser Liste. Es sind die Berge in Amtssprache. Bildungsministerium, Kapitel zwei. Medienkontrolle, Kapitel acht. Das ist keine Verschwörung. Es ist ein Lehrplan.</p>
+          <ul class="record">
+            <li>Das Sieben-Berge-Mandat — ihre eigene veröffentlichte Lehre</li>
+            <li>Die Mandats-Kapitel bilden die Berge eins zu eins ab</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 12</span><span class="stamp">Der Tausch</span></header><h3>Wer hier der Antichrist ist</h3>
+          <p>Hier ist die theologische Meisterleistung: Der Starke passt besser auf die klassische Endzeiten-Checkliste als seine Kritiker — die lügende Zunge, die Machtanbetung, die Menge, die »er ist ein Gott« ruft. Unangenehm. Also vollzog die Bewegung eine Umschreibung: Der Antichrist ist jetzt, wer dem Gesalbten widerspricht. Gegner sind nicht falsch — sie sind besessen. Und mit Dämonen debattiert man nicht, man vertreibt sie. Das ist die Lizenz unter jedem gebrochenen Gesetz. Putins Staatskirche segnet denselben Krieg. Orbán packt denselben Deal in »christliche Freiheit«. Dasselbe Evangelium, exportiert.</p>
+          <ul class="record">
+            <li>»Viele Antichristen« — 1. Johannes — ihr Lieblingsvers, umgedreht</li>
+            <li>Kundgebungen in der Grammatik der Exorzismen: Böse, nicht Gegner</li>
+            <li>Das Produkt der Theologie: eine Generalerlaubnis</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">IV · Die Maschine</h4>
+      <p class="tab-sub">Eine Religion des gesalbten Königs braucht Infrastruktur. Sie haben sie aus dem Katalog gekauft.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">AKTE 13</span><span class="stamp">Ehrliches Branding</span></header><h3>Palantír, Inc.</h3>
+          <p>In Tolkiens Welt ist ein palantír ein Seherstein — das Werkzeug, mit dem Sauron Mittelerde ausspionierte und seine Anführer verdrehte. Den Namen haben sie selbst gewählt. Endlich ehrliches Branding. Gegründet 2003 mit CIA-Startgeld; heute verkauft es KI-Zielplanung ans Pentagon und Migrantenjagd an die Grenzbehörden. Dieselbe Firma an beiden Enden der Waffe.</p>
+          <ul class="record">
+            <li>Startgeld: In-Q-Tel — die Risikokapitalschiene der CIA</li>
+            <li>Maven-KI-Kontrakte: Hunderte Millionen</li>
+            <li>Der Name: Saurons Überwachungshardware</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 14</span><span class="stamp">30 Mio. $, 2025</span></header><h3>ImmigrationOS</h3>
+          <p>Palantir-Software betreibt ICEs Razzien und Ziellisten seit mindestens 2019 — inklusive Kindertrennung. Im April 2025 zahlte das DHS 30 Mio. $ für »ImmigrationOS«: die Tracking-Schicht für das größte Abschiebungsprogramm der amerikanischen Geschichte. Das Mandat aus Kapitel II ist die Absicht. Das hier ist die Zündung.</p>
+          <ul class="record">
+            <li>ICE-Systeme: gebaut von Palantir — dokumentiert seit 2019</li>
+            <li>ImmigrationOS-Kontrakt, April 2025</li>
+            <li>Ziel laut Kontrakt: Abschiebungen »von Anfang bis Ende« verfolgen</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 15</span><span class="stamp">Eine Abfrage = ein Leben</span></header><h3>Die Master-Datenbank</h3>
+          <p>März 2025: Ein Erlass ordnet allen Behörden an, ihre »Informationssilos« aufzubrechen. Seitdem: Palantir-Ingenieure im IRS, Steuerdaten gepoolt mit Sozialversicherung, Gesundheitsdaten, Ausländerakten. Reporter nennen es den Master-Control-Plan — eine Abfrage, ein ganzes Leben, durchsuchbar vom Personal eines nicht kontrollierbaren Dienstleisters. Deine Regierung kennt dich jetzt besser als deine Familie. Und sie hat ein Abschiebungsbudget.</p>
+          <ul class="record">
+            <li>Erlass »Eliminierung von Informationssilos«, März 2025</li>
+            <li>IRS-Datenzugangs-Deal — Palantir im Steueramt</li>
+            <li>Der Pool: SSA, HHS, DHS — ein Dashboard</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">AKTE 16</span><span class="stamp">Die Akte schreibt sich selbst</span></header><h3>Stasi 2.0</h3>
+          <p>Die DDR brauchte 91.000 hauptamtliche Mitarbeiter und ~190.000 Informanten, um 16 Millionen Menschen zu überwachen — Jahrzehnte, Aktenschränke, Durchschlagpapier. Sie haben das alles durch eine API ersetzt. In der alten Welt hattest du Angst, dass deine Akte irgendwo existiert. In der neuen schreibt sich die Akte selbst, fortlaufend, und der Zugang wird als Abo verkauft. Keine Verschwörungstheorie nötig — Thiels Zitat, Vances Zitat und ein 922-Seiten-Buch sagen es bei Tageslicht.</p>
+          <ul class="record">
+            <li>Stasi: 91.000 hauptamtlich, ~190.000 Informanten, 16 Mio. Bürger</li>
+            <li>Palantir: Cloud, KI, ein Dienstleister, keine Wahlen nötig</li>
+            <li>Sie haben den Plan veröffentlicht. Wir haben ihn gelesen. Das ist der ganze Unterschied.</li>
+          </ul></article>
+      </div>
+      <p class="tab-sub" style="margin-top:2rem">Das ist keine Theorie. Das ist ein Lieferplan.</p>
     </div>
   </section>
 
   <section>
     <h2 class="sec-title"><span class="num">03</span> Wörterbuch der Macht <span style="font-family:'Space Mono';font-size:.8rem">(Übersetzungen)</span></h2>
-    <p class="sec-intro">Ihre Worte, kostenlos übersetzt.</p>
     <div class="table-wrap">
     <table>
       <tr><th>Sie sagen</th><th>Es heißt</th></tr>
@@ -319,7 +1039,7 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
 
 </div>
 
-<!-- ==================== ESPAÑOL ==================== -->
+<!-- ============================================================ ESPAÑOL -->
 <div class="lang" data-lang-block="es" hidden>
 
   <section class="hero">
@@ -345,29 +1065,390 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
   <section id="rogues-es">
     <h2 class="sec-title"><span class="num">02</span> La galería de canallas</h2>
     <p class="sec-intro">Caras conocidas. Registro público. Ni Photoshop hace falta.</p>
-    <div class="grid">
-      <article class="card"><header><span class="cf">EXPEDIENTE 01</span><span class="stamp">Condenado</span></header><h3>Donald Trump</h3>
-        <p>Delito convicto. Llamó a Epstein «un tipo genial». Dos veces. Luego Epstein fue arrestado — y de la noche a la mañana los expedientes se volvieron «fake news». Un hombre que convenció a medio país de que lo falso era el tribunal.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 02</span><span class="stamp">»Reelegido«</span></header><h3>Vladímir Putin</h3>
-        <p>El 87% de los votos. El otro 13% lleva años cayendo por ventanas. Veinticinco años de poder «temporal». Hasta los paracaídas de sus opositores tienen opiniones.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 03</span><span class="stamp">Illiberal™</span></header><h3>Viktor Orbán</h3>
-        <p>Inventó la frase «democracia iliberal» — lo más honesto que ha dicho cualquiera de ellos. Sus elecciones son como sus fondos europeos: técnicamente existen.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 04</span><span class="stamp">Condenada</span></header><h3>Marine Le Pen</h3>
-        <p>Cuarenta años maquillando el mismo veneno: botella nueva, blazer mejor. Llama «caza de brujas» a cada tribunal — qué curioso: las brujas siguen siendo condenadas.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 05</span><span class="stamp">En rebranding</span></header><h3>Giorgia Meloni</h3>
-        <p>«Dios, patria, familia.» El árbol genealógico de su partido tiene una rama injertada en 1946. La palabra «posfascista» está haciendo un trabajo enorme.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 06</span><span class="stamp">Pagado en rublos</span></header><h3>Nigel Farage</h3>
-        <p>El millonario del pueblo. Pagado por la televisión rusa, se sirve su propia cerveza y representa al «hombre olvidado» desde un escaño que ganó al octavo intento. La persistencia es su único principio.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 07</span><span class="stamp">Bajo vigilancia</span></header><h3>La AfD</h3>
-        <p>No deja de preguntar cuándo fue Alemania «grande» por última vez. Todos saben qué calendario están leyendo. Ahora dicen la parte callada con micrófonos.</p></article>
-      <article class="card"><header><span class="cf">EXPEDIENTE 08</span><span class="stamp">Tachado</span></header><h3>La agenda de Epstein</h3>
-        <p>El partido de los valores familiares aparece una y otra vez en los contactos de un traficante de menores. Pensamientos y oraciones para las víctimas. Juicios para los amigos.</p></article>
+    <div class="tabs" data-tabs>
+      <button class="tab-btn active" data-tab="law">Por encima de la ley</button>
+      <button class="tab-btn" data-tab="epstein">Archivos Epstein</button>
+      <button class="tab-btn" data-tab="boss">Clase patronal</button>
+      <button class="tab-btn" data-tab="fasc">Int. fascista</button>
+      <button class="tab-btn" data-tab="plan">El plan</button>
+    </div>
+
+    <!-- ES · LEY -->
+    <div class="panel active" data-panel="law">
+      <h3 class="tab-head">Ellos no obedecen la ley.</h3>
+      <p class="tab-sub">¿Entonces por qué coño deberíamos obedecerla nosotros? Respuesta: un tribunal sigue siendo la única habitación donde ellos encogen. Primero la rabia. Después las citaciones.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 01</span><span class="stamp">Condenado</span></header><h3>Donald Trump</h3>
+          <p>El primer expresidente de la historia de EE. UU. condenado por delitos graves — 34 cargos por comprar el silencio de una actriz porno para ganar una elección. Después indultó a sus propios amotinados y llamó amañados a los tribunales. La trampa, curiosamente, siempre corre a su favor.</p>
+          <ul class="record">
+            <li>34 cargos graves — falsificación de registros comerciales, NY 2024</li>
+            <li>Responsable de abuso sexual y difamación — E. Jean Carroll, 88 M$</li>
+            <li>454 M$ de condena civil por fraude — inflar su propia fortuna</li>
+            <li>Trump University: 25 M$ en acuerdo por fraude</li>
+            <li>Fundación Trump: disuelta por orden judicial — «conducta persistentemente ilegal»</li>
+            <li>Documentos clasificados: caso archivado — la semana de su victoria</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 02</span><span class="stamp">Orden CPI</span></header><h3>Vladímir Putin</h3>
+          <p>Hay una orden de arresto con su nombre — de la Corte Penal Internacional — por deportar niños. Veinticinco años en el poder, victorias con el 87 % de los votos, críticos que siguen encontrándose con la gravedad.</p>
+          <ul class="record">
+            <li>Orden de la CPI, 2023 — deportación ilegal de niños</li>
+            <li>Alexéi Navalni — murió en 2024 en una colonia penal del Ártico</li>
+            <li>Más de 20 críticos — caídos por ventanas, envenenados, encarcelados</li>
+            <li>Presidente para siempre — la constitución se editó para permitirlo</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 03</span><span class="stamp">Condenada</span></header><h3>Marine Le Pen</h3>
+          <p>Condenada por malversar fondos del Parlamento Europeo — y estupefacta de que los tribunales también se apliquen a ella. La inhabilitación surtió efecto de inmediato, antes incluso de la apelación. Así de flagrante lo consideró el tribunal.</p>
+          <ul class="record">
+            <li>Condena por malversación, marzo 2025 — 4,4 M€ de fondos europeos</li>
+            <li>Cinco años de inhabilitación — efectiva de inmediato</li>
+            <li>Familiares en la nómina parlamentaria — la empresa familiar</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 04</span><span class="stamp">Indultado™</span></header><h3>Steve Bannon</h3>
+          <p>Condenado por desacato al Congreso. Acusado de estafar a sus propios donantes con el dinero del muro. Rescatado por un indulto de exactamente el hombre que esos donantes adoraban. Él lo llama lealtad. Los fiscales lo llaman prueba.</p>
+          <ul class="record">
+            <li>Desacato al Congreso — cuatro meses, 2022</li>
+            <li>«We Build the Wall» — cargos por fraude: dinero de donantes</li>
+            <li>Indultado por Trump — antes del juicio</li>
+            <li>Nueva York, 2025: se declaró culpable — el estado tuvo la última palabra</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 05</span><span class="stamp">27 años</span></header><h3>Jair Bolsonaro</h3>
+          <p>La copia brasileña del guion del 8 de enero: asaltar la capital, esperar a los generales. Un tribunal dictaminó que el golpe no era un sentimiento, era un plan — y recetó 27 años de lectura de la sentencia.</p>
+          <ul class="record">
+            <li>Condenado por tramar un golpe — 27 años, 2025</li>
+            <li>Inhabilitado hasta 2030</li>
+            <li>Sigue haciendo de mártir político — el expediente es más largo</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 06</span><span class="stamp">Encarcela rivales</span></header><h3>Recep Tayyip Erdoğan</h3>
+          <p>Estuvo en la cárcel por recitar un poema. Hoy encarcela a los poetas, a los editores y a quien le gana en las encuestas. Turquía ostenta el récord mundial de periodistas encarcelados — él insiste en que es un malentendido.</p>
+          <ul class="record">
+            <li>1998: condenado por «incitar al odio» — el delito: un poema</li>
+            <li>~125.000 despedidos tras 2016; decenas de miles presos</li>
+            <li>İmamoğlu — su principal rival — encarcelado en 2025, en plena campaña</li>
+            <li>Récord mundial: periodistas encarcelados, año tras año</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 07</span><span class="stamp">Extremismo confirmado</span></header><h3>La AfD</h3>
+          <p>La inteligencia interior alemana los clasifica como extremismo de derecha confirmado — no es un insulto, es una evaluación laboral. Su orador estrella tiene dos condenas por gritar consignas nazis prohibidas. La consigna significa «todo por Alemania». Lo sabe. Por eso la grita.</p>
+          <ul class="record">
+            <li>Clasificados como «extremismo de derecha confirmado» — BfV, 2025</li>
+            <li>Björn Höcke: dos condenas — consigna nazi prohibida</li>
+            <li>Juicio por golpe de Estado con miembros del partido en el banquillo</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 08</span><span class="stamp">Orden CPI</span></header><h3>Benjamín Netanyahu</h3>
+          <p>La CPI emitió contra él una orden de detención en noviembre de 2024 — crímenes de guerra y contra la humanidad, en palabras del propio tribunal, incluida el hambre infligida a civiles. Además ostenta otro récord: primer primer ministro israelí en ejercicio en declarar como imputado penal — en su propio juicio por corrupción, abierto desde 2020. La «reforma judicial» de 2023 que llenó las calles? La propuso un hombre cuyo juicio se estaba poniendo incómodo. Coincidencia, nos aseguraron.</p>
+          <ul class="record">
+            <li>Orden de la CPI, nov. 2024 — crímenes de guerra, contra la humanidad</li>
+            <li>Juicio por corrupción desde 2020 — soborno, fraude, abuso de confianza</li>
+            <li>Dic. 2024: declaró en su propio juicio penal — una primicia</li>
+            <li>La reforma judicial de 2023: rehacer el tribunal antes de que falle</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 09</span><span class="stamp">Visa denegada</span></header><h3>Narendra Modi</h3>
+          <p>En 2002 murieron en Gujarat más de mil personas — en su mayoría musulmanes — mientras gobernaba el estado. EE. UU. y Reino Unido le negaron la visa por años. Luego se volvió primer ministro, y las prohibiciones se convirtieron en invitaciones a banquetes. Desde entonces: spyware en los teléfonos de periodistas, confirmado por un panel de su propia Corte Suprema; ministros jefe de la oposición encarcelados meses antes de las elecciones; un documental de la BBC sobre él prohibido y sus oficinas registradas. El puesto en libertad de prensa — 159 de 180 — probablemente también lo llame fake news.</p>
+          <ul class="record">
+            <li>2002 Gujarat: más de 1.000 muertos — EE. UU. y Reino Unido le negaron la visa</li>
+            <li>Spyware Pegasus en periodistas y rivales — confirmado por la Corte Suprema</li>
+            <li>Ministros jefe de la oposición presos antes de la votación de 2024</li>
+            <li>Documental de la BBC prohibido; registros fiscales a la cadena</li>
+            <li>Libertad de prensa: puesto 159 de 180</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 10</span><span class="stamp">Ministro de soborno</span></header><h3>El negocio de familia</h3>
+          <p>El yerno de Erdoğan, Berat Albayrak, recibió primero el ministerio de energía y luego toda la economía — currículum innecesario, bastó la boda. Después se filtraron 17.000 de sus correos: agencias de PR con identidades falsas, un imperio mediático bajo control familiar. Los reguladores turcos reaccionaron a velocidad récord — para bloquear a los medios que informaban de las filtraciones. Albayrak dimitió «por razones de salud» vía Instagram tras el desplome de la lira. La salud de la familia mejoró. Mientras tanto: un palacio de 1.150 habitaciones para el pueblo, por 615 M$.</p>
+          <ul class="record">
+            <li>El yerno: ministro de energía y luego de toda la economía — por matrimonio</li>
+            <li>17.000 correos filtrados: agencias de prensa negra, control mediático</li>
+            <li>Reguladores bloquearon la información sobre las filtraciones</li>
+            <li>Dimitió «por razones de salud» — anunciado por Instagram</li>
+            <li>Ak Saray: 1.150 habitaciones, ~615 M$ — a cuenta del pueblo</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- ES · EPSTEIN -->
+    <div class="panel" data-panel="epstein">
+      <h3 class="tab-head">Los archivos Epstein.</h3>
+      <p class="tab-sub">El mayor encubrimiento de la historia de la humanidad — a plena luz del día, apostando a nuestra capacidad de atención. Mala apuesta.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 01</span><span class="stamp">Sin lista (esta semana)</span></header><h3>El memorándum</h3>
+          <p>Febrero de 2025: la fiscal general de EE. UU. dice que la lista de clientes está «sobre mi escritorio». Julio de 2025: el mismo departamento anuncia que no hay lista. Caso cerrado. Un documento viajó del escritorio a la inexistencia en cinco meses. Si te crees eso, también te venderán un puente en Florida — el antiguo barrio de Epstein, por cierto.</p>
+          <ul class="record">
+            <li>Feb 2025: la lista está «sobre mi escritorio» — fiscal general Bondi</li>
+            <li>Jul 2025: no hay lista — memorándum DOJ/FBI</li>
+            <li>La investigación que no encontró nada: cerrada por el mismo gobierno</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 02</span><span class="stamp">En vídeo</span></header><h3>Un tipo genial</h3>
+          <p>Trump, 2002: «Conozco a Jeff desde hace quince años. Un tipo genial. Es muy divertido.» La amistad terminó en 2004 — por una puja inmobiliaria, no por las chicas. Hoy los expedientes son «fake news». La cita está grabada. La cinta, presumiblemente, también es fake news.</p>
+          <ul class="record">
+            <li>2002: la cita, ante la cámara</li>
+            <li>Listas de vuelo: el nombre de Trump, varios vuelos</li>
+            <li>2025: «fake news» — justo cuando los expedientes empezaron a importar</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 03</span><span class="stamp">Censurado</span></header><h3>Las listas de vuelo</h3>
+          <p>El Congreso arrancó páginas en 2025. Lo público son sobre todo barras negras y firmas. El libro de registro es lo bastante real para proteger nombres — «intensamente censurado» cuando duele. Pregúntate por qué la lista de invitados de un muerto necesita más protección de la que nunca tuvieron las víctimas.</p>
+          <ul class="record">
+            <li>Publicado en 2025: parcial, censurado, curado</li>
+            <li>Nombres célebres: censurados o «no verificados» — según convenga</li>
+            <li>Los nombres de las víctimas: filtrados más rápido que cualquier cliente</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 04</span><span class="stamp">20 años</span></header><h3>La única condenada</h3>
+          <p>Ghislaine Maxwell recibió 20 años por traficar con niñas para nadie. Quédate con esa gramática: una red sin clientes. O dirigió la empresa criminal más solitaria de la historia — o la lista de clientes es el único documento que jamás podrás leer.</p>
+          <ul class="record">
+            <li>Condenada en 2021, sentenciada en 2022 — 20 años</li>
+            <li>Clientes nombrados en el juicio: efectivamente cero</li>
+            <li>Su nueva residencia: una cárcel de seguridad mínima — el salario del silencio</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 05</span><span class="stamp">Cámara «rota»</span></header><h3>La celda</h3>
+          <p>Agosto de 2019: el preso más vigilado de América muere solo, bajo una cámara que «se averió», junto a guardias que «se durmieron» y falsificaron los registros — imputados, resuelto en silencio. Quizá fue suicidio. Entonces es la cárcel más incompetente de la historia de EE. UU. En cualquier caso, los expedientes sobrevivieron — y son los que esconden ahora.</p>
+          <ul class="record">
+            <li>Dos cámaras fallaron esa noche</li>
+            <li>Los guardias falsificaron registros — imputados, resuelto suavemente</li>
+            <li>Autopsia: suicidio. Su propio perito lo negó.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 06</span><span class="stamp">Abril 2025</span></header><h3>Virginia Giuffre</h3>
+          <p>Reclutada a los 16 — desde el Mar-a-Lago, el club del propio Trump. Quince años ante los tribunales intentando que los poderosos dijeran nombres en voz alta. Murió por suicidio en abril de 2025, aún esperando la lista. La testigo principal se quedó sin tiempo. Los hombres siguen siendo «fake news». Lee esto hasta que te dé rabia.</p>
+          <ul class="record">
+            <li>Traficada a los 16 — reclutada desde su club</li>
+            <li>15 años de testimonios, declaraciones y demandas</li>
+            <li>Murió en abril de 2025 — las respuestas siguen selladas</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 07</span><span class="stamp">Siempre funciona</span></header><h3>El manual</h3>
+          <p>Perder las pruebas. Desacreditar a las chicas — otra vez: chicas, en plural, adolescentes. Censurar el resto. Llamarlo vieja noticia mientras retienes la vieja noticia. Funcionó durante décadas antes de Epstein y funciona ahora mismo. El antídoto no es un hashtag. Es no dejar terminar la frase.</p>
+          <ul class="record">
+            <li>Censurar, retrasar, negar — en rotación desde los noventa</li>
+            <li>Víctimas difamadas como cazafortunas — por hombres en listas de vuelo</li>
+            <li>«Nada que ver aquí» — ¿entonces por qué está todo clasificado?</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- ES · CLASE PATRONAL -->
+    <div class="panel" data-panel="boss">
+      <h3 class="tab-head">La clase patronal.</h3>
+      <p class="tab-sub">Explotar trabajadores es la entrada. El verdadero producto es la impunidad: multas por suscripción, vidas más baratas que un bote de pintura, esposas que nunca llegan.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 01</span><span class="stamp">Fraude pactado</span></header><h3>Elon Musk</h3>
+          <p>Un solo tuit — «funding secured» — le costó 40 M$ y a los inversores miles de millones. Sus fábricas pagaron veredictos por acoso racial. Sus reguladores abren expedientes de muertes del Autopilot como quien abre neveras. El hombre más rico del mundo, demandado en cientos de casos, ni un día en la cárcel. ¿Las probabilidades? Las probabilidades son un presupuesto de cabildeo.</p>
+          <ul class="record">
+            <li>Acuerdo con la SEC por fraude — 40 M$, 2018</li>
+            <li>NLRB: reiteradamente condenado por violar la legislación laboral</li>
+            <li>Veredictos por acoso racial en plantas de Tesla</li>
+            <li>Cobalto y minería infantil: la demanda murió por un tecnicismo</li>
+            <li>Muertes del Autopilot: investigaciones, acuerdos, cero rendición de cuentas</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 02</span><span class="stamp">Sabido desde 2019</span></header><h3>Mark Zuckerberg</h3>
+          <p>Sus propios investigadores descubrieron que Instagram empeora la imagen corporal de una de cada tres adolescentes. Las diapositivas existían. El algoritmo se envió igual. Ahora pide perdón a los padres en el Congreso una vez al año — como otros dejan propina.</p>
+          <ul class="record">
+            <li>Multa de 5.000 M$ de la FTC — Cambridge Analytica</li>
+            <li>Acuerdo de 725 M$ — el mayor pago por privacidad de la historia</li>
+            <li>Demandado por 41 estados — por daños a menores</li>
+            <li>Investigación interna: sabido desde 2019, negado en público, enviado igual</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 03</span><span class="stamp">Para perdedores</span></header><h3>Peter Thiel</h3>
+          <p>«La competencia es para perdedores» — sus palabras. Así que dejó de competir: financió la demanda que mató a Gawker, compró un senador como quien compra una startup y construyó Palantir — la base de datos con la que ICE encuentra personas. Nunca gana elecciones. No las necesita.</p>
+          <ul class="record">
+            <li>Gawker: destruido por una demanda que financió en secreto</li>
+            <li>Palantir: el software bajo deportaciones y redadas fronterizas</li>
+            <li>Un escaño al Senado por 15 M$ — la corona más barata de la historia</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 04</span><span class="stamp">~16.000 $</span></header><h3>El precio de una vida</h3>
+          <p>En EE. UU., la multa típica por mutilar o matar a un trabajador: unos 16.000 $. Un bote de pintura normal cuesta más que una muerte evitable. El robo de salarios — jefes que simplemente no pagan lo que deben — quita a los trabajadores cada año más que todos los atracos callejeros juntos. Todo legal. Todo diseñado.</p>
+          <ul class="record">
+            <li>Multa media de la OSHA por violación grave: ~16.000 $</li>
+            <li>Robo de salarios: ~15.000 M$/año — más que todos los robos</li>
+            <li>~5.000 muertos en el trabajo al año — juicios raros, multas menores</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 05</span><span class="stamp">Demasiado grande para la cárcel</span></header><h3>Impunidad S.A.</h3>
+          <p>2008: el crash desahució a diez millones de estadounidenses. Cárcel para los arquitectos: funcionalmente un hombre. Rana Plaza: 1.134 costureras aplastadas en un edificio cuyas grietas conocían las marcas. Las marcas occidentales pagaron. En acuerdos. Nadie voló a casa con esposas. La multa no es un castigo — es una suscripción.</p>
+          <ul class="record">
+            <li>2008: funcionalmente cero banqueros presos</li>
+            <li>Rana Plaza, 2013: 1.134 muertos — acuerdos, ninguna condena</li>
+            <li>El patrón: el delito presupuestado, la cárcel fuera del presupuesto</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 06</span><span class="stamp">Explotados</span></header><h3>La mesa de los niños</h3>
+          <p>Aman a los niños — como mercado. Algoritmos afinados para la adicción, feeds que miden la tristeza en minutos, cadenas de suministro con manos de doce años en el cobalto. Cuando esos niños crezcan y se organicen, será «adoctrinamiento». Cuando huelguen, será «ingratitud».</p>
+          <ul class="record">
+            <li>Documentos internos: la atención infantil es el producto</li>
+            <li>Minas de cobalto: niños en la cadena — demandas muertas por procedimiento</li>
+            <li>La generación minada les sobrevivirá. Ese es el fallo del plan.</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- ES · INT FASCISTA -->
+    <div class="panel" data-panel="fasc">
+      <h3 class="tab-head">La internacional fascista.</h3>
+      <p class="tab-sub">Mismos poemas, otros acentos. Se reúnen en las mismas cumbres, alaban a los mismos strongmen, pierden en los mismos tribunales — y lo llaman persecución.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 01</span><span class="stamp">Illiberal™</span></header><h3>Viktor Orbán</h3>
+          <p>«Democracia iliberal» — su frase, lo más honesto que ha dicho cualquiera de ellos. Sus elecciones son como sus fondos europeos: técnicamente existen. Mientras tanto, el dinero fluye a los periódicos que saludan.</p>
+          <ul class="record">
+            <li>«Democracia iliberal» — proclamada en 2014</li>
+            <li>Cientos de medios absorbidos en un solo bloque — KESMA, 2018</li>
+            <li>Observadores electorales: ninguno — los árbitros no se invitan</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 02</span><span class="stamp">En rebranding</span></header><h3>Giorgia Meloni</h3>
+          <p>«Dios, patria, familia» — una consigna con pedigrí. Su partido lleva la llama del MSI, los herederos de Mussolini, en el logo hasta hoy. «Posfascista» está haciendo un trabajo enorme. Sonríe más que los demás; el temario es el mismo.</p>
+          <ul class="record">
+            <li>La llama del MSI — herederos de Mussolini — aún en el logo</li>
+            <li>«Posfascista»: el «pos» carga con todo el peso</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 03</span><span class="stamp">Absuelto</span></header><h3>Geert Wilders</h3>
+          <p>El único al que un tribunal absolvió — y aun así monta persecución a diario. «Menos, menos, menos» marroquíes, coreaba; el tribunal lo dejó ir; vive bajo protección policial permanente. Imagínate necesitar escolta para tu libertad de expresión — y quemarla en odio.</p>
+          <ul class="record">
+            <li>2011 y 2016: dos absoluciones — su dato favorito</li>
+            <li>«Menos, menos, menos» — la coreada, en cámara</li>
+            <li>Protección permanente desde 2004 — libertad de expresión, con escolta</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 04</span><span class="stamp">Pagado en Austria</span></header><h3>El club de donantes</h3>
+          <p>El partido de las cañas, los barriles y del «hombrecito olvidado» acaba de embolsarse la mayor donación de su historia: 2,35 M€ de Hans Christian Limbach — vinculado al movimiento Identitario austriaco, la rama juvenil de moda de la extrema derecha. ¿Y cuando el dinero se volvió incómodo de declarar? Lo trocearon en plazos a lo largo de años — señalado por la administración del Bundestag como sospecha de evasión de las normas de transparencia. De base, lo llaman ellos. Del extranjero, lo llamamos nosotros.</p>
+          <ul class="record">
+            <li>2,35 M€ — la mayor donación de su historia — entorno identitario</li>
+            <li>Troceada en plazos para esquivar la declaración — señalada por el Bundestag</li>
+            <li>«Hombre del pueblo» — financiado por millonarios extranjeros</li>
+          </ul></article>
+      </div>
+    </div>
+
+    <!-- ES · EL PLAN -->
+    <div class="panel" data-panel="plan">
+      <h3 class="tab-head">El plan.</h3>
+      <p class="tab-sub">No tienes que creernos. Lo publicaron — 922 páginas, con prólogo. Dinero → mandato → evangelio → máquina. Léelo en ese orden y nada de lo que hagan volverá a sorprenderte.</p>
+
+      <h4 class="cluster-head">I · El dinero</h4>
+      <p class="tab-sub">El fascismo nunca se ha pagado solo. Tiene mecenas.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 01</span><span class="stamp">Mecenas del año</span></header><h3>Elon Musk</h3>
+          <p>El hombre más rico del mundo fue de compras por un gobierno y encontró uno. Luego les dijo a los alemanes que «solo la AfD puede salvar a Alemania», dio el discurso principal por vídeo en su mitin y sermonizó al país sobre su obsesión con el pasado. Un alemán con este pasatiempo estaría bajo vigilancia. Él es donante.</p>
+          <ul class="record">
+            <li>Más de 250 M$ — su gasto electoral en EE. UU. en 2024</li>
+            <li>Apoyo a la AfD + vídeo en el mitin de Halle, enero 2025</li>
+            <li>Dirigió DOGE con acceso a sistemas de pagos y datos — mientras sus empresas tenían ~38.000 M$ en contratos federales</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 02</span><span class="stamp">Sus palabras, 2009</span></header><h3>Peter Thiel</h3>
+          <p>«Ya no creo que la libertad y la democracia sean compatibles.» Lo escribió en 2009 y llevó quince años demostrándose que tenía razón: compró un senador por 15 M$, que acabó siendo vicepresidente; financió en secreto la demanda que quebró un periódico; costeó los filósofos del movimiento del «CEO-rey». Y fundó la máquina del capítulo IV.</p>
+          <ul class="record">
+            <li>2009: la cita, en su propio ensayo</li>
+            <li>15 M$ → JD Vance: Senado, luego vicepresidencia</li>
+            <li>Gawker: destruido tras una demanda que escondió</li>
+            <li>Palantir: su empresa, su brazo ejecutor</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 03</span><span class="stamp">Dicho en voz alta</span></header><h3>JD Vance</h3>
+          <p>2021, ante la cámara: despide a todos los funcionarios el primer día, reemplázalos «con gente nuestra» y cuando los tribunales se opongan, canaliza a Andrew Jackson — «El presidente del Tribunal Supremo ha dictado sentencia. Que la haga cumplir él.» La frase probablemente nunca la dijo Jackson. Por supuesto. Hasta su historia es fake.</p>
+          <ul class="record">
+            <li>La cita de 2021, en un pódcast — no filtrada, emitida</li>
+            <li>Los 15 M$ de Thiel lo hicieron senador; tres años después, vicepresidente</li>
+            <li>El puente entre la «ilustración oscura» y el poder ejecutivo</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 04</span><span class="stamp">Coleccionistas</span></header><h3>Los coleccionistas</h3>
+          <p>Harlan Crow: veinte años de lujosos regalos sin declarar a un magistrado del Tribunal Supremo — y un museo privado con cuadros de Hitler y estatuas de tiranos. Richard Uihlein: la fortuna del embalaje como cajero automático de los negacionistas electorales. Timothy Mellon: el mayor donante individual de 2024, ~150 M$ — semanas después de la condena por sobornos silenciosos. Sus memorias llaman a la Seguridad Social «esclavitud redux». Coleccionan jueces, elecciones y agravios.</p>
+          <ul class="record">
+            <li>Crow → Thomas: jets, regalos, décadas (ProPublica)</li>
+            <li>Uihlein: decenas de millones para quienes se negaron a certificar</li>
+            <li>Mellon: 150 M$ a MAGA Inc. — tras la condena</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">II · El mandato</h4>
+      <p class="tab-sub">Nadie lee la letra pequeña. Ese era el truco. Aquí está la letra pequeña.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 05</span><span class="stamp">922 páginas</span></header><h3>El libro que escribieron sobre ti</h3>
+          <p>«Mandate for Leadership» — Heritage Foundation, abril de 2023. Trump, julio de 2024: «No sé nada del Proyecto 2025.» Luego contrató a sus autores: Vought al presupuesto, Homan como zar de fronteras, Ratcliffe a la CIA, Carr a la FCC. Los rastreadores independientes: casi la mitad del programa ejecutado en un año. No sabía nada. Todo hecho.</p>
+          <ul class="record">
+            <li>922 páginas, publicadas un año antes de las elecciones</li>
+            <li>«No sé nada del Proyecto 2025» — y luego la lista de personal</li>
+            <li>~50 % ejecutado a mediados de 2025, según rastreadores</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 06</span><span class="stamp">Día uno</span></header><h3>La purga</h3>
+          <p>Schedule F: reclasificar ~50.000 empleos federales para poder despedirlos como a personal de cafetería. Cuestionarios de lealtad. Diecisiete inspectores generales despedidos un viernes por la noche. Cúpula del FBI expulsada, fiscales del 6 de enero despedidos. El Estado no se reduce. Se captura — para exactamente lo del capítulo IV.</p>
+          <ul class="record">
+            <li>Resurrección del Schedule F — firmado en enero de 2025</li>
+            <li>17 inspectores generales — despedidos de noche</li>
+            <li>Cuestionarios de lealtad en la OPM, purgas en FBI y DOJ</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 07</span><span class="stamp">Ensayo general</span></header><h3>El banco de pruebas</h3>
+          <p>Una ley de guerra de 1798, desempolvada para migrantes. Hombres enviados al CECOT de El Salvador — una cárcel de tortura, según todos los organismos de derechos humanos — sin juicio, por millones en cuotas. El Tribunal Supremo dictaminó por 9-0 que esto requiere debido proceso. Abrego Garcia, deportado «por error» según su propia admisión, volvió con esposas. Primero los extranjeros. Luego el procedimiento. Luego tú.</p>
+          <ul class="record">
+            <li>Alien Enemies Act invocado, marzo de 2025</li>
+            <li>Deportaciones al CECOT — sin audiencias, pagando por cabeza</li>
+            <li>Tribunal Supremo 9-0: paren. Siguieron probando.</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 08</span><span class="stamp">Por las buenas</span></header><h3>El silenciamiento</h3>
+          <p>Radiodifusión pública: tachada, 1.100 M$. El presidente de la FCC amenaza a las emisoras — «por las buenas o por las malas» — y días después suspenden a un presentador nocturno. Harvard pierde su exención fiscal, la primera universidad en la historia de EE. UU., por negarse a obedecer. Columbia: 400 M$ evaporados. Esto era «libertad de expresión» desde el principio: la suya, impuesta sobre la tuya.</p>
+          <ul class="record">
+            <li>1.100 M$ recortados a los medios públicos, julio de 2025</li>
+            <li>La frase de la FCC, ante la cámara; la suspensión llegó después</li>
+            <li>Harvard: estatus fiscal revocado — una primicia</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 09</span><span class="stamp">Para siempre</span></header><h3>La consolidación</h3>
+          <p>Agencias independientes puestas bajo control de la Casa Blanca. Impoundment: negarse a gastar lo aprobado por el Congreso. La ley Comstock de 1873 de vuelta a la mesa — para prohibir las píldoras abortivas sin votación. «Dos sexos» como ley de pasaportes. Las elecciones siguen celebrándose; sus resultados dejan de importar. Ese es el meollo: el modelo húngaro, con papeleo.</p>
+          <ul class="record">
+            <li>EO de febrero de 2025: las agencias responden a la Casa Blanca</li>
+            <li>Ley Comstock (1873) — resucitada en el mandato</li>
+            <li>El estado final: oposición legal, impotente, decorativa</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">III · El evangelio</h4>
+      <p class="tab-sub">Nada de esto funciona como política. Funciona como apocalipsis. Esto no es un ataque a la fe — es desenmascarar un robo con abrigo de fe.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 10</span><span class="stamp">Ungido</span></header><h3>El rey elegido</h3>
+          <p>Sus pastores lo coronaron Ciro — el rey pagano que Dios usó sin que este lo supiera. Tras el atentado de Butler: «Solo Dios evitó lo impensable.» Una Oficina de Fe funciona ahora desde la Casa Blanca bajo un pastor de la prosperidad. La función es simple: un rey no puede ser condenado. Treinta y cuatro delitos graves se convierten en «persecución». Un rey no puede perder — las elecciones solo se le roban a él.</p>
+          <ul class="record">
+            <li>La unción de «Ciro» — estándar en su corte carismática</li>
+            <li>«Solo Dios» — su propio mensaje, julio de 2024</li>
+            <li>Oficina de Fe, creada en febrero de 2025</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 11</span><span class="stamp">Siete cumbres</span></header><h3>Las montañas</h3>
+          <p>Su teología tiene un diagrama de flujo: conquistar las «siete montañas» — gobierno, educación, medios, empresa, familia, iglesia, artes. Vuelve a leer el Proyecto 2025 con esa lista en la mano. Son las montañas en prosa burocrática. Ministerio de Educación, capítulo dos. Control de medios, capítulo ocho. No es una conspiración. Es un temario.</p>
+          <ul class="record">
+            <li>El Mandato de las Siete Montañas — su propia doctrina publicada</li>
+            <li>Los capítulos del mandato calcan las montañas, una a una</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 12</span><span class="stamp">El trueque</span></header><h3>¿Quién es el Anticristo aquí?</h3>
+          <p>He aquí el logro teológico: el hombre fuerte encaja mejor en la lista clásica del fin de los tiempos que sus críticos — la lengua mentirosa, la adoración del poder, las multitudes gritando «es un dios». Incómodo. Así que el movimiento hizo una transferencia: el Anticristo es ahora quien resiste al ungido. Los opositores no están equivocados: están poseídos — y con los demonios no se debate, se expulsa. Esa es la licencia bajo cada norma que han roto. La iglesia estatal de Putin bendice la misma guerra. Orbán envuelve el mismo pacto en «libertad cristiana». El mismo evangelio, exportado.</p>
+          <ul class="record">
+            <li>«Muchos anticristos» — 1 Juan — su versículo favorito, invertido</li>
+            <li>Mítines con gramática de exorcismo: mal, no oposición</li>
+            <li>El producto de la teología: un permiso para todo</li>
+          </ul></article>
+      </div>
+
+      <h4 class="cluster-head">IV · La máquina</h4>
+      <p class="tab-sub">Una religión del rey ungido necesita infraestructura. La compraron en el catálogo.</p>
+      <div class="grid">
+        <article class="card"><header><span class="cf">EXPEDIENTE 13</span><span class="stamp">Marca honesta</span></header><h3>Palantír, S.A.</h3>
+          <p>En Tolkien, un palantír es una piedra vidente — la herramienta que Sauron usó para espiar la Tierra Media y doblegar a sus líderes. El nombre lo eligieron ellos. Por fin, branding honesto. Fundada en 2003 con capital inicial de la CIA; hoy vende puntería con IA al Pentágono y caza de migrantes a las agencias fronterizas. La misma empresa en los dos extremos del arma.</p>
+          <ul class="record">
+            <li>Capital inicial: In-Q-Tel — el brazo de capital riesgo de la CIA</li>
+            <li>Contratos Maven de puntería con IA: cientos de millones</li>
+            <li>El nombre: el hardware de vigilancia de Sauron</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 14</span><span class="stamp">30 M$, 2025</span></header><h3>ImmigrationOS</h3>
+          <p>El software de Palantir opera las redadas y listas de objetivos de ICE desde al menos 2019 — incluida la separación familiar. En abril de 2025, el DHS pagó 30 M$ por «ImmigrationOS»: la capa de rastreo del mayor programa de deportación de la historia estadounidense. El mandato del capítulo II es la intención. Esto es el encendido.</p>
+          <ul class="record">
+            <li>Sistemas de ICE: construidos por Palantir — documentado desde 2019</li>
+            <li>Contrato de ImmigrationOS, abril de 2025</li>
+            <li>Objetivo según el contrato: rastrear deportaciones «de punta a punta»</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 15</span><span class="stamp">Una consulta = una vida</span></header><h3>La base de datos maestra</h3>
+          <p>Marzo de 2025: una orden ejecutiva ordena a cada agencia romper sus «silos de información». Desde entonces: ingenieros de Palantir en el IRS, datos fiscales mezclados con la Seguridad Social, datos de salud, expedientes migratorios. Los periodistas lo llaman la trama de control maestro — una consulta, una vida entera, rastreable por el personal de un contratista sin rendición de cuentas. Tu gobierno ahora te conoce mejor que tu familia. Y tiene presupuesto de deportación.</p>
+          <ul class="record">
+            <li>EO «eliminación de silos de información», marzo de 2025</li>
+            <li>Acuerdo de acceso a datos del IRS — Palantir dentro de hacienda</li>
+            <li>El embudo: SSA, HHS, DHS — un solo panel</li>
+          </ul></article>
+        <article class="card"><header><span class="cf">EXPEDIENTE 16</span><span class="stamp">El expediente se escribe solo</span></header><h3>Stasi 2.0</h3>
+          <p>La RDA necesitó 91.000 oficiales y ~190.000 informantes para vigilar a 16 millones de personas — décadas, archivadores, papel carbón. Ellos reemplazaron todo con una API. En el viejo mundo temías que tu expediente existiera en algún sitio. En el nuevo, el expediente se escribe solo, de forma continua, y el acceso se vende por suscripción. No hace falta teoría conspirativa — la cita de Thiel, la de Vance y un libro de 922 páginas lo dicen a plena luz.</p>
+          <ul class="record">
+            <li>Stasi: 91.000 funcionarios, ~190.000 informantes, 16 M de ciudadanos</li>
+            <li>Palantir: nube, IA, un contratista, sin necesidad de elecciones</li>
+            <li>Publicaron el plan. Lo leímos. Esa es toda la diferencia.</li>
+          </ul></article>
+      </div>
+      <p class="tab-sub" style="margin-top:2rem">Esto no es una teoría. Es un calendario de entregas.</p>
     </div>
   </section>
 
   <section>
     <h2 class="sec-title"><span class="num">03</span> Diccionario del poder <span style="font-family:'Space Mono';font-size:.8rem">(traducciones)</span></h2>
-    <p class="sec-intro">Sus palabras, traducidas gratis.</p>
     <div class="table-wrap">
     <table>
       <tr><th>Ellos dicen</th><th>Significa</th></tr>
@@ -445,6 +1526,16 @@ footer strong{font-family:'Archivo Black',sans-serif;display:block;margin-bottom
   var saved = null;
   try{ saved = localStorage.getItem('pbp-lang'); }catch(e){}
   setLang(saved || 'en');
+
+  document.querySelectorAll('[data-tabs]').forEach(function(bar){
+    var scope = bar.closest('section');
+    bar.querySelectorAll('.tab-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        bar.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.toggle('active', b === btn); });
+        scope.querySelectorAll('.panel').forEach(function(p){ p.classList.toggle('active', p.dataset.panel === btn.dataset.tab); });
+      });
+    });
+  });
 
   document.querySelectorAll('.join-form').forEach(function(f){
     f.addEventListener('submit', function(e){
